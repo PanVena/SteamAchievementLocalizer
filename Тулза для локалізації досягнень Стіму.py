@@ -2,7 +2,6 @@ import sys
 import csv
 import re
 import binascii
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox
@@ -63,7 +62,6 @@ class BinParserGUI(QWidget):
         self.resize(1000, 650)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
-        self.setWindowIcon(QIcon("icon.ico"))
         # --- Вибір теки Steam ---
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_label = QLabel("Тека Стіму(якщо маєте її де-інде оберіть її):")
