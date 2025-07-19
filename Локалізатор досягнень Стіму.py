@@ -58,7 +58,7 @@ def extract_values(chunk: bytes, words: list):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Тулза для локалізації досягнень Стіму від Вени ver 0.000.00000.00000.000000001')
+        self.setWindowTitle('Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000001')
         self.resize(1000, 650)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
