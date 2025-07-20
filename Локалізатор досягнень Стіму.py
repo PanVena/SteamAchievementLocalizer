@@ -4,7 +4,8 @@ import re
 import os
 import binascii
 import subprocess
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QColor, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox
@@ -117,6 +118,19 @@ class BinParserGUI(QWidget):
         lang_layout.addWidget(self.context_lang_combo)
         self.layout.addLayout(lang_layout)
         
+        #Пошук
+        self.headers = []  
+        search_layout = QHBoxLayout()
+        self.search_column_combo = QComboBox()
+        self.search_column_combo.addItems([h for h in self.headers if h != 'key'])  # після ініціалізації headers
+        search_layout.addWidget(QLabel("Пошук у стовпці:"))
+        search_layout.addWidget(self.search_column_combo)
+        self.search_line = QLineEdit()
+        self.search_line.setPlaceholderText("Пошук слова в стовпці")
+        self.search_line.textChanged.connect(self.search_in_table)
+        search_layout.addWidget(self.search_line)
+        self.layout.addLayout(search_layout)
+        
         #Збереження
         btn_layout_2 = QHBoxLayout()
         self.save_bin_unknow_btn = QPushButton("Зберегти бінарник у теці Стіму") 
@@ -225,6 +239,7 @@ class BinParserGUI(QWidget):
             for col_i, col_name in enumerate(all_columns, start=1):
                 self.table.setItem(row_i, col_i, QTableWidgetItem(row.get(col_name, '')))
         self.fill_context_lang_combo()
+        self.update_search_column_combo()
         QMessageBox.information(self, "Успіх", f"Завантажено {len(all_rows)} записів")
     def fill_context_lang_combo(self):
         if not self.headers:
@@ -448,6 +463,44 @@ class BinParserGUI(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
 
+    def search_in_table(self, text):
+        col_name = self.search_column_combo.currentText()
+        try:
+            col_index = self.headers.index(col_name)
+        except ValueError:
+            return
+
+        search_text = text.strip().lower()
+
+        # Скидаємо фон і показуємо всі рядки спочатку (лише у вибраному стовпці!)
+        for row in range(self.table.rowCount()):
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item:
+                    item.setBackground(QBrush())
+            self.table.setRowHidden(row, False)
+
+        # Пошук і підсвічування
+        if not search_text:
+            return  # Якщо поле пошуку порожнє, нічого не виділяємо
+
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, col_index)
+            if item and item.text().strip():
+                if search_text in item.text().lower():
+                    item.setBackground(QBrush(QColor("gray")))  # або інший пастельний колір
+                    self.table.setRowHidden(row, False)
+                else:
+                    self.table.setRowHidden(row, True)
+            else:
+                self.table.setRowHidden(row, True)
+                
+    def update_search_column_combo(self):
+        self.search_column_combo.clear()
+        self.search_column_combo.addItems([h for h in self.headers if h != 'key'])
+        
+        
+        
 def main():
     app = QApplication(sys.argv)
     window = BinParserGUI()
