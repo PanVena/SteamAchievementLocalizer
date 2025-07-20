@@ -1,7 +1,10 @@
 import sys
 import csv
 import re
+import os
 import binascii
+import subprocess
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox
@@ -55,13 +58,20 @@ def extract_values(chunk: bytes, words: list):
         values.append(val)
         pos = end_idx + 1
     return values
+    
+def resource_path(relative_path):
+    """Дозволяє знайти шлях до ресурсів як у .py, так і у .exe"""
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
+
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000001')
-        self.resize(1000, 650)
+        self.resize(1000, 1000)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
+        self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         # --- Вибір теки Steam ---
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_label = QLabel("Тека Стіму(якщо маєте її де-інде оберіть її):")
@@ -85,12 +95,15 @@ class BinParserGUI(QWidget):
         self.layout.addLayout(game_id_layout)
         # Кнопки експорту/імпорту CSV
         btn_layout = QHBoxLayout()
+        self.export_bin_btn = QPushButton('Бінарник у натуральному середовищі')
+        self.export_bin_btn.clicked.connect(self.export_bin)
         self.export_all_btn = QPushButton('Експорт CSV (усе шо є)')
         self.export_all_btn.clicked.connect(self.export_csv_all)
         self.export_for_translate_btn = QPushButton('Експорт CSV (англійська і вибрана мова контексту)')
         self.export_for_translate_btn.clicked.connect(self.export_csv_for_translate)
         self.import_btn = QPushButton('Імпорт CSV з вашим перекладом')
         self.import_btn.clicked.connect(self.import_csv)
+        btn_layout.addWidget(self.export_bin_btn)
         btn_layout.addWidget(self.export_all_btn)
         btn_layout.addWidget(self.export_for_translate_btn)
         btn_layout.addWidget(self.import_btn)
@@ -98,11 +111,23 @@ class BinParserGUI(QWidget):
         
         # Вибір мови контексту
         lang_layout = QHBoxLayout()
-        lang_layout.addWidget(QLabel("В разі питань, tg:\n@Pan_Vena\nУ разі вдячності:\n4441 1111 2623 3299"))
+        lang_layout.addWidget(QLabel("В разі питань, тґ:\n@Pan_Vena\nУ разі вдячності:\n4441 1111 2623 3299"))
         lang_layout.addWidget(QLabel("Вибір мови:\n*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі\n*А так загалом вибирайте english)"))
         self.context_lang_combo = QComboBox()
         lang_layout.addWidget(self.context_lang_combo)
         self.layout.addLayout(lang_layout)
+        
+        #Збереження
+        btn_layout_2 = QHBoxLayout()
+        self.save_bin_unknow_btn = QPushButton("Зберегти бінарник у теці Стіму") 
+        self.save_bin_unknow_btn.clicked.connect(self.save_bin_unknow) 
+        self.save_bin_know_btn = QPushButton("Зберегти бінарник для себе") 
+        self.save_bin_know_btn.clicked.connect(self.save_bin_know)
+        btn_layout_2.addWidget(self.save_bin_know_btn)
+        btn_layout_2.addWidget(self.save_bin_unknow_btn)
+        self.layout.addLayout(btn_layout_2)
+                
+        
         # Таблиця з даними
         self.table = QTableWidget()
         self.table.itemChanged.connect(self.on_table_item_changed)
@@ -115,10 +140,6 @@ class BinParserGUI(QWidget):
         self.chunks = []
         
         
-        self.print_column_btn = QPushButton("Зберегти бінарник у теці Стіму та для себе")
-        self.print_column_btn.clicked.connect(self.print_selected_column)
-        self.layout.addWidget(self.print_column_btn)
-        self.print_column_btn.clicked.connect(self.replace_english_in_bin)
     def game_id(self):
         text = self.game_id_edit.text().strip()
 
@@ -362,22 +383,19 @@ class BinParserGUI(QWidget):
             print("Файл не знайдено:", file_path)
             return
 
+
   # Заміна значень
-        markers = [b'\x01english\x00', b'\x01russian\x00']
+        marker = b'\x01english\x00'
         output = bytearray()
         i = 0
         v_idx = 0  # індекс значення з таблиці
-        current_value = ''  # поточне значення для english/russian пари
 
         while i < len(data):
-            next_indices = [(data.find(marker, i), marker) for marker in markers]
-            next_indices = [(idx, marker) for idx, marker in next_indices if idx != -1]
-
-            if not next_indices:
+            idx = data.find(marker, i)
+            if idx == -1:
                 output.extend(data[i:])
                 break
 
-            idx, marker = min(next_indices, key=lambda x: x[0])
             output.extend(data[i:idx + len(marker)])
             i = idx + len(marker)
 
@@ -388,19 +406,32 @@ class BinParserGUI(QWidget):
 
             i = end + 1  # пропускаємо старий рядок
 
-            # Якщо це english — беремо нове значення з таблиці
-            if marker == b'\x01english\x00':
-                current_value = values[v_idx] if v_idx < len(values) else ''
-                v_idx += 1
+            # Отримуємо нове значення
+            new_val = values[v_idx] if v_idx < len(values) else ''
+            output.extend(new_val.encode("utf-8") + b'\x00')
+            v_idx += 1
 
-            # Вставляємо однакове значення для обох мов
-            output.extend(current_value.encode("utf-8") + b'\x00')
 
-        # Збереження нового файлу
-        with open(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin", "wb") as f:
-            f.write(output)
+        
+        return output
+        
+        
+
+    def export_bin(self):
+        filepath = os.path.abspath(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin")
+        subprocess.run(f'explorer /select,"{filepath}"')
+        
+        
+  
+    def save_bin_unknow(self):
+        datas = self.replace_english_in_bin()
+        with open(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin", "wb") as f: 
+            f.write(datas)
+        QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")    
+        
             
-    # 🔽 Діалог збереження
+  
+    def save_bin_know(self):
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Зберегти змінений файл",
@@ -410,15 +441,12 @@ class BinParserGUI(QWidget):
 
         if save_path:
             try:
+                datas = self.replace_english_in_bin()
                 with open(save_path, "wb") as f:
-                    f.write(output)
+                    f.write(datas)
                 QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
-
-        print("Файл збережено")
-
-
 
 def main():
     app = QApplication(sys.argv)
