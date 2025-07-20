@@ -28,4 +28,4 @@
 Подякувати можна <a href="https://send.monobank.ua/jar/47ipoRVJAk">  ТУТОНЬКИ </a>
  
 
-У посібничках до українізаторів кажемо що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.
+<p><strong><i>У посібничках до українізаторів кажемо що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.</i></strong></p>
