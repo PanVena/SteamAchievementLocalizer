@@ -68,7 +68,7 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000002')
+        self.setWindowTitle('Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000003')
         self.resize(1000, 1000)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
