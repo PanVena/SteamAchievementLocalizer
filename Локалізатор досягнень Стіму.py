@@ -113,9 +113,14 @@ class BinParserGUI(QWidget):
         # Вибір мови контексту
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(QLabel("В разі питань, тґ:\n@Pan_Vena\nУ разі вдячності:\n4441 1111 2623 3299"))
-        lang_layout.addWidget(QLabel("Вибір мови:\n*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі\n*А так загалом вибирайте english)"))
+        lang_layout.addWidget(QLabel("Вибір мови:"))
         self.context_lang_combo = QComboBox()
         lang_layout.addWidget(self.context_lang_combo)
+        lang_layout.addWidget(QLabel(
+            "*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі<br>"
+            "*Для імпорту оберіть english (воно впливає)<br>"
+            "<b>*При збереженні бінарника впевніться, що вибрано english,<br>якщо звісно ви не хочете іншої мови замість української</b>"
+        ))
         self.layout.addLayout(lang_layout)
         
         #Пошук
@@ -226,7 +231,12 @@ class BinParserGUI(QWidget):
                 for col in r.keys():
                     if col != 'key':
                         all_columns.add(col)
-        all_columns = sorted(all_columns)
+        all_columns = list(all_columns)
+        if 'english' in all_columns:
+            all_columns.remove('english')
+            all_columns = ['english'] + sorted(all_columns)
+        else:
+            all_columns = sorted(all_columns)
         headers = ['key'] + all_columns
         self.headers = headers
         self.data_rows = all_rows
@@ -246,8 +256,14 @@ class BinParserGUI(QWidget):
             return
         self.context_lang_combo.clear()
         langs = [h for h in self.headers if h != 'key']
+        if 'english' in langs:
+            langs.remove('english')
+            langs = ['english'] + langs
+        self.context_lang_combo.clear()
         self.context_lang_combo.addItems(langs)
-        if langs:
+        if 'english' in langs:
+            self.context_lang_combo.setCurrentIndex(0)
+        elif langs:
             self.context_lang_combo.setCurrentIndex(0)
     def export_csv_all(self):
         fname, _ = QFileDialog.getSaveFileName(self, 'Зберегти CSV', '', 'CSV Files (*.csv)')
