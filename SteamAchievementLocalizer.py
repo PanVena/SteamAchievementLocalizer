@@ -4,7 +4,7 @@ import re
 import os
 import binascii
 import subprocess
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QColor, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
@@ -73,17 +73,32 @@ class BinParserGUI(QWidget):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
+        
+        self.default_steam_path = r"C:\Program Files (x86)\Steam"
+        self.steam_folder = self.default_steam_path
+        
         # --- Вибір теки Steam ---
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_label = QLabel("Тека Стіму(якщо маєте її де-інде оберіть її):")
         self.steam_folder_path = QLineEdit()
-        self.default_steam_path = r"C:\Program Files (x86)\Steam"
-        self.select_steam_folder_btn = QPushButton("Обрати кореневу теку Стіму")
+        self.steam_folder_path.textChanged.connect(lambda text: (setattr(self, 'steam_folder', text.strip()), self.settings.setValue("UserSteamPath", self.steam_folder)))
+        self.auto_select_steam_path = QPushButton("Обрати кореневу теку Стіму автоматично")
+        self.auto_select_steam_path.clicked.connect(self.detect_steam_path)
+        self.select_steam_folder_btn = QPushButton("Обрати кореневу теку Стіму вручну")
         self.select_steam_folder_btn.clicked.connect(self.select_steam_folder)
         steam_folder_layout.addWidget(self.steam_folder_label)
         steam_folder_layout.addWidget(self.steam_folder_path)
+        steam_folder_layout.addWidget(self.auto_select_steam_path)
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
         self.layout.addLayout(steam_folder_layout)
+        
+        self.settings = QSettings("Steam Achievement Localizer", "Steam Achievement Localizer")
+        if self.settings.value("UserSteamPath"):
+            self.steam_folder_path.setText(self.settings.value("UserSteamPath"))
+        else:
+            self.steam_folder_path.setText(self.default_steam_path)
+            self.settings.setValue("UserSteamPath", self.steam_folder)
+        
         # --- Введення ID гри ---
         game_id_layout = QHBoxLayout()
         self.game_id_label = QLabel("ID гри, або посиланння з крамниці Стім:")
@@ -151,8 +166,6 @@ class BinParserGUI(QWidget):
         self.table = QTableWidget()
         self.table.itemChanged.connect(self.on_table_item_changed)
         self.layout.addWidget(self.table)
-        self.steam_folder_path.setText(self.default_steam_path)
-        self.steam_folder = self.default_steam_path
         self.data_rows = []
         self.headers = []
         self.raw_data = b""
@@ -178,8 +191,7 @@ class BinParserGUI(QWidget):
             self, "Обрати теку Стіму", self.default_steam_path
         )
         if folder:
-            self.steam_folder = folder
-            self.steam_folder_path.setText(folder)
+            self.steam_folder_path.setText(os.path.realpath(folder))
 
     def load_steam_game_stats(self):
         game_id = self.game_id()
@@ -515,6 +527,16 @@ class BinParserGUI(QWidget):
         self.search_column_combo.clear()
         self.search_column_combo.addItems([h for h in self.headers if h != 'key'])
         
+    def detect_steam_path(self):
+        try:
+            import winreg
+            steam_app_path = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam")
+            if steam_app_path:
+                steam_folder_path = os.path.realpath(winreg.QueryValueEx(steam_app_path, "SteamPath")[0])
+                if steam_folder_path != self.steam_folder_path.text():
+                    self.steam_folder_path.setText(steam_folder_path)
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося обрати теку Стіму автоматично:\n{e}")
         
         
 def main():
