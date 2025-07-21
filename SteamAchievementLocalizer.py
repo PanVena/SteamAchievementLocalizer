@@ -81,7 +81,7 @@ class BinParserGUI(QWidget):
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_label = QLabel("Тека Стіму(якщо маєте її де-інде оберіть її):")
         self.steam_folder_path = QLineEdit()
-        self.steam_folder_path.textChanged.connect(lambda text: (setattr(self, 'steam_folder', text), self.settings.setValue("UserSteamPath", self.steam_folder)))
+        self.steam_folder_path.textChanged.connect(lambda text: (setattr(self, 'steam_folder', text.strip()), self.settings.setValue("UserSteamPath", self.steam_folder)))
         self.auto_select_steam_path = QPushButton("Обрати кореневу теку Стіму автоматично")
         self.auto_select_steam_path.clicked.connect(self.detect_steam_path)
         self.select_steam_folder_btn = QPushButton("Обрати кореневу теку Стіму вручну")
