@@ -1,6 +1,6 @@
 🏆 <b>Локалізатор досягнень Steam від Вени</b> — це настільний застосунок на Python + PyQt6, який дозволяє переглядати, експортувати, перекладати й замінювати досягнення у .bin файлах Steam.
 
-<a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/download/Lokalizator_Vena_v4/Lokalizator_vid_Veny.exe">  >>>>ЗАВАНТАЖИТИ<<<< </a>
+<a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest">  >>>>ЗАВАНТАЖИТИ<<<< </a>
 
 💡 Можливості
  - Зчитування .bin файлів Steam з досягненнями (UserGameStatsSchema_XXXX.bin)  
