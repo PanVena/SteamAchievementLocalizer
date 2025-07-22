@@ -68,18 +68,21 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000004')
-        self.resize(1000, 1000)
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000004')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
-        self.default_steam_path = r"C:\Program Files (x86)\Steam"
-        self.steam_folder = self.default_steam_path
+        self.setMinimumSize(800, 600)
+        self.set_window_size()
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        
+        self.steam_folder = ""
+        self.default_steam_path = "C:\\Program Files (x86)\\Steam"
         
         # --- Вибір теки Steam ---
         steam_folder_layout = QHBoxLayout()
-        self.steam_folder_label = QLabel("Тека Стіму(якщо маєте її де-інде оберіть її):")
+        self.steam_folder_label = QLabel("Тека Стіму (якщо маєте її де-інде оберіть її):")
         self.steam_folder_path = QLineEdit()
         self.steam_folder_path.textChanged.connect(lambda text: (setattr(self, 'steam_folder', text.strip()), self.settings.setValue("UserSteamPath", self.steam_folder)))
         self.auto_select_steam_path = QPushButton("Обрати кореневу теку Стіму автоматично")
@@ -92,23 +95,21 @@ class BinParserGUI(QWidget):
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
         self.layout.addLayout(steam_folder_layout)
         
-        self.settings = QSettings("Steam Achievement Localizer", "Steam Achievement Localizer")
-        if self.settings.value("UserSteamPath"):
-            self.steam_folder_path.setText(self.settings.value("UserSteamPath"))
-        else:
-            self.steam_folder_path.setText(self.default_steam_path)
-            self.settings.setValue("UserSteamPath", self.steam_folder)
-        
         # --- Введення ID гри ---
         game_id_layout = QHBoxLayout()
         self.game_id_label = QLabel("ID гри, або посиланння з крамниці Стім:")
         self.game_id_edit = QLineEdit()
-        self.load_game_btn = QPushButton("Шукай ачівки(чи ачивки)!")
+        self.game_id_edit.textChanged.connect(lambda text: self.settings.setValue("LastEnteredID", text))
+        self.load_game_btn = QPushButton("Шукай ачівки (чи ачивки)!")
         self.load_game_btn.clicked.connect(self.load_steam_game_stats)
+        self.clear_game_id = QPushButton("Натисну, бо впадлу прибирати ID самостійно")
+        self.clear_game_id.pressed.connect(lambda: self.game_id_edit.clear())
         game_id_layout.addWidget(self.game_id_label)
         game_id_layout.addWidget(self.game_id_edit)
         game_id_layout.addWidget(self.load_game_btn)
+        game_id_layout.addWidget(self.clear_game_id)
         self.layout.addLayout(game_id_layout)
+
         # Кнопки експорту/імпорту CSV
         btn_layout = QHBoxLayout()
         self.export_bin_btn = QPushButton('Бінарник у натуральному середовищі')
@@ -130,6 +131,8 @@ class BinParserGUI(QWidget):
         lang_layout.addWidget(QLabel("В разі питань, тґ:\n@Pan_Vena\nУ разі вдячності:\n4441 1111 2623 3299"))
         lang_layout.addWidget(QLabel("Вибір мови:"))
         self.context_lang_combo = QComboBox()
+        self.context_lang_combo.setFixedSize(150, 25)
+        self.context_lang_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
         lang_layout.addWidget(self.context_lang_combo)
         lang_layout.addWidget(QLabel(
             "*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі<br>"
@@ -142,6 +145,8 @@ class BinParserGUI(QWidget):
         self.headers = []  
         search_layout = QHBoxLayout()
         self.search_column_combo = QComboBox()
+        self.search_column_combo.setFixedSize(150, 25)
+        self.search_column_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
         self.search_column_combo.addItems([h for h in self.headers if h != 'key'])  # після ініціалізації headers
         search_layout.addWidget(QLabel("Пошук у стовпці:"))
         search_layout.addWidget(self.search_column_combo)
@@ -160,10 +165,12 @@ class BinParserGUI(QWidget):
         btn_layout_2.addWidget(self.save_bin_know_btn)
         btn_layout_2.addWidget(self.save_bin_unknow_btn)
         self.layout.addLayout(btn_layout_2)
-                
-        
+
         # Таблиця з даними
         self.table = QTableWidget()
+        self.table.setSizeAdjustPolicy(QTableWidget.SizeAdjustPolicy.AdjustToContents)
+        self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+        self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.itemChanged.connect(self.on_table_item_changed)
         self.layout.addWidget(self.table)
         self.data_rows = []
@@ -171,6 +178,36 @@ class BinParserGUI(QWidget):
         self.raw_data = b""
         self.chunks = []
         
+        self.settings = QSettings("Steam Achievement Localizer", "Steam Achievement Localizer")
+        self.configs = {
+            self.steam_folder_path: {"key": "UserSteamPath", "default": self.default_steam_path},
+            self.game_id_edit: {"key": "LastEnteredID", "default": ""}
+        }
+        
+        # Лише для QLineEdit
+        for obj, items in self.configs.items():
+            if self.settings.value(items["key"]):
+                obj.setText(self.settings.value(items["key"]))
+            else:
+                obj.setText(items["default"])
+                self.settings.setValue(items["key"], items["default"])
+        
+    def set_window_size(self):
+        screen = QApplication.primaryScreen()
+        geometry = screen.availableGeometry()
+        screen_width = geometry.width()
+        screen_height = geometry.height()
+
+        width = int(screen_width * 0.7)
+        height = int(screen_height * 0.7)
+
+        width = max(width, self.minimumWidth())
+        height = max(height, self.minimumHeight())
+
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        self.setGeometry(x, y, width, height)
         
     def game_id(self):
         text = self.game_id_edit.text().strip()
@@ -188,7 +225,7 @@ class BinParserGUI(QWidget):
                 
     def select_steam_folder(self):
         folder = QFileDialog.getExistingDirectory(
-            self, "Обрати теку Стіму", self.default_steam_path
+            self, "Обрати теку Стіму", self.steam_folder
         )
         if folder:
             self.steam_folder_path.setText(os.path.realpath(folder))
@@ -201,7 +238,7 @@ class BinParserGUI(QWidget):
         if not self.steam_folder:
             QMessageBox.warning(self, "Помилка", "Спочатку оберіть теку Стім")
             return
-        path = f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{game_id}.bin"
+        path = f"{self.steam_folder}\\appcache\\stats\\UserGameStatsSchema_{game_id}.bin"
         try:
             with open(path, "rb") as f:
                 self.raw_data = f.read()
@@ -417,7 +454,7 @@ class BinParserGUI(QWidget):
             values.append(value)
 
         # Шлях до вхідного бінарного файлу
-        file_path = f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin"
+        file_path = f"{self.steam_folder}\\appcache\\stats\\UserGameStatsSchema_{self.game_id()}.bin"
 
         try:
             with open(file_path, "rb") as f:
