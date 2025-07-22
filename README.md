@@ -32,6 +32,10 @@
     <li>Натисни «Зберегти бінарник», щоб замінити файл Steam або зберегти копію для себе</li>
 </ol>
 
+<blockquote>
+   <h2> <p><strong><i>У посібничках до українізаторів кажемо, що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.</i></strong></p></h2>
+</blockquote>
+
 <p><strong>🧯 У разі помилок — видали файл отут і перезапусти стім і зайшовши на сторінку гри у бібліотеці:</strong><br>
 <code>C:\Program Files (x86)\Steam\appcache\stats\UserGameStatsSchema_XXXX.bin</code><br>
 <strong>Або знайшовши його у природному середовищі)</strong></p>
@@ -89,6 +93,4 @@ python SteamAchievementLocalizer.py
 <p><strong>Вена</strong><br>
 <a href="https://github.com/PanVena" target="_blank">GitHub</a> | <a href="https://t.me/Pan_Vena" target="_blank">Telegram</a></p>
 
-<blockquote>
-    <p><strong><i>У посібничках до українізаторів кажемо, що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.</i></strong></p>
-</blockquote>
+
