@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 app = QApplication(sys.argv)
 app.setStyle("Fusion")
 
-EXCLUDE_WORDS = {b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
+EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 def split_chunks(data: bytes):
     pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
     positions = [m.start() for m in pattern.finditer(data)]
@@ -68,7 +68,7 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000004')
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000005')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
         self.setMinimumSize(800, 600)
@@ -136,8 +136,8 @@ class BinParserGUI(QWidget):
         lang_layout.addWidget(self.context_lang_combo)
         lang_layout.addWidget(QLabel(
             "*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі<br>"
-            "*Для імпорту оберіть english (воно впливає)<br>"
-            "<b>*При збереженні бінарника впевніться, що вибрано english,<br>якщо звісно ви не хочете іншої мови замість української</b>"
+            "<b>*При збереженні бінарника впевніться, що вибрано ukrainian,<br>якщо звісно вам той переклад потрібний є)</b><br>"
+            "(Так насправді редагувать ви можете кожну мову крім української і англійської)"
         ))
         self.layout.addLayout(lang_layout)
         
@@ -212,8 +212,8 @@ class BinParserGUI(QWidget):
     def game_id(self):
         text = self.game_id_edit.text().strip()
 
-        # Регулярка, що витягує ID з будь-якого Steam-посилання
-        match = re.search(r'store\.steampowered\.com/app/(\d+)', text)
+        # Витягує ID гри з будь-якого посилання, де є /app/123456
+        match = re.search(r'/app/(\d+)', text)
         if match:
             return match.group(1)
 
@@ -280,23 +280,39 @@ class BinParserGUI(QWidget):
                 for col in r.keys():
                     if col != 'key':
                         all_columns.add(col)
-        all_columns = list(all_columns)
-        if 'english' in all_columns:
-            all_columns.remove('english')
-            all_columns = ['english'] + sorted(all_columns)
-        else:
-            all_columns = sorted(all_columns)
-        headers = ['key'] + all_columns
-        self.headers = headers
+        # Якщо 'ukrainian' не присутній у жодному рядку — додаємо
+        for row in all_rows:
+            if 'ukrainian' not in row:
+                row['ukrainian'] = ''
+
+        # Аналогічно для english (якщо хочеш)
+        for row in all_rows:
+            if 'english' not in row:
+                row['english'] = ''
+
+        # Після цього знову зібрати headers
+        all_columns = set()
+        for row in all_rows:
+            for col in row:
+                if col != 'key':
+                    all_columns.add(col)
+        headers = ['key', 'ukrainian', 'english'] + sorted(all_columns - {'ukrainian', 'english'})
+
+        self.headers = self.prioritize_headers(headers)
+
         self.data_rows = all_rows
         self.table.clear()
-        self.table.setColumnCount(len(headers))
-        self.table.setHorizontalHeaderLabels(headers)
+        self.table.setColumnCount(len(self.headers))
+        self.table.setHorizontalHeaderLabels(self.headers)
         self.table.setRowCount(len(all_rows))
         for row_i, row in enumerate(all_rows):
-            self.table.setItem(row_i, 0, QTableWidgetItem(row.get('key', '')))
-            for col_i, col_name in enumerate(all_columns, start=1):
-                self.table.setItem(row_i, col_i, QTableWidgetItem(row.get(col_name, '')))
+            for col_i, col_name in enumerate(self.headers):
+                value = row.get(col_name, '')
+                self.table.setItem(row_i, col_i, QTableWidgetItem(value))
+        if 'ukrainian' not in self.headers:
+            self.headers.append('ukrainian')
+            for row in self.data_rows:
+                row['ukrainian'] = ''
         self.fill_context_lang_combo()
         self.update_search_column_combo()
         QMessageBox.information(self, "Успіх", f"Завантажено {len(all_rows)} записів")
@@ -309,7 +325,8 @@ class BinParserGUI(QWidget):
             langs.remove('english')
             langs = ['english'] + langs
         self.context_lang_combo.clear()
-        self.context_lang_combo.addItems(langs)
+        self.context_lang_combo.addItems([h for h in self.headers if h not in ['key']])
+
         if 'english' in langs:
             self.context_lang_combo.setCurrentIndex(0)
         elif langs:
@@ -399,10 +416,12 @@ class BinParserGUI(QWidget):
         self.table.setColumnCount(len(self.headers))
         self.table.setHorizontalHeaderLabels(self.headers)
         self.table.setRowCount(len(self.data_rows))
-        for row_i, row in enumerate(self.data_rows):
-            self.table.setItem(row_i, 0, QTableWidgetItem(row.get('key', '')))
-            for col_i, col_name in enumerate(self.headers[1:], start=1):
-                self.table.setItem(row_i, col_i, QTableWidgetItem(row.get(col_name, '')))
+        for row_i, row_data in enumerate(self.data_rows):
+            for col_i, header in enumerate(self.headers):
+                value = row_data.get(header, '')
+                item = QTableWidgetItem(value)
+                self.table.setItem(row_i, col_i, item)
+
 
     def print_selected_column(self):
         selected_column = self.context_lang_combo.currentText()
@@ -432,12 +451,11 @@ class BinParserGUI(QWidget):
             self.data_rows[row][header] = new_value
             
             
-    def replace_english_in_bin(self):
-        # Отримуємо назву колонки
+
+    def replace_lang_in_bin(self):
         selected_column = self.context_lang_combo.currentText()
         if not selected_column:
             QMessageBox.warning(self, "Помилка", f"Колонку не вибрано")
-          
             return
 
         try:
@@ -446,14 +464,13 @@ class BinParserGUI(QWidget):
             print(f"Колонка '{selected_column}' не знайдена у заголовках.")
             return
 
-        # Читаємо всі значення з колонки
+        # Значення для вставки
         values = []
         for row_i in range(self.table.rowCount()):
             item = self.table.item(row_i, col_index)
             value = item.text() if item else ''
             values.append(value)
 
-        # Шлях до вхідного бінарного файлу
         file_path = f"{self.steam_folder}\\appcache\\stats\\UserGameStatsSchema_{self.game_id()}.bin"
 
         try:
@@ -463,38 +480,71 @@ class BinParserGUI(QWidget):
             print("Файл не знайдено:", file_path)
             return
 
-
-  # Заміна значень
-        marker = b'\x01english\x00'
         output = bytearray()
         i = 0
-        v_idx = 0  # індекс значення з таблиці
+        v_idx = 0
 
-        while i < len(data):
-            idx = data.find(marker, i)
-            if idx == -1:
-                output.extend(data[i:])
-                break
+        marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
 
-            output.extend(data[i:idx + len(marker)])
-            i = idx + len(marker)
+        if marker in data:
+            # 🔄 Мова вже існує — редагуємо значення
+            while i < len(data):
+                idx = data.find(marker, i)
+                if idx == -1:
+                    output.extend(data[i:])
+                    break
 
-            end = data.find(b'\x00', i)
-            if end == -1:
-                print("Не вдалося знайти кінець рядка після мітки.")
-                return
+                # Копіюємо до і включно з маркером
+                output.extend(data[i:idx + len(marker)])
+                i = idx + len(marker)
 
-            i = end + 1  # пропускаємо старий рядок
+                end = data.find(b'\x00', i)
+                if end == -1:
+                    print("Не вдалося знайти кінець рядка.")
+                    return
 
-            # Отримуємо нове значення
-            new_val = values[v_idx] if v_idx < len(values) else ''
-            output.extend(new_val.encode("utf-8") + b'\x00')
-            v_idx += 1
+                # Заміна значення
+                if v_idx < len(values):
+                    new_text = values[v_idx].encode("utf-8")
+                else:
+                    new_text = b''
 
+                output.extend(new_text + b'\x00')
+                i = end + 1
+                v_idx += 1
 
-        
+        else:
+            # ➕ Мови ще нема — вставляємо перед english
+            english_marker = b'\x01english\x00'
+            while i < len(data):
+                idx = data.find(english_marker, i)
+                if idx == -1:
+                    output.extend(data[i:])
+                    break
+
+                output.extend(data[i:idx])
+
+                # Вставляємо український переклад
+                if v_idx < len(values):
+                    ukr_text = values[v_idx].encode("utf-8")
+                else:
+                    ukr_text = b''
+
+                output.extend(b'\x01ukrainian\x00' + ukr_text + b'\x00')
+                output.extend(english_marker)
+
+                i = idx + len(english_marker)
+                end = data.find(b'\x00', i)
+                if end == -1:
+                    print("Не вдалося знайти кінець рядка після english.")
+                    return
+                output.extend(data[i:end+1])
+                i = end + 1
+                v_idx += 1
+
         return output
-        
+
+
         
 
     def export_bin(self):
@@ -504,7 +554,7 @@ class BinParserGUI(QWidget):
         
   
     def save_bin_unknow(self):
-        datas = self.replace_english_in_bin()
+        datas = self.replace_lang_in_bin()
         with open(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin", "wb") as f: 
             f.write(datas)
         QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")    
@@ -521,7 +571,7 @@ class BinParserGUI(QWidget):
 
         if save_path:
             try:
-                datas = self.replace_english_in_bin()
+                datas = self.replace_lang_in_bin()
                 with open(save_path, "wb") as f:
                     f.write(datas)
                 QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
@@ -574,7 +624,16 @@ class BinParserGUI(QWidget):
                     self.steam_folder_path.setText(steam_folder_path)
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося обрати теку Стіму автоматично:\n{e}")
-        
+    def prioritize_headers(self, headers):
+        headers = [h for h in headers if h != 'key']
+        prioritized = ['key']
+        if 'ukrainian' in headers:
+            prioritized.append('ukrainian')
+            headers.remove('ukrainian')
+        if 'english' in headers:
+            prioritized.append('english')
+            headers.remove('english')
+        return prioritized + headers
         
 def main():
     app = QApplication(sys.argv)
