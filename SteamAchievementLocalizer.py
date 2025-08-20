@@ -351,23 +351,23 @@ class BinParserGUI(QWidget):
                 self.settings.setValue(items["key"], items["default"])
         
 
-    def stretch_columns(self):
-        """Розтягує максимум 10 колонок, решта прокручується"""
+    def stretch_columns(self, min_width: int = 120):
+        """Розтягує колонки з мінімальною шириною"""
         if self.table.columnCount() == 0:
             return
 
-        if self.table.columnCount() <= 10:
-            # 🔄 якщо стовпців мало – розтягуємо на всю ширину
+        available_width = self.table.viewport().width()
+        total_min_width = self.table.columnCount() * min_width
+
+        if total_min_width <= available_width:
+            # 🔄 якщо колонок мало — розтягуємо рівномірно на всю ширину
             for i in range(self.table.columnCount()):
                 self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
         else:
-            # 📏 якщо стовпців більше 10 – тільки перші 10 тягнуться,
-            # решта мають нормальну ширину і видно їх через скрол
+            # 📏 якщо колонок багато — мінімальна ширина + скрол
             for i in range(self.table.columnCount()):
-                if i < 10:
-                    self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-                else:
-                    self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+                self.table.setColumnWidth(i, min_width)
 
 
 
