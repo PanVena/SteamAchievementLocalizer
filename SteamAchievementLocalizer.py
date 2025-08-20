@@ -596,9 +596,14 @@ class BinParserGUI(QWidget):
   
     def save_bin_unknow(self):
         datas = self.replace_lang_in_bin()
-        with open(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin", "wb") as f: 
-            f.write(datas)
-        QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")    
+        save_path = f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin"
+        if datas != None:
+            with open(save_path, "wb") as f:
+                f.write(datas)
+            QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")
+        else:
+            print(f"Файл '{save_path}' не було завантажено.")
+            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
         
             
   
@@ -613,9 +618,13 @@ class BinParserGUI(QWidget):
         if save_path:
             try:
                 datas = self.replace_lang_in_bin()
-                with open(save_path, "wb") as f:
-                    f.write(datas)
-                QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
+                if datas != None:
+                    with open(save_path, "wb") as f:
+                        f.write(datas)
+                    QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
+                else:
+                    print(f"Файл '{save_path}' не було завантажено.")
+                    QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
 
