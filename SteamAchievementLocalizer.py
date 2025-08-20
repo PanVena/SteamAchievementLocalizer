@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QColor, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
-    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame
+    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox
 )
 
 
@@ -72,10 +72,10 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006.1')
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006.2')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(800, 800)
         self.set_window_size()
 
         self.layout = QVBoxLayout()
@@ -94,6 +94,7 @@ class BinParserGUI(QWidget):
         stats_bin_path_layout = QHBoxLayout()
         self.stats_bin_path_label = QLabel("Оберіть UserGameStatsSchema_ХХХХХ.bin:")
         self.stats_bin_path_path = QLineEdit()
+        self.stats_bin_path_path.textChanged.connect(lambda text: self.settings.setValue("LastEnteredFilePath", text))
         self.stats_bin_path_btn = QPushButton("Обрати файл")
         self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
         self.select_stats_bin_path_btn = QPushButton("Дістати досягнення!!!")
@@ -102,7 +103,12 @@ class BinParserGUI(QWidget):
         stats_bin_path_layout.addWidget(self.stats_bin_path_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
         stats_bin_path_layout.addWidget(self.select_stats_bin_path_btn)
-        self.layout.addLayout(stats_bin_path_layout)
+        
+        # --- Обрамівка ---
+        stats_group = QGroupBox("Прямий вибір файлу")
+        stats_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        stats_group.setLayout(stats_bin_path_layout)
+        self.layout.addWidget(stats_group)   
         
         
         # --- АБО (з лініями) ---
@@ -124,7 +130,13 @@ class BinParserGUI(QWidget):
         abo_layout.addWidget(line1)
         abo_layout.addWidget(self.abo_label)
         abo_layout.addWidget(line2)
-        self.layout.addLayout(abo_layout)
+
+        
+                # --- Обрамівка ---
+        box_1 = QGroupBox("")  # пустий заголовок
+        box_1.setFlat(False)   # показувати рамку
+        box_1.setLayout(abo_layout)
+        self.layout.addWidget(box_1)
 
 
  
@@ -141,7 +153,7 @@ class BinParserGUI(QWidget):
         steam_folder_layout.addWidget(self.steam_folder_path)
         steam_folder_layout.addWidget(self.auto_select_steam_path)
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
-        self.layout.addLayout(steam_folder_layout)
+
         
         self.set_steam_folder_path()
       
@@ -159,7 +171,17 @@ class BinParserGUI(QWidget):
         game_id_layout.addWidget(self.game_id_edit)
         game_id_layout.addWidget(self.load_game_btn)
         game_id_layout.addWidget(self.clear_game_id)
-        self.layout.addLayout(game_id_layout)
+
+        
+        # --- Обрамівка ---
+        steam_group_layout = QVBoxLayout()
+        steam_group_layout.addLayout(steam_folder_layout)
+        steam_group_layout.addLayout(game_id_layout)
+        steam_group = QGroupBox("Посередній пошук за кодом (Виключно(?) Windows)")
+        steam_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        steam_group.setLayout(steam_group_layout)
+        self.layout.addWidget(steam_group)
+        
 
         # Кнопки експорту/імпорту CSV
         btn_layout = QHBoxLayout()
@@ -177,24 +199,79 @@ class BinParserGUI(QWidget):
         btn_layout.addWidget(self.import_btn)
         self.layout.addLayout(btn_layout)
         
-        # Вибір мови контексту
+        # --- Вибір мови контексту ---
         lang_layout = QHBoxLayout()
-        lang_layout.addWidget(QLabel("В разі питань, телеґрам:<br>""<b>@Pan_Vena</b><br>""У разі бажання підтримати:<br>""<b>4441 1111 2744 4143</b><br>""Також дяка за пул реквест: Nick Defrunct і veydzh3r"))
-        self.version_label = QLabel("Версія файлу досягнень: НЕВІДОМО")
+
+        # 1. Інфо
+        info_label = QLabel(
+            "В разі питань, телеґрам:<br>"
+            "<b>@Pan_Vena</b><br>"
+            "У разі бажання підтримати:<br>"
+            "<b>4441 1111 2744 4143</b><br>"
+            "Також дяка за пул реквест: <b>Nick Defrunct</b> і <b>veydzh3r</b>"
+        )
+        lang_layout.addWidget(info_label)
+
+        # Вертикальний розділювач
+        line1 = QFrame()
+        line1.setFrameShape(QFrame.Shape.VLine)
+        line1.setFrameShadow(QFrame.Shadow.Sunken)
+        lang_layout.addWidget(line1)
+
+        # 2. Назва гри
         self.gamename_label = QLabel("<h4>Гра: НЕВІДОМО</h4>")
         lang_layout.addWidget(self.gamename_label)
+
+        # Вертикальний розділювач
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.VLine)
+        line2.setFrameShadow(QFrame.Shadow.Sunken)
+        lang_layout.addWidget(line2)
+
+        # 3. Версія файлу
+        self.version_label = QLabel("Версія файлу досягнень: НЕВІДОМО")
         lang_layout.addWidget(self.version_label)
-        lang_layout.addWidget(QLabel("Вибір мови:"))
+
+        # Вертикальний розділювач
+        line3 = QFrame()
+        line3.setFrameShape(QFrame.Shape.VLine)
+        line3.setFrameShadow(QFrame.Shadow.Sunken)
+        lang_layout.addWidget(line3)
+
+        # 4. Вибір мови (без розділювача між Label і ComboBox)
+        lang_select_layout = QHBoxLayout()
+        lang_select_layout.addWidget(QLabel("Вибір мови:"))
         self.context_lang_combo = QComboBox()
         self.context_lang_combo.setFixedSize(150, 25)
         self.context_lang_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
-        lang_layout.addWidget(self.context_lang_combo)
-        lang_layout.addWidget(QLabel(
+        lang_select_layout.addWidget(self.context_lang_combo)
+        lang_layout.addLayout(lang_select_layout)
+
+        # Вертикальний розділювач
+        line4 = QFrame()
+        line4.setFrameShape(QFrame.Shape.VLine)
+        line4.setFrameShadow(QFrame.Shadow.Sunken)
+        lang_layout.addWidget(line4)
+
+        # 5. Примітка
+        note_label = QLabel(
             "*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі<br>"
-            "<b>*При збереженні бінарника впевніться, що вибрано ukrainian,<br>якщо звісно вам той переклад потрібний є)</b><br>"
+            "<b>*При збереженні бінарника впевніться, що вибрано ukrainian,<br>"
+            "якщо звісно вам той переклад потрібний є)</b><br>"
             "(Так насправді редагувать ви можете кожну мову крім української і англійської)"
-        ))
-        self.layout.addLayout(lang_layout)
+        )
+        lang_layout.addWidget(note_label)
+
+        # --- Обрамівка ---
+        box = QGroupBox("")  # без заголовку
+        box.setFlat(False)
+        box.setLayout(lang_layout)
+        self.layout.addWidget(box)
+
+
+
+
+
         
         #Пошук
         self.headers = []  
@@ -246,10 +323,12 @@ class BinParserGUI(QWidget):
         self.steam_folder_path.setText(stored_path)
         self.steam_folder = self.steam_folder_path.text().strip()        
         self.game_id_edit.setText(self.settings.value("LastEnteredID", ""))
+        self.stats_bin_path_path.setText(self.settings.value("LastEnteredFilePath", ""))
         
         self.configs = {
             self.steam_folder_path: {"key": "UserSteamPath", "default": self.default_steam_path},
-            self.game_id_edit: {"key": "LastEnteredID", "default": ""}
+            self.game_id_edit: {"key": "LastEnteredID", "default": ""},
+            self.stats_bin_path_path: {"key": "LastEnteredFilePath", "default": ""}
         }
         
 
@@ -278,7 +357,7 @@ class BinParserGUI(QWidget):
         screen_height = geometry.height()
 
         width = int(screen_width * 0.7)
-        height = int(screen_height * 0.7)
+        height = int(screen_height * 0.8)
 
         width = max(width, self.minimumWidth())
         height = max(height, self.minimumHeight())
