@@ -72,7 +72,7 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006')
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006.1')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
         self.setMinimumSize(800, 600)
