@@ -13,9 +13,6 @@ from PyQt6.QtWidgets import (
 )
 
 
-app = QApplication(sys.argv)
-app.setStyle("Fusion")
-
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 def split_chunks(data: bytes):
     pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
@@ -316,7 +313,7 @@ class BinParserGUI(QWidget):
             self.settings.sync()  
 
     def load_steam_game_stats(self):
-        self.use_steam_path = False
+        self.force_manual_path = False
         game_id = self.game_id()
         if not game_id:
             QMessageBox.warning(self, "Помилка", "Введіть ID гри чи посилання на неї,\n яке ви знаєте зверху на сторінці крамниці Стім")
@@ -867,6 +864,7 @@ class BinParserGUI(QWidget):
         )
         if file:  # тільки якщо щось вибрано
             self.stats_bin_path_path.setText(file)
+        self.select_stats_bin_path()
 
 
     def select_stats_bin_path(self):
@@ -880,16 +878,15 @@ class BinParserGUI(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Помилка", f"Не вдалося відкрити файл:\n{e}")
             return
-        self.use_manual_path()
+            
+        self.force_manual_path = True
         self.parse_and_fill_table()
         self.version()
         self.gamename()
 
 
-
     def use_manual_path(self):
         self.force_manual_path = True
-        self.load_steam_game_stats()
 
     def use_steam_path(self):
         self.force_manual_path = False
@@ -899,6 +896,7 @@ class BinParserGUI(QWidget):
     
 def main():
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
     QMessageBox.information(None, "Ахтунґ", "Можливі баги, щодо них прошу звертатися на сторінку Ґітхабу, або писати у приватні у телеґрамі: @Pan_Vena")
     window = BinParserGUI()
     window.show()
