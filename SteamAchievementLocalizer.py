@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QColor, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
-    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox
+    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView
 )
 
 
@@ -64,15 +64,20 @@ def extract_values(chunk: bytes, words: list):
         pos = end_idx + 1
     return values
     
-def resource_path(relative_path):
-    """Дозволяє знайти шлях до ресурсів як у .py, так і у .exe"""
-    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+def resource_path(relative_path: str) -> str:
+    """Повертає коректний шлях до ресурсів як у .py, так і в .exe з Nuitka/PyInstaller"""
+    if getattr(sys, 'frozen', False):
+        # Якщо ми всередині зібраного exe
+        base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+    else:
+        # Якщо запускаємо напряму .py
+        base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
-
+    
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006.2')
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000007')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
         self.setMinimumSize(800, 800)
@@ -300,11 +305,14 @@ class BinParserGUI(QWidget):
 
         # Таблиця з даними
         self.table = QTableWidget()
-        self.table.setSizeAdjustPolicy(QTableWidget.SizeAdjustPolicy.AdjustToContents)
         self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.itemChanged.connect(self.on_table_item_changed)
         self.layout.addWidget(self.table)
+        
+        self.header = self.table.horizontalHeader()
+        self.header.setStretchLastSection(False)
+
         self.data_rows = []
         self.headers = []
         self.raw_data = b""
@@ -342,6 +350,25 @@ class BinParserGUI(QWidget):
                 obj.setText(items["default"])
                 self.settings.setValue(items["key"], items["default"])
         
+
+    def stretch_columns(self):
+        """Розтягує максимум 10 колонок, решта прокручується"""
+        if self.table.columnCount() == 0:
+            return
+
+        if self.table.columnCount() <= 10:
+            # 🔄 якщо стовпців мало – розтягуємо на всю ширину
+            for i in range(self.table.columnCount()):
+                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+        else:
+            # 📏 якщо стовпців більше 10 – тільки перші 10 тягнуться,
+            # решта мають нормальну ширину і видно їх через скрол
+            for i in range(self.table.columnCount()):
+                if i < 10:
+                    self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+                else:
+                    self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+
 
 
     def on_steam_path_changed(self, text):
@@ -479,7 +506,11 @@ class BinParserGUI(QWidget):
                 row['ukrainian'] = ''
         self.fill_context_lang_combo()
         self.update_search_column_combo()
+        self.stretch_columns()
         QMessageBox.information(self, "Успіх", f"Завантажено {len(all_rows)} записів")
+        
+
+
     def fill_context_lang_combo(self):
         if not self.headers:
             return
