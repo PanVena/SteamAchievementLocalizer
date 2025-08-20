@@ -5,6 +5,11 @@
 
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Завантажити останню версію 👈</a></p>
 
+
+![Скрін](assets/scrn.png)
+
+
+
 <h2>💡 Основні можливості</h2>
 <ul>
     <li>📂 Читання <code>.bin</code> файлів Steam (<code>UserGameStatsSchema_XXXX.bin</code>)</li>
