@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QColor, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
-    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox
+    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame
 )
 
 
@@ -75,7 +75,7 @@ def resource_path(relative_path):
 class BinParserGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000005')
+        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000006')
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
         self.setMinimumSize(800, 600)
@@ -87,10 +87,50 @@ class BinParserGUI(QWidget):
 
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
         self.default_steam_path = self.detect_steam_path()
- 
-
-
         
+        
+        
+        self.force_manual_path = False  
+        
+        
+        # --- Вибір місцезнаходження файлу ---
+        stats_bin_path_layout = QHBoxLayout()
+        self.stats_bin_path_label = QLabel("Оберіть UserGameStatsSchema_ХХХХХ.bin:")
+        self.stats_bin_path_path = QLineEdit()
+        self.stats_bin_path_btn = QPushButton("Обрати файл")
+        self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
+        self.select_stats_bin_path_btn = QPushButton("Дістати досягнення!!!")
+        self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
+        stats_bin_path_layout.addWidget(self.stats_bin_path_label)
+        stats_bin_path_layout.addWidget(self.stats_bin_path_path)
+        stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
+        stats_bin_path_layout.addWidget(self.select_stats_bin_path_btn)
+        self.layout.addLayout(stats_bin_path_layout)
+        
+        
+        # --- АБО (з лініями) ---
+        line1 = QFrame()
+        line1.setFrameShape(QFrame.Shape.HLine)
+        line1.setFrameShadow(QFrame.Shadow.Plain)
+        line1.setStyleSheet("color: white; background-color: white;")
+
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.HLine)
+        line2.setFrameShadow(QFrame.Shadow.Plain)
+        line2.setStyleSheet("color: white; background-color: white;")
+
+        self.abo_label = QLabel("АБО")
+        self.abo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.abo_label.setStyleSheet("color: white; font-weight: bold;")
+
+        abo_layout = QHBoxLayout()
+        abo_layout.addWidget(line1)
+        abo_layout.addWidget(self.abo_label)
+        abo_layout.addWidget(line2)
+        self.layout.addLayout(abo_layout)
+
+
+ 
         # --- Вибір теки Steam ---
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_label = QLabel("Тека Стіму (якщо маєте її де-інде оберіть її):")
@@ -142,7 +182,11 @@ class BinParserGUI(QWidget):
         
         # Вибір мови контексту
         lang_layout = QHBoxLayout()
-        lang_layout.addWidget(QLabel("В разі питань, тґ:\n@Pan_Vena\nУ разі вдячності:\n4441 1111 2623 3299"))
+        lang_layout.addWidget(QLabel("В разі питань, телеґрам:<br>""<b>@Pan_Vena</b><br>""У разі бажання підтримати:<br>""<b>4441 1111 2744 4143</b><br>""Також дяка за пул реквест: Nick Defrunct і veydzh3r"))
+        self.version_label = QLabel("Версія файлу досягнень: НЕВІДОМО")
+        self.gamename_label = QLabel("<h4>Гра: НЕВІДОМО</h4>")
+        lang_layout.addWidget(self.gamename_label)
+        lang_layout.addWidget(self.version_label)
         lang_layout.addWidget(QLabel("Вибір мови:"))
         self.context_lang_combo = QComboBox()
         self.context_lang_combo.setFixedSize(150, 25)
@@ -272,6 +316,7 @@ class BinParserGUI(QWidget):
             self.settings.sync()  
 
     def load_steam_game_stats(self):
+        self.use_steam_path = False
         game_id = self.game_id()
         if not game_id:
             QMessageBox.warning(self, "Помилка", "Введіть ID гри чи посилання на неї,\n яке ви знаєте зверху на сторінці крамниці Стім")
@@ -279,7 +324,7 @@ class BinParserGUI(QWidget):
         if not self.steam_folder:
             QMessageBox.warning(self, "Помилка", "Спочатку оберіть теку Стім")
             return
-        path = f"{self.steam_folder}\\appcache\\stats\\UserGameStatsSchema_{game_id}.bin"
+        path = self.get_stats_bin_path()
         try:
             with open(path, "rb") as f:
                 self.raw_data = f.read()
@@ -290,6 +335,8 @@ class BinParserGUI(QWidget):
             QMessageBox.warning(self, "Помилка", f"Не вдалося відкрити файл:\n{e}")
             return
         self.parse_and_fill_table()
+        self.version()
+        self.gamename()
     def parse_and_fill_table(self):
         chunks = split_chunks(self.raw_data)
         self.chunks = chunks
@@ -512,7 +559,7 @@ class BinParserGUI(QWidget):
             value = item.text() if item else ''
             values.append(value)
 
-        file_path = f"{self.steam_folder}\\appcache\\stats\\UserGameStatsSchema_{self.game_id()}.bin"
+        file_path = self.get_stats_bin_path()
 
         try:
             with open(file_path, "rb") as f:
@@ -589,44 +636,55 @@ class BinParserGUI(QWidget):
         
 
     def export_bin(self):
-        filepath = os.path.abspath(f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin")
+        filepath = os.path.abspath(self.get_stats_bin_path())
         subprocess.run(f'explorer /select,"{filepath}"')
         
         
   
+
     def save_bin_unknow(self):
         datas = self.replace_lang_in_bin()
-        save_path = f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin"
-        if datas != None:
+        if self.force_manual_path is True:
+            QMessageBox.warning(self, "Помилка", "Ти завантажив файл з якоїсь іншої теки, шуруй зберігай де-інде")
+            return
+        if datas is None:
+            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
+            return
+
+        save_path = os.path.join(
+            self.steam_folder, "appcache", "stats",
+            f"UserGameStatsSchema_{self.game_id()}.bin"
+        )
+        try:
             with open(save_path, "wb") as f:
                 f.write(datas)
             QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")
-        else:
-            print(f"Файл '{save_path}' не було завантажено.")
-            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
-        
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
             
   
     def save_bin_know(self):
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Зберегти змінений файл",
-            f"{self.steam_folder}/appcache/stats/UserGameStatsSchema_{self.game_id()}.bin",
+            self.get_stats_bin_path(),
             "Binary files (*.bin);;All files (*)"
         )
 
-        if save_path:
-            try:
-                datas = self.replace_lang_in_bin()
-                if datas != None:
-                    with open(save_path, "wb") as f:
-                        f.write(datas)
-                    QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
-                else:
-                    print(f"Файл '{save_path}' не було завантажено.")
-                    QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
-            except Exception as e:
-                QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
+        if not save_path:
+            return
+
+        datas = self.replace_lang_in_bin()
+        if datas is None:
+            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
+            return
+
+        try:
+            with open(save_path, "wb") as f:
+                f.write(datas)
+            QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
 
     def search_in_table(self, text):
         col_name = self.search_column_combo.currentText()
@@ -706,11 +764,145 @@ class BinParserGUI(QWidget):
             prioritized.append('english')
             headers.remove('english')
         return prioritized + headers
+         
+    def version(self):
+        path = self.get_stats_bin_path()
+
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            if hasattr(self, "version_label"):
+                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+            return None
+
+        marker = b"\x01version\x00"
+        pos = data.find(marker)
+
+        if pos == -1:
+            if hasattr(self, "version_label"):
+                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+            return None
+
+        start = pos + len(marker)
+        end = data.find(b"\x00", start)
+        if end == -1:
+            if hasattr(self, "version_label"):
+                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+            return None
+
+        # Витягаємо рядок і пробуємо перетворити на число
+        ver_str = data[start:end].decode("utf-8", errors="ignore").strip()
+        try:
+            version_number = int(ver_str)
+        except ValueError:
+            version_number = None
+
+        if hasattr(self, "version_label"):
+            if version_number is not None:
+                self.version_label.setText(f"Версія файлу досягнень: {version_number}")
+            else:
+                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+
+        return version_number
+
         
+        
+        
+    def gamename(self):
+        path = self.get_stats_bin_path()
+
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            if hasattr(self, "gamename_label"):
+                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+            return None
+
+        marker = b"\x01gamename\x00"
+        pos = data.find(marker)
+
+        if pos == -1:
+            if hasattr(self, "gamename_label"):
+                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+            return None
+
+        # Після маркера йде текст назви
+        start = pos + len(marker)
+        end = data.find(b"\x00", start)
+        if end == -1:
+            if hasattr(self, "gamename_label"):
+                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+            return None
+
+        name = data[start:end].decode("utf-8", errors="ignore").strip()
+
+        if hasattr(self, "gamename_label"):
+            self.gamename_label.setText(f"<h3>Гра: {name if name else 'НЕВІДОМО'}</h3>")
+
+        return name
+
+
+
+    def get_stats_bin_path(self):
+        """Обирає шлях у залежності від кнопки"""
+        manual_path = self.stats_bin_path_path.text().strip()
+        if self.force_manual_path and manual_path:
+            return manual_path
+
+        return os.path.abspath(
+            os.path.join(
+                self.steam_folder, "appcache", "stats",
+                f"UserGameStatsSchema_{self.game_id()}.bin"
+            )
+        )
+ 
+    def stats_bin_path_search(self):
+        file, _ = QFileDialog.getOpenFileName(
+            self,
+            "Обрати файл UserGameStatsSchema",
+            "",
+            "Binary files (*.bin);;All files (*)"
+        )
+        if file:  # тільки якщо щось вибрано
+            self.stats_bin_path_path.setText(file)
+
+
+    def select_stats_bin_path(self):
+        path = self.stats_bin_path_path.text().strip()
+        if not path:
+            QMessageBox.warning(self, "Помилка", "Спочатку оберіть файл UserGameStatsSchema")
+            return
+        try:
+            with open(path, "rb") as f:
+                self.raw_data = f.read()
+        except Exception as e:
+            QMessageBox.critical(self, "Помилка", f"Не вдалося відкрити файл:\n{e}")
+            return
+        self.use_manual_path()
+        self.parse_and_fill_table()
+        self.version()
+        self.gamename()
+
+
+
+    def use_manual_path(self):
+        self.force_manual_path = True
+        self.load_steam_game_stats()
+
+    def use_steam_path(self):
+        self.force_manual_path = False
+        self.set_steam_folder_path(force=True)
+
+
+    
 def main():
     app = QApplication(sys.argv)
+    QMessageBox.information(None, "Ахтунґ", "Можливі баги, щодо них прошу звертатися на сторінку Ґітхабу, або писати у приватні у телеґрамі: @Pan_Vena")
     window = BinParserGUI()
     window.show()
     sys.exit(app.exec())
 if __name__ == "__main__":
     main()
+    
