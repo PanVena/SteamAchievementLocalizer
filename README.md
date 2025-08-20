@@ -76,7 +76,7 @@ python SteamAchievementLocalizer.py
 
 <h2>💰 Подякувати</h2>
 <p>Якщо софт зекономив тобі час і нерви — можеш «перекинути кілька біткоїнів гривнею» 😄<br>
-<a href="https://send.monobank.ua/jar/47ipoRVJAk" target="_blank">➡ ТУТ 🌻 Mono Jar</a></p>
+<a href="https://send.monobank.ua/jar/9V3wRMZD7C" target="_blank">➡ ТУТ 🌻 Mono Jar</a></p>
 
 <h2>🛠 Технічні деталі</h2>
 <ul>
