@@ -30,41 +30,14 @@ It allows you to translate and localize achievement descriptions and save change
 - Multi-language UI (English, Ukrainian).  
 
 <blockquote>
-   <h2> <p><strong><i>In guides for localizers, we say to put the file in "C:\Program Files (x86)\Steam\appcache\stats\", replacing the original.</i></strong></p></h2>
+   <h4> <p><strong><i>In guides for localizers, we say to put the file in "C:\Program Files (x86)\Steam\appcache\stats\", replacing the original.</i></strong></p></h4>
 </blockquote>
 
 <p><strong>🧯 If you encounter errors — delete the file here, restart Steam, and visit the game page in your library:</strong><br>
 <code>C:\Program Files (x86)\Steam\appcache\stats\UserGameStatsSchema_XXXX.bin</code><br>
 <strong>Or find it in its natural habitat)</strong></p>
 
-<h2>✏️ CSV File Structure</h2>
 
-<table>
-    <thead>
-        <tr>
-            <th>key</th>
-            <th>english</th>
-            <th>ukrainian</th>
-            <th>context_column (any)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>NAME_ACHIEVE</td>
-            <td>First Step</td>
-            <td>Перший крок</td>
-            <td>Pierwszy krok</td>
-        </tr>
-    </tbody>
-</table>
-
-<h2>📦 Installation (for developers)</h2>
-<pre><code>git clone https://github.com/PanVena/SteamAchievementLocalizer.git
-cd SteamAchievementLocalizer
-pip install -r requirements.txt
-python SteamAchievementLocalizer.py
-</code></pre>
-<p><strong>Required:</strong> Python 3.10+, PyQt6, csv, re</p>
 
 <h2>👥 Community</h2>
 <p>Join the translators' community:<br>
@@ -85,4 +58,3 @@ python SteamAchievementLocalizer.py
 <h2>🧑‍💻 Author</h2>
 <p><strong>Vena</strong><br>
 <a href="https://github.com/PanVena" target="_blank">GitHub</a> | <a href="https://t.me/Pan_Vena" target="_blank">Telegram</a></p>
-<h1>🏆 Steam Achievement Localizer від Вени</h1>
