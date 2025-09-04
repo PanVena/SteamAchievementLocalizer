@@ -1,4 +1,4 @@
-[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README..md)
+[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.md)
 
 <h1>🏆 Steam Achievement Localizer від Вени</h1>
 
@@ -7,7 +7,7 @@
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Завантажити останню версію 👈</a></p>
 
 
-![Скрін](assets/scrn.png)
+![Скрін](assets/scrn_ukr.png)
 
 
 
