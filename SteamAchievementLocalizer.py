@@ -5,15 +5,46 @@ import os
 import binascii
 import subprocess
 import winreg 
+import json
 from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QColor, QBrush
+from PyQt6.QtGui import QIcon, QColor, QBrush, QAction
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
-    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView
+    QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
+    QInputDialog, QMenu, QMenuBar, 
 )
 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
+
+LANG_FILES = {
+    "English": "assets/lang_en.json",
+    "Українська": "assets/lang_ua.json"
+}
+
+
+def choose_language():
+    settings = QSettings("Vena", "Steam Achievement Localizer")
+    current_language = settings.value("language", None)
+
+    if current_language:
+        return current_language  # already saved language
+
+    # Ask user to choose language
+    lang, ok = QInputDialog.getItem(
+        None,
+        "Select Language",
+        "Choose your language:",
+        list(LANG_FILES.keys()),
+        0,
+        False
+    )
+    if ok and lang:
+        settings.setValue("language", lang)
+        return lang
+
+    return "English"  # default language
+
 def split_chunks(data: bytes):
     pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
     positions = [m.start() for m in pattern.finditer(data)]
@@ -29,7 +60,7 @@ def extract_key_and_data(chunk: bytes):
     if not key_match:
         return None
 
-    # ✅ Пропускати чанки, де немає поля english
+    # Skip any chunks without an english field.
     if b'\x01english\x00' not in chunk:
         return None
 
@@ -65,19 +96,22 @@ def extract_values(chunk: bytes, words: list):
     return values
     
 def resource_path(relative_path: str) -> str:
-    """Повертає коректний шлях до ресурсів як у .py, так і в .exe з Nuitka/PyInstaller"""
+    """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
     if getattr(sys, 'frozen', False):
-        # Якщо ми всередині зібраного exe
+        # when we are runnimg as a bundled exe
         base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
     else:
-        # Якщо запускаємо напряму .py
+        # when we are running as a normal .py file
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
     
 class BinParserGUI(QWidget):
-    def __init__(self):
+    def __init__(self, language="English"):
         super().__init__()
-        self.setWindowTitle(f'Локалізатор досягнень Стіму від Вени ver 0.000.00000.00000.000000007')
+                
+        self.language = language
+        self.translations = self.load_language(language)
+        self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         
         self.setMinimumSize(800, 800)
@@ -93,30 +127,31 @@ class BinParserGUI(QWidget):
         
         
         self.force_manual_path = False  
+
+        self.create_menubar()
         
-        
-        # --- Вибір місцезнаходження файлу ---
+        # --- File localization selection ---
         stats_bin_path_layout = QHBoxLayout()
-        self.stats_bin_path_label = QLabel("Оберіть UserGameStatsSchema_ХХХХХ.bin:")
+        self.stats_bin_path_label = QLabel(self.translations.get("man_select_file_label"))
         self.stats_bin_path_path = QLineEdit()
         self.stats_bin_path_path.textChanged.connect(lambda text: self.settings.setValue("LastEnteredFilePath", text))
-        self.stats_bin_path_btn = QPushButton("Обрати файл")
+        self.stats_bin_path_btn = QPushButton(self.translations.get("man_select_file"))
         self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
-        self.select_stats_bin_path_btn = QPushButton("Дістати досягнення!!!")
+        self.select_stats_bin_path_btn = QPushButton(self.translations.get("get_ach"))
         self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_label)
         stats_bin_path_layout.addWidget(self.stats_bin_path_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
         stats_bin_path_layout.addWidget(self.select_stats_bin_path_btn)
         
-        # --- Обрамівка ---
-        stats_group = QGroupBox("Прямий вибір файлу")
+        # --- Frame ---
+        stats_group = QGroupBox(self.translations.get("man_file_sel_label"))
         stats_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         stats_group.setLayout(stats_bin_path_layout)
         self.layout.addWidget(stats_group)   
         
         
-        # --- АБО (з лініями) ---
+        # --- OR (with lines) ---
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
         line1.setFrameShadow(QFrame.Shadow.Plain)
@@ -127,7 +162,7 @@ class BinParserGUI(QWidget):
         line2.setFrameShadow(QFrame.Shadow.Plain)
         line2.setStyleSheet("color: white; background-color: white;")
 
-        self.abo_label = QLabel("АБО")
+        self.abo_label = QLabel(self.translations.get("OR"))
         self.abo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.abo_label.setStyleSheet("color: white; font-weight: bold;")
 
@@ -137,154 +172,107 @@ class BinParserGUI(QWidget):
         abo_layout.addWidget(line2)
 
         
-                # --- Обрамівка ---
-        box_1 = QGroupBox("")  # пустий заголовок
-        box_1.setFlat(False)   # показувати рамку
+       # --- Frame ---
+        box_1 = QGroupBox("")  
+        box_1.setFlat(False)   
         box_1.setLayout(abo_layout)
         self.layout.addWidget(box_1)
 
 
- 
-        # --- Вибір теки Steam ---
+        # --- Steam folder selection ---
         steam_folder_layout = QHBoxLayout()
-        self.steam_folder_label = QLabel("Тека Стіму (якщо маєте її де-інде оберіть її):")
+        self.steam_folder_label = QLabel(
+            self.translations.get("steam_folder_label"))
         self.steam_folder_path = QLineEdit()
-        self.auto_select_steam_path = QPushButton("Обрати кореневу теку Стіму автоматично")
-        self.auto_select_steam_path.clicked.connect(lambda: self.set_steam_folder_path(force=True))
         self.steam_folder_path.textChanged.connect(self.on_steam_path_changed)
-        self.select_steam_folder_btn = QPushButton("Обрати кореневу теку Стіму вручну")
+        self.select_steam_folder_btn = QPushButton(self.translations.get("select_steam_folder"))
         self.select_steam_folder_btn.clicked.connect(self.select_steam_folder)
         steam_folder_layout.addWidget(self.steam_folder_label)
         steam_folder_layout.addWidget(self.steam_folder_path)
-        steam_folder_layout.addWidget(self.auto_select_steam_path)
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
 
         
         self.set_steam_folder_path()
       
-        
-        # --- Введення ID гри ---
+        # --- Game ID selection ---
         game_id_layout = QHBoxLayout()
-        self.game_id_label = QLabel("ID гри, або посиланння з крамниці Стім:")
+        self.game_id_label = QLabel(self.translations.get("game_id_label"))
         self.game_id_edit = QLineEdit()
         self.game_id_edit.textChanged.connect(lambda text: self.settings.setValue("LastEnteredID", text))
-        self.load_game_btn = QPushButton("Шукай ачівки (чи ачивки)!")
+        self.load_game_btn = QPushButton(self.translations.get("get_ach"))
         self.load_game_btn.clicked.connect(self.load_steam_game_stats)
-        self.clear_game_id = QPushButton("Натисну, бо впадлу прибирати ID самостійно")
-        self.clear_game_id.pressed.connect(lambda: self.game_id_edit.clear())
+        self.clear_game_id = QPushButton(self.translations.get("clear_and_paste"))
+        self.clear_game_id.pressed.connect(lambda: ( 
+            self.game_id_edit.clear(),
+            self.game_id_edit.setText(QApplication.clipboard().text())
+        ))
         game_id_layout.addWidget(self.game_id_label)
         game_id_layout.addWidget(self.game_id_edit)
         game_id_layout.addWidget(self.load_game_btn)
         game_id_layout.addWidget(self.clear_game_id)
 
         
-        # --- Обрамівка ---
+        # --- Frame ---
         steam_group_layout = QVBoxLayout()
         steam_group_layout.addLayout(steam_folder_layout)
         steam_group_layout.addLayout(game_id_layout)
-        steam_group = QGroupBox("Посередній пошук за кодом (Виключно(?) Windows)")
+        steam_group = QGroupBox(self.translations.get("indirect_file_sel_label"))
         steam_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         steam_group.setLayout(steam_group_layout)
         self.layout.addWidget(steam_group)
         
 
-        # Кнопки експорту/імпорту CSV
-        btn_layout = QHBoxLayout()
-        self.export_bin_btn = QPushButton('Бінарник у натуральному середовищі')
-        self.export_bin_btn.clicked.connect(self.export_bin)
-        self.export_all_btn = QPushButton('Експорт CSV (усе шо є)')
-        self.export_all_btn.clicked.connect(self.export_csv_all)
-        self.export_for_translate_btn = QPushButton('Експорт CSV (англійська і вибрана мова контексту)')
-        self.export_for_translate_btn.clicked.connect(self.export_csv_for_translate)
-        self.import_btn = QPushButton('Імпорт CSV з вашим перекладом')
-        self.import_btn.clicked.connect(self.import_csv)
-        btn_layout.addWidget(self.export_bin_btn)
-        btn_layout.addWidget(self.export_all_btn)
-        btn_layout.addWidget(self.export_for_translate_btn)
-        btn_layout.addWidget(self.import_btn)
-        self.layout.addLayout(btn_layout)
+       
         
-        # --- Вибір мови контексту ---
+        # --- Language selection and info ---
         lang_layout = QHBoxLayout()
 
-        # 1. Інфо
-        info_label = QLabel(
-            "В разі питань, телеґрам:<br>"
-            "<b>@Pan_Vena</b><br>"
-            "У разі бажання підтримати:<br>"
-            "<b>4441 1111 2744 4143</b><br>"
-            "Також дяка за пул реквест: <b>Nick Defrunct</b> і <b>veydzh3r</b>"
-        )
-        lang_layout.addWidget(info_label)
-
-        # Вертикальний розділювач
-        line1 = QFrame()
-        line1.setFrameShape(QFrame.Shape.VLine)
-        line1.setFrameShadow(QFrame.Shadow.Sunken)
-        lang_layout.addWidget(line1)
-
-        # 2. Назва гри
-        self.gamename_label = QLabel("<h4>Гра: НЕВІДОМО</h4>")
+        # 2. Game name
+        self.gamename_label = QLabel(
+            f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
         lang_layout.addWidget(self.gamename_label)
 
-        # Вертикальний розділювач
+        # Vertical separator
         line2 = QFrame()
         line2.setFrameShape(QFrame.Shape.VLine)
         line2.setFrameShadow(QFrame.Shadow.Sunken)
         lang_layout.addWidget(line2)
 
-        # 3. Версія файлу
-        self.version_label = QLabel("Версія файлу досягнень: НЕВІДОМО")
+        # 3. File version
+        self.version_label = QLabel(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
         lang_layout.addWidget(self.version_label)
 
-        # Вертикальний розділювач
+        # Vertical separator
         line3 = QFrame()
         line3.setFrameShape(QFrame.Shape.VLine)
         line3.setFrameShadow(QFrame.Shadow.Sunken)
         lang_layout.addWidget(line3)
 
-        # 4. Вибір мови (без розділювача між Label і ComboBox)
+        # 4. Language selection
         lang_select_layout = QHBoxLayout()
-        lang_select_layout.addWidget(QLabel("Вибір мови:"))
+        lang_select_layout.addWidget(QLabel(self.translations.get("lang_sel")))
         self.context_lang_combo = QComboBox()
         self.context_lang_combo.setFixedSize(150, 25)
         self.context_lang_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
         lang_select_layout.addWidget(self.context_lang_combo)
         lang_layout.addLayout(lang_select_layout)
 
-        # Вертикальний розділювач
-        line4 = QFrame()
-        line4.setFrameShape(QFrame.Shape.VLine)
-        line4.setFrameShadow(QFrame.Shadow.Sunken)
-        lang_layout.addWidget(line4)
 
-        # 5. Примітка
-        note_label = QLabel(
-            "*Для експорту у CSV виберіть собі окрему мову для контексту при перекладі<br>"
-            "<b>*При збереженні бінарника впевніться, що вибрано ukrainian,<br>"
-            "якщо звісно вам той переклад потрібний є)</b><br>"
-            "(Так насправді редагувать ви можете кожну мову крім української і англійської)"
-        )
-        lang_layout.addWidget(note_label)
 
-        # --- Обрамівка ---
+        # --- Frame ---
         box = QGroupBox("")  # без заголовку
         box.setFlat(False)
         box.setLayout(lang_layout)
         self.layout.addWidget(box)
 
 
-
-
-
-        
-        #Пошук
-        self.headers = []  
+        # --- Search ---
+        self.headers = []
         search_layout = QHBoxLayout()
         self.search_column_combo = QComboBox()
         self.search_column_combo.setFixedSize(150, 25)
         self.search_column_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
-        self.search_column_combo.addItems([h for h in self.headers if h != 'key'])  # після ініціалізації headers
+        self.search_column_combo.addItems([h for h in self.headers if h != 'key']) 
         search_layout.addWidget(QLabel("Пошук у стовпці:"))
         search_layout.addWidget(self.search_column_combo)
         self.search_line = QLineEdit()
@@ -293,7 +281,7 @@ class BinParserGUI(QWidget):
         search_layout.addWidget(self.search_line)
         self.layout.addLayout(search_layout)
         
-        #Збереження
+        # --- Save buttons ---
         btn_layout_2 = QHBoxLayout()
         self.save_bin_unknow_btn = QPushButton("Зберегти бінарник у теці Стіму") 
         self.save_bin_unknow_btn.clicked.connect(self.save_bin_unknow) 
@@ -303,7 +291,7 @@ class BinParserGUI(QWidget):
         btn_layout_2.addWidget(self.save_bin_unknow_btn)
         self.layout.addLayout(btn_layout_2)
 
-        # Таблиця з даними
+        # --- Table ---
         self.table = QTableWidget()
         self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
@@ -340,16 +328,97 @@ class BinParserGUI(QWidget):
         }
         
 
-
-        
-        # Лише для QLineEdit
+        # --- Load settings ---
         for obj, items in self.configs.items():
             if self.settings.value(items["key"]):
                 obj.setText(self.settings.value(items["key"]))
             else:
                 obj.setText(items["default"])
                 self.settings.setValue(items["key"], items["default"])
-        
+    
+                
+    def create_menubar(self):
+        menubar = QMenuBar(self)
+
+        # --- Menu File ---
+        file_menu = QMenu(self.translations.get("file", "File"), self)
+        exit_action = QAction(self.translations.get("exit", "Exit"), self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+        menubar.addMenu(file_menu)
+
+        # --- Menu Language ---
+        language_menu = QMenu(self.translations.get("language"), self)
+        for lang in LANG_FILES.keys():
+            action = QAction(lang, self)
+            action.triggered.connect(lambda checked, l=lang: self.change_language(l))
+            language_menu.addAction(action)
+        menubar.addMenu(language_menu)
+
+
+        # --- Menu Export ---
+        export_menu = QMenu(self.translations.get("export", "Export"), self)
+        export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
+        export_bin_action.triggered.connect(self.export_bin)
+        export_all_action = QAction(self.translations.get("export_all", "Export to CSV (all languages)"), self)
+        export_all_action.triggered.connect(self.export_csv_all)
+        export_for_translate_action = QAction(self.translations.get("export_for_translate", "Export to CSV for translation"), self)
+        export_for_translate_action.triggered.connect(self.export_csv_for_translate)
+        export_menu.addAction(export_bin_action)
+        export_menu.addAction(export_all_action)
+        export_menu.addAction(export_for_translate_action)
+        menubar.addMenu(export_menu)
+
+        # --- Menu Import ---
+        import_menu = QMenu(self.translations.get("import", "Import"), self)
+        import_action = QAction(self.translations.get(
+            "import_csv", "Import from CSV"), self)
+        import_action.triggered.connect(self.import_csv)
+        import_menu.addAction(import_action)
+        menubar.addMenu(import_menu)
+
+
+        # --- Menu About ---
+        about_menu = QMenu(self.translations.get("about", "About"), self)  
+        about_action = QAction(self.translations.get("about_app", "About App"), self)
+        about_action.triggered.connect(
+            lambda: QMessageBox.information(
+                self,
+                self.translations.get("about_app", "About App"),
+                self.translations.get("about_message", "")
+            )
+        )
+        about_menu.addAction(about_action)
+        menubar.addMenu(about_menu)
+
+        # Adding menubar to the layout
+        self.layout.setMenuBar(menubar)
+
+
+    def change_language(self, lang):
+        # Зберігаємо вибір мови
+        self.settings.setValue("language", lang)
+        self.settings.sync()
+
+        # Показуємо повідомлення про перезапуск
+        QMessageBox.information(
+            self, "Info", "Language changed. The application will restart to apply the new language.")
+        # Перезапускаємо програму з новою мовою
+        python = sys.executable
+        subprocess.Popen([python] + sys.argv)
+        self.close() 
+
+    def load_language(self, language):
+        path = resource_path(LANG_FILES[language])
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except UnicodeDecodeError:
+            # fallback для Windows-кодування
+            with open(path, "r", encoding="cp1251") as f:
+                return json.load(f)
+
+
 
     def stretch_columns(self, min_width: int = 120):
         """Розтягує колонки з мінімальною шириною"""
@@ -507,6 +576,8 @@ class BinParserGUI(QWidget):
         self.fill_context_lang_combo()
         self.update_search_column_combo()
         self.stretch_columns()
+        self.version()
+        self.gamename()
         QMessageBox.information(self, "Успіх", f"Завантажено {len(all_rows)} записів")
         
 
@@ -539,7 +610,10 @@ class BinParserGUI(QWidget):
             QMessageBox.information(self, "Успіх", "CSV файл збережено")
         except Exception as e:
             QMessageBox.warning(self, "Помилка", f"Не вдалося зберегти файл: {e}")
+
+
     def export_csv_for_translate(self):
+        QMessageBox.information(self, "Інформація", "Експорт у CSV для перекладу включає колонки: key, english, ukrainian та <b>вибрану мову контексту</b>.<br>Обрати мову контексту можна у полі <b>\"Вибір мови\"</b><br>Після перекладу заповніть колонку 'ukrainian' і імпортуйте файл назад у програму.")
         if 'english' not in self.headers:
             QMessageBox.warning(self, "Помилка", "Відсутня колонка 'english'")
             return
@@ -569,6 +643,7 @@ class BinParserGUI(QWidget):
             QMessageBox.warning(self, "Помилка", f"Не вдалося зберегти файл: {e}")
 
     def import_csv(self):
+        QMessageBox.information(self, "Інформація", "Імпорт CSV замінить вибрану мову на значення з колонки 'ukrainian', якщо вона заповнена.<br>Переконайтеся, що у файлі є колонки: 'key', 'ukrainian' і <b>вибрана мова контексту</b>.<br>Оберіть мову контексту у полі <b>\"Вибір мови\"</b> перед імпортом.")
         fname, _ = QFileDialog.getOpenFileName(self, "Відкрити CSV для імпорту", "", "CSV Files (*.csv)")
         if not fname:
             return
@@ -648,6 +723,7 @@ class BinParserGUI(QWidget):
             
 
     def replace_lang_in_bin(self):
+
         selected_column = self.context_lang_combo.currentText()
         if not selected_column:
             QMessageBox.warning(self, "Помилка", f"Колонку не вибрано")
@@ -880,7 +956,7 @@ class BinParserGUI(QWidget):
                 data = f.read()
         except Exception as e:
             if hasattr(self, "version_label"):
-                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
             return None
 
         marker = b"\x01version\x00"
@@ -888,14 +964,14 @@ class BinParserGUI(QWidget):
 
         if pos == -1:
             if hasattr(self, "version_label"):
-                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
             return None
 
         start = pos + len(marker)
         end = data.find(b"\x00", start)
         if end == -1:
             if hasattr(self, "version_label"):
-                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
             return None
 
         # Витягаємо рядок і пробуємо перетворити на число
@@ -907,9 +983,9 @@ class BinParserGUI(QWidget):
 
         if hasattr(self, "version_label"):
             if version_number is not None:
-                self.version_label.setText(f"Версія файлу досягнень: {version_number}")
+                self.version_label.setText(f"{self.translations.get('file_version')}{version_number}")
             else:
-                self.version_label.setText("Версія файлу досягнень: НЕВІДОМО")
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
 
         return version_number
 
@@ -924,7 +1000,7 @@ class BinParserGUI(QWidget):
                 data = f.read()
         except Exception as e:
             if hasattr(self, "gamename_label"):
-                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
         marker = b"\x01gamename\x00"
@@ -932,7 +1008,7 @@ class BinParserGUI(QWidget):
 
         if pos == -1:
             if hasattr(self, "gamename_label"):
-                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
         # Після маркера йде текст назви
@@ -940,13 +1016,14 @@ class BinParserGUI(QWidget):
         end = data.find(b"\x00", start)
         if end == -1:
             if hasattr(self, "gamename_label"):
-                self.gamename_label.setText("<h3>Гра: НЕВІДОМО</h3>")
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
         name = data[start:end].decode("utf-8", errors="ignore").strip()
 
         if hasattr(self, "gamename_label"):
-            self.gamename_label.setText(f"<h3>Гра: {name if name else 'НЕВІДОМО'}</h3>")
+            self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else {self.translations.get('unknown')}}")
+
 
         return name
 
@@ -1004,13 +1081,42 @@ class BinParserGUI(QWidget):
 
 
     
+
+APP_VERSION = "7.5.0"  
+
 def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    QMessageBox.information(None, "Ахтунґ", "Можливі баги, щодо них прошу звертатися на сторінку Ґітхабу, або писати у приватні у телеґрамі: @Pan_Vena")
-    window = BinParserGUI()
+    language = choose_language()
+
+    # Load translations for warning (default to English if not set yet)
+    settings = QSettings("Vena", "Steam Achievement Localizer")
+    language = settings.value("language", "English")
+    try:
+        with open(resource_path(LANG_FILES.get(language, LANG_FILES["English"])), "r", encoding="utf-8") as f:
+            translations = json.load(f)
+    except UnicodeDecodeError:
+        with open(resource_path(LANG_FILES.get(language, LANG_FILES["English"])), "r", encoding="cp1251") as f:
+            translations = json.load(f)
+        last_version = settings.value("last_version", "")
+
+
+    # Use the selected language for the warning dialog
+    warning_title = translations.get("warning_title_achtung", "Achtung")
+    warning_message = translations.get("warning_message", "Possible bugs, for questions please refer to the GitHub page, or write in private on Telegram: @Pan_Vena or Discord: pan_vena<br> Other my contact details can be found in 'About App'")
+
+    if last_version != APP_VERSION:
+        QMessageBox.information(
+            None,
+            warning_title,
+            warning_message
+        )
+        settings.setValue("last_version", APP_VERSION)
+        settings.sync()
+
+    window = BinParserGUI(language)
     window.show()
     sys.exit(app.exec())
+
 if __name__ == "__main__":
     main()
-    
