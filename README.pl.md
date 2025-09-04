@@ -25,7 +25,7 @@ Pozwala tłumaczyć i lokalizować opisy osiągnięć oraz zapisywać zmiany bez
 - Zapis:
   - bezpośrednio do folderu Steam,
   - lub w dowolne miejsce.
-- Wielojęzyczny interfejs (angielski, ukraiński).
+- Wielojęzyczny interfejs (angielski, ukraiński, polski).
 
 <blockquote>
    <h4> <p><strong><i>W przewodnikach dla tłumaczy zalecamy umieszczenie pliku w „C:\Program Files (x86)\Steam\appcache\stats\”, zastępując oryginał.</i></strong></p></h4>
