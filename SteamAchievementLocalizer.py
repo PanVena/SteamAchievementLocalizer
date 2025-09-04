@@ -2,7 +2,6 @@ import sys
 import csv
 import re
 import os
-import binascii
 import subprocess
 import winreg 
 import json
@@ -14,12 +13,14 @@ from PyQt6.QtWidgets import (
     QInputDialog, QMenu, QMenuBar, 
 )
 
+APP_VERSION = "7.6.0" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
 LANG_FILES = {
     "English": "assets/lang_en.json",
-    "Українська": "assets/lang_ua.json"
+    "Українська": "assets/lang_ua.json",
+    "Polski": "assets/lang_pl.json"
 }
 
 
@@ -54,6 +55,8 @@ def split_chunks(data: bytes):
         end = positions[i + 1] if i + 1 < len(positions) else len(data)
         chunks.append(data[start:end])
     return chunks
+
+
 def extract_key_and_data(chunk: bytes):
     key_pattern = re.compile(b'\x00\x01name\x00(.*?)\x00', re.DOTALL)
     key_match = key_pattern.search(chunk)
@@ -132,14 +135,13 @@ class BinParserGUI(QWidget):
         
         # --- File localization selection ---
         stats_bin_path_layout = QHBoxLayout()
-        self.stats_bin_path_label = QLabel(self.translations.get("man_select_file_label"))
         self.stats_bin_path_path = QLineEdit()
+        self.stats_bin_path_path.setPlaceholderText(self.translations.get("man_select_file_label"))
         self.stats_bin_path_path.textChanged.connect(lambda text: self.settings.setValue("LastEnteredFilePath", text))
         self.stats_bin_path_btn = QPushButton(self.translations.get("man_select_file"))
         self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
         self.select_stats_bin_path_btn = QPushButton(self.translations.get("get_ach"))
         self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
-        stats_bin_path_layout.addWidget(self.stats_bin_path_label)
         stats_bin_path_layout.addWidget(self.stats_bin_path_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
         stats_bin_path_layout.addWidget(self.select_stats_bin_path_btn)
@@ -181,13 +183,11 @@ class BinParserGUI(QWidget):
 
         # --- Steam folder selection ---
         steam_folder_layout = QHBoxLayout()
-        self.steam_folder_label = QLabel(
-            self.translations.get("steam_folder_label"))
         self.steam_folder_path = QLineEdit()
+        self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
         self.steam_folder_path.textChanged.connect(self.on_steam_path_changed)
         self.select_steam_folder_btn = QPushButton(self.translations.get("select_steam_folder"))
         self.select_steam_folder_btn.clicked.connect(self.select_steam_folder)
-        steam_folder_layout.addWidget(self.steam_folder_label)
         steam_folder_layout.addWidget(self.steam_folder_path)
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
 
@@ -196,8 +196,8 @@ class BinParserGUI(QWidget):
       
         # --- Game ID selection ---
         game_id_layout = QHBoxLayout()
-        self.game_id_label = QLabel(self.translations.get("game_id_label"))
         self.game_id_edit = QLineEdit()
+        self.game_id_edit.setPlaceholderText(self.translations.get("game_id_label"))
         self.game_id_edit.textChanged.connect(lambda text: self.settings.setValue("LastEnteredID", text))
         self.load_game_btn = QPushButton(self.translations.get("get_ach"))
         self.load_game_btn.clicked.connect(self.load_steam_game_stats)
@@ -206,7 +206,6 @@ class BinParserGUI(QWidget):
             self.game_id_edit.clear(),
             self.game_id_edit.setText(QApplication.clipboard().text())
         ))
-        game_id_layout.addWidget(self.game_id_label)
         game_id_layout.addWidget(self.game_id_edit)
         game_id_layout.addWidget(self.load_game_btn)
         game_id_layout.addWidget(self.clear_game_id)
@@ -260,7 +259,7 @@ class BinParserGUI(QWidget):
 
 
         # --- Frame ---
-        box = QGroupBox("")  # без заголовку
+        box = QGroupBox("")  
         box.setFlat(False)
         box.setLayout(lang_layout)
         self.layout.addWidget(box)
@@ -273,23 +272,14 @@ class BinParserGUI(QWidget):
         self.search_column_combo.setFixedSize(150, 25)
         self.search_column_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
         self.search_column_combo.addItems([h for h in self.headers if h != 'key']) 
-        search_layout.addWidget(QLabel("Пошук у стовпці:"))
+        search_layout.addWidget(QLabel(self.translations.get("in_column_search")))
         search_layout.addWidget(self.search_column_combo)
         self.search_line = QLineEdit()
-        self.search_line.setPlaceholderText("Пошук слова в стовпці")
+        self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
         self.search_line.textChanged.connect(self.search_in_table)
         search_layout.addWidget(self.search_line)
         self.layout.addLayout(search_layout)
         
-        # --- Save buttons ---
-        btn_layout_2 = QHBoxLayout()
-        self.save_bin_unknow_btn = QPushButton("Зберегти бінарник у теці Стіму") 
-        self.save_bin_unknow_btn.clicked.connect(self.save_bin_unknow) 
-        self.save_bin_know_btn = QPushButton("Зберегти бінарник для себе") 
-        self.save_bin_know_btn.clicked.connect(self.save_bin_know)
-        btn_layout_2.addWidget(self.save_bin_know_btn)
-        btn_layout_2.addWidget(self.save_bin_unknow_btn)
-        self.layout.addLayout(btn_layout_2)
 
         # --- Table ---
         self.table = QTableWidget()
@@ -377,6 +367,18 @@ class BinParserGUI(QWidget):
         import_menu.addAction(import_action)
         menubar.addMenu(import_menu)
 
+        # --- Munu Save ---
+        save_menu = QMenu(self.translations.get("save", "Save"), self)
+        save_known_action = QAction(self.translations.get(
+            "save_bin_known", "Save bin file for yourself"), self)
+        save_known_action.triggered.connect(self.save_bin_know)
+        save_unknown_action = QAction(self.translations.get(
+            "save_bin_unknown", "Save bin file to Steam folder"), self)
+        save_unknown_action.triggered.connect(self.save_bin_unknow)
+        save_menu.addAction(save_known_action)
+        save_menu.addAction(save_unknown_action)
+        menubar.addMenu(save_menu)
+
 
         # --- Menu About ---
         about_menu = QMenu(self.translations.get("about", "About"), self)  
@@ -385,7 +387,7 @@ class BinParserGUI(QWidget):
             lambda: QMessageBox.information(
                 self,
                 self.translations.get("about_app", "About App"),
-                self.translations.get("about_message", "")
+                self.translations.get("about_message",)
             )
         )
         about_menu.addAction(about_action)
@@ -396,32 +398,27 @@ class BinParserGUI(QWidget):
 
 
     def change_language(self, lang):
-        # Зберігаємо вибір мови
+        # Save selected language
         self.settings.setValue("language", lang)
         self.settings.sync()
 
-        # Показуємо повідомлення про перезапуск
+        # Show info message
         QMessageBox.information(
-            self, "Info", "Language changed. The application will restart to apply the new language.")
-        # Перезапускаємо програму з новою мовою
+            self, self.translations.get("info"), self.translations.get("lang_changed"))
+        # Restart app to apply language change
         python = sys.executable
         subprocess.Popen([python] + sys.argv)
         self.close() 
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except UnicodeDecodeError:
-            # fallback для Windows-кодування
-            with open(path, "r", encoding="cp1251") as f:
-                return json.load(f)
+        return load_json_with_fallback(path)
+
 
 
 
     def stretch_columns(self, min_width: int = 120):
-        """Розтягує колонки з мінімальною шириною"""
+        # Stretch columns to fit the table width or set to min_width with scrollbar
         if self.table.columnCount() == 0:
             return
 
@@ -429,11 +426,11 @@ class BinParserGUI(QWidget):
         total_min_width = self.table.columnCount() * min_width
 
         if total_min_width <= available_width:
-            # 🔄 якщо колонок мало — розтягуємо рівномірно на всю ширину
+            # If all columns fit — stretch them evenly
             for i in range(self.table.columnCount()):
                 self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
         else:
-            # 📏 якщо колонок багато — мінімальна ширина + скрол
+            # If not — set to min_width and enable horizontal scrollbar
             for i in range(self.table.columnCount()):
                 self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
                 self.table.setColumnWidth(i, min_width)
@@ -441,7 +438,7 @@ class BinParserGUI(QWidget):
 
 
     def on_steam_path_changed(self, text):
-        """Оновлення шляху Steam при зміні тексту"""
+        # Update steam folder path when text changes
         self.steam_folder = text.strip()
         self.settings.setValue("UserSteamPath", self.steam_folder)
         self.settings.sync()
@@ -466,12 +463,12 @@ class BinParserGUI(QWidget):
     def game_id(self):
         text = self.game_id_edit.text().strip()
 
-        # Витягує ID гри з будь-якого посилання, де є /app/123456
+        # Collect ID from URL if full link is provided
         match = re.search(r'/app/(\d+)', text)
         if match:
             return match.group(1)
 
-        # Якщо просто число
+        # If only digits are provided, return as is
         if text.isdigit():
             return text
 
@@ -479,7 +476,7 @@ class BinParserGUI(QWidget):
                 
     def select_steam_folder(self):
         folder = QFileDialog.getExistingDirectory(
-            self, "Обрати теку Стіму", self.steam_folder
+            self, self.translations.get("select_steam_folder"), self.steam_folder
         )
         if folder:
             real_path = os.path.realpath(folder)
@@ -491,24 +488,25 @@ class BinParserGUI(QWidget):
         self.force_manual_path = False
         game_id = self.game_id()
         if not game_id:
-            QMessageBox.warning(self, "Помилка", "Введіть ID гри чи посилання на неї,\n яке ви знаєте зверху на сторінці крамниці Стім")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_id"))
             return
         if not self.steam_folder:
-            QMessageBox.warning(self, "Помилка", "Спочатку оберіть теку Стім")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_path"))
             return
         path = self.get_stats_bin_path()
         try:
             with open(path, "rb") as f:
                 self.raw_data = f.read()
         except FileNotFoundError:
-            QMessageBox.warning(self, "Помилка", f"Файл не знайдено:\n{path}")
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_no_file')}{path}")
             return
         except Exception as e:
-            QMessageBox.warning(self, "Помилка", f"Не вдалося відкрити файл:\n{e}")
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
         self.parse_and_fill_table()
         self.version()
         self.gamename()
+
     def parse_and_fill_table(self):
         chunks = split_chunks(self.raw_data)
         self.chunks = chunks
@@ -540,17 +538,17 @@ class BinParserGUI(QWidget):
                 for col in r.keys():
                     if col != 'key':
                         all_columns.add(col)
-        # Якщо 'ukrainian' не присутній у жодному рядку — додаємо
+        # If 'ukrainian' column is missing, add it with empty values
         for row in all_rows:
             if 'ukrainian' not in row:
                 row['ukrainian'] = ''
 
-        # Аналогічно для english (якщо хочеш)
+        # Fill 'english' column if missing
         for row in all_rows:
             if 'english' not in row:
                 row['english'] = ''
 
-        # Після цього знову зібрати headers
+        # Define headers: key, ukrainian, english, then others alphabetically
         all_columns = set()
         for row in all_rows:
             for col in row:
@@ -578,9 +576,9 @@ class BinParserGUI(QWidget):
         self.stretch_columns()
         self.version()
         self.gamename()
-        QMessageBox.information(self, "Успіх", f"Завантажено {len(all_rows)} записів")
-        
-
+        msg = self.translations.get("records_loaded").format(count=len(all_rows))
+        QMessageBox.information(self, self.translations.get("success"), msg)
+       
 
     def fill_context_lang_combo(self):
         if not self.headers:
@@ -597,8 +595,9 @@ class BinParserGUI(QWidget):
             self.context_lang_combo.setCurrentIndex(0)
         elif langs:
             self.context_lang_combo.setCurrentIndex(0)
+
     def export_csv_all(self):
-        fname, _ = QFileDialog.getSaveFileName(self, 'Зберегти CSV', '', 'CSV Files (*.csv)')
+        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), '', 'CSV Files (*.csv)')
         if not fname:
             return
         try:
@@ -607,24 +606,26 @@ class BinParserGUI(QWidget):
                 writer.writeheader()
                 for row in self.data_rows:
                     writer.writerow(row)
-            QMessageBox.information(self, "Успіх", "CSV файл збережено")
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
         except Exception as e:
-            QMessageBox.warning(self, "Помилка", f"Не вдалося зберегти файл: {e}")
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
 
 
     def export_csv_for_translate(self):
-        QMessageBox.information(self, "Інформація", "Експорт у CSV для перекладу включає колонки: key, english, ukrainian та <b>вибрану мову контексту</b>.<br>Обрати мову контексту можна у полі <b>\"Вибір мови\"</b><br>Після перекладу заповніть колонку 'ukrainian' і імпортуйте файл назад у програму.")
         if 'english' not in self.headers:
-            QMessageBox.warning(self, "Помилка", "Відсутня колонка 'english'")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_english"))
             return
         key_col = 'key'
         translate_col = 'english'
         translated_col = 'ukrainian'
         context_col = self.context_lang_combo.currentText()
+        msg1 = self.translations.get("export_csv_for_translate_info").format(context=context_col)
+        QMessageBox.information(self, self.translations.get("info"), msg1)
+
         if not context_col:
-            QMessageBox.warning(self, "Помилка", "Оберіть мову контексту")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_context"))
             return
-        fname, _ = QFileDialog.getSaveFileName(self, "Зберегти CSV (для перекладу)", "", "CSV Files (*.csv)")
+        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_for_translate_file_dialog"), "", "CSV Files (*.csv)")
         if not fname:
             return
         try:
@@ -638,47 +639,48 @@ class BinParserGUI(QWidget):
                         row.get(translated_col, ''),
                         row.get(context_col, ''),
                     ])
-            QMessageBox.information(self, "Успіх", "CSV для перекладу збережено")
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
         except Exception as e:
-            QMessageBox.warning(self, "Помилка", f"Не вдалося зберегти файл: {e}")
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
 
-    def import_csv(self):
-        QMessageBox.information(self, "Інформація", "Імпорт CSV замінить вибрану мову на значення з колонки 'ukrainian', якщо вона заповнена.<br>Переконайтеся, що у файлі є колонки: 'key', 'ukrainian' і <b>вибрана мова контексту</b>.<br>Оберіть мову контексту у полі <b>\"Вибір мови\"</b> перед імпортом.")
-        fname, _ = QFileDialog.getOpenFileName(self, "Відкрити CSV для імпорту", "", "CSV Files (*.csv)")
+    def import_csv(self):       
+        context_lang = self.context_lang_combo.currentText()
+        msg2 = self.translations.get("import_csv_info").format(context=context_lang)
+        QMessageBox.information(self, self.translations.get("info"), msg2)
+        fname, _ = QFileDialog.getOpenFileName(self, self.translations.get("import_csv_file_dialog"), "", "CSV Files (*.csv)")
         if not fname:
             return
 
-        context_lang = self.context_lang_combo.currentText()
         if not context_lang:
-            QMessageBox.warning(self, "Помилка", "Оберіть мову для імпорту")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_lang_for_import"))
             return
 
         try:
             with open(fname, 'r', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
-            # Перевірка, що потрібні колонки є у файлі
-                if 'key' not in reader.fieldnames or 'ukrainian' not in reader.fieldnames or context_lang not in reader.fieldnames:
-                    QMessageBox.warning(self, "Помилка", f"CSV має містити колонки: 'key', 'ukrainian', '{context_lang}'")
+            # Сolumns check
+                if 'key' not in reader.fieldnames or 'ukrainian' not in reader.fieldnames:
+                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_columns"))
                     return
 
                 key_to_row = {row['key']: row for row in self.data_rows}
 
-            # Проходимо по CSV і оновлюємо дані у self.data_rows
+            # Read and update rows
                 for csv_row in reader:
                     key = csv_row.get('key', '')
                     ukrainian_val = csv_row.get('ukrainian', '').strip()
                     if not key or key not in key_to_row:
                         continue
 
-                # Якщо в колонці ukrainian є текст, замінюємо вибрану мову (context_lang) на нього
+                # Update only if ukrainian_val is not empty
                     if ukrainian_val:
                         key_to_row[key][context_lang] = ukrainian_val
 
-        # Оновлюємо таблицю з новими даними
+        # Update data_rows to reflect changes
             self.refresh_table()
-            QMessageBox.information(self, "Успіх", "CSV імпортовано і дані оновлено")
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("import_success"))
         except Exception as e:
-            QMessageBox.warning(self, "Помилка", f"Не вдалося імпортувати CSV:\n{e}")
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_doesnt_imported')}{e}")
 
 
     def refresh_table(self):
@@ -693,25 +695,7 @@ class BinParserGUI(QWidget):
                 self.table.setItem(row_i, col_i, item)
 
 
-    def print_selected_column(self):
-        selected_column = self.context_lang_combo.currentText()
-        if not selected_column:
-            print("Колонку не вибрано.")
-            return
-
-        try:
-            col_index = self.headers.index(selected_column)
-        except ValueError:
-            print(f"Колонка '{selected_column}' не знайдена у заголовках.")
-            return
-
-        print(f"--- Вміст колонки '{selected_column}' ---")
-        for row_i in range(self.table.rowCount()):
-            item = self.table.item(row_i, col_index)
-            value = item.text() if item else ''
-            print(value)
-            
-
+           
     def on_table_item_changed(self, item):
         row = item.row()
         col = item.column()
@@ -726,16 +710,15 @@ class BinParserGUI(QWidget):
 
         selected_column = self.context_lang_combo.currentText()
         if not selected_column:
-            QMessageBox.warning(self, "Помилка", f"Колонку не вибрано")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_column_choosen_to_replace"))
             return
 
         try:
             col_index = self.headers.index(selected_column)
         except ValueError:
-            print(f"Колонка '{selected_column}' не знайдена у заголовках.")
             return
 
-        # Значення для вставки
+        # Value collection
         values = []
         for row_i in range(self.table.rowCount()):
             item = self.table.item(row_i, col_index)
@@ -748,7 +731,6 @@ class BinParserGUI(QWidget):
             with open(file_path, "rb") as f:
                 data = f.read()
         except FileNotFoundError:
-            print("Файл не знайдено:", file_path)
             return
 
         output = bytearray()
@@ -758,23 +740,23 @@ class BinParserGUI(QWidget):
         marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
 
         if marker in data:
-            # 🔄 Мова вже існує — редагуємо значення
+            # Language exists — replace values
             while i < len(data):
                 idx = data.find(marker, i)
                 if idx == -1:
                     output.extend(data[i:])
                     break
 
-                # Копіюємо до і включно з маркером
+                # Copy up to the marker
                 output.extend(data[i:idx + len(marker)])
                 i = idx + len(marker)
 
                 end = data.find(b'\x00', i)
                 if end == -1:
-                    print("Не вдалося знайти кінець рядка.")
+                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_end_was_found"))
                     return
 
-                # Заміна значення
+                # Replace with new value
                 if v_idx < len(values):
                     new_text = values[v_idx].encode("utf-8")
                 else:
@@ -785,7 +767,7 @@ class BinParserGUI(QWidget):
                 v_idx += 1
 
         else:
-            # ➕ Мови ще нема — вставляємо перед english
+            # Language does not exist — insert new language before english
             english_marker = b'\x01english\x00'
             while i < len(data):
                 idx = data.find(english_marker, i)
@@ -795,7 +777,7 @@ class BinParserGUI(QWidget):
 
                 output.extend(data[i:idx])
 
-                # Вставляємо український переклад
+                # Insert new language
                 if v_idx < len(values):
                     ukr_text = values[v_idx].encode("utf-8")
                 else:
@@ -807,7 +789,7 @@ class BinParserGUI(QWidget):
                 i = idx + len(english_marker)
                 end = data.find(b'\x00', i)
                 if end == -1:
-                    print("Не вдалося знайти кінець рядка після english.")
+                    QMessageBox.warning(self, self.translations.get("error"),  self.translations.get("error_nothing_after_english"))
                     return
                 output.extend(data[i:end+1])
                 i = end + 1
@@ -828,10 +810,10 @@ class BinParserGUI(QWidget):
     def save_bin_unknow(self):
         datas = self.replace_lang_in_bin()
         if self.force_manual_path is True:
-            QMessageBox.warning(self, "Помилка", "Ти завантажив файл з якоїсь іншої теки, шуруй зберігай де-інде")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_manually_selected_file"))
             return
         if datas is None:
-            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_data_to save"))
             return
 
         save_path = os.path.join(
@@ -841,15 +823,15 @@ class BinParserGUI(QWidget):
         try:
             with open(save_path, "wb") as f:
                 f.write(datas)
-            QMessageBox.information(self, "Готово", f"Файл збережено у теці Стіму")
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("in_steam_folder_saved"))
         except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
+            QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
             
   
     def save_bin_know(self):
         save_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Зберегти змінений файл",
+            self.translations.get("file_saving_file_dialog"),
             self.get_stats_bin_path(),
             "Binary files (*.bin);;All files (*)"
         )
@@ -859,15 +841,15 @@ class BinParserGUI(QWidget):
 
         datas = self.replace_lang_in_bin()
         if datas is None:
-            QMessageBox.warning(self, "Помилка", "Спершу завантажте файл досягнень")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_data_to_save"))
             return
 
         try:
             with open(save_path, "wb") as f:
                 f.write(datas)
-            QMessageBox.information(self, "Готово", f"Файл збережено:\n{save_path}")
+            QMessageBox.information(self, self.translations.get("success"), f"{self.translations.get('file_saved')}{save_path}")
         except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося зберегти файл:\n{e}")
+            QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
 
     def search_in_table(self, text):
         col_name = self.search_column_combo.currentText()
@@ -878,7 +860,7 @@ class BinParserGUI(QWidget):
 
         search_text = text.strip().lower()
 
-        # Скидаємо фон і показуємо всі рядки спочатку (лише у вибраному стовпці!)
+        # Background reset and show all rows
         for row in range(self.table.rowCount()):
             for col in range(self.table.columnCount()):
                 item = self.table.item(row, col)
@@ -886,15 +868,15 @@ class BinParserGUI(QWidget):
                     item.setBackground(QBrush())
             self.table.setRowHidden(row, False)
 
-        # Пошук і підсвічування
+        # Search and highlight
         if not search_text:
-            return  # Якщо поле пошуку порожнє, нічого не виділяємо
+            return  # If search is empty, show all rows without highlights
 
         for row in range(self.table.rowCount()):
             item = self.table.item(row, col_index)
             if item and item.text().strip():
                 if search_text in item.text().lower():
-                    item.setBackground(QBrush(QColor("gray")))  # або інший пастельний колір
+                    item.setBackground(QBrush(QColor("gray"))) 
                     self.table.setRowHidden(row, False)
                 else:
                     self.table.setRowHidden(row, True)
@@ -917,7 +899,7 @@ class BinParserGUI(QWidget):
                 if os.path.exists(fallback):
                     path = fallback
                 else:
-                    QMessageBox.warning(self, "Увага", "Не вдалося знайти теку Steam автоматично")
+                    QMessageBox.warning(self, self.translations.get("attention"), self.translations.get("folder_not_found_auto"))
                     path = ""
 
             self.settings.setValue("UserSteamPath", path)
@@ -974,7 +956,7 @@ class BinParserGUI(QWidget):
                 self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
             return None
 
-        # Витягаємо рядок і пробуємо перетворити на число
+        # Fetch version string
         ver_str = data[start:end].decode("utf-8", errors="ignore").strip()
         try:
             version_number = int(ver_str)
@@ -1011,7 +993,7 @@ class BinParserGUI(QWidget):
                 self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
-        # Після маркера йде текст назви
+        # Fetch game name string
         start = pos + len(marker)
         end = data.find(b"\x00", start)
         if end == -1:
@@ -1030,7 +1012,7 @@ class BinParserGUI(QWidget):
 
 
     def get_stats_bin_path(self):
-        """Обирає шлях у залежності від кнопки"""
+       # Determine path to UserGameStatsSchema_{game_id}.bin
         manual_path = self.stats_bin_path_path.text().strip()
         if self.force_manual_path and manual_path:
             return manual_path
@@ -1045,11 +1027,11 @@ class BinParserGUI(QWidget):
     def stats_bin_path_search(self):
         file, _ = QFileDialog.getOpenFileName(
             self,
-            "Обрати файл UserGameStatsSchema",
+            self.translations.get("man_select_file_file_dialog"),
             "",
             "Binary files (*.bin);;All files (*)"
         )
-        if file:  # тільки якщо щось вибрано
+        if file:  # if user selected a file
             self.stats_bin_path_path.setText(file)
         self.select_stats_bin_path()
 
@@ -1057,13 +1039,13 @@ class BinParserGUI(QWidget):
     def select_stats_bin_path(self):
         path = self.stats_bin_path_path.text().strip()
         if not path:
-            QMessageBox.warning(self, "Помилка", "Спочатку оберіть файл UserGameStatsSchema")
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_UserGameStatsSchema_sel"))
             return
         try:
             with open(path, "rb") as f:
                 self.raw_data = f.read()
         except Exception as e:
-            QMessageBox.critical(self, "Помилка", f"Не вдалося відкрити файл:\n{e}")
+            QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
             
         self.force_manual_path = True
@@ -1080,9 +1062,17 @@ class BinParserGUI(QWidget):
         self.set_steam_folder_path(force=True)
 
 
+def load_json_with_fallback(path):
+    for encoding in ("utf-8-sig", "utf-8", "cp1251"):
+        try:
+            with open(path, "r", encoding=encoding) as f:
+                return json.load(f)
+        except Exception:
+            continue
+    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
+    raise RuntimeError(f"{translations.get('cannot_decode_json')}{path}")
     
-
-APP_VERSION = "7.5.0"  
+ 
 
 def main():
     app = QApplication(sys.argv)
@@ -1092,12 +1082,8 @@ def main():
     # Load translations for warning (default to English if not set yet)
     settings = QSettings("Vena", "Steam Achievement Localizer")
     language = settings.value("language", "English")
-    try:
-        with open(resource_path(LANG_FILES.get(language, LANG_FILES["English"])), "r", encoding="utf-8") as f:
-            translations = json.load(f)
-    except UnicodeDecodeError:
-        with open(resource_path(LANG_FILES.get(language, LANG_FILES["English"])), "r", encoding="cp1251") as f:
-            translations = json.load(f)
+    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
+
 
     last_version = settings.value("last_version", "")
 
