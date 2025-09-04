@@ -1,8 +1,8 @@
 {
-    "app_title": "Steam Achievement Localizer from Pan_Vena ver ",
+    "app_title": "Steam Achievement Localizer by Pan_Vena ver ",
     "warning_title_achtung": "Achtung",
     "warning_message": "Possible bugs, for questions please refer to the GitHub page, or write in private on Telegram: @Pan_Vena or Discord: pan_vena<br> Other my contact details can be found in 'About App'",
-    "man_select_file_label": "Select UserGameStatsSchema_еееее.bin:",
+    "man_select_file_label": "Select UserGameStatsSchema_XXXXX.bin:",
     "man_select_file": "Select a file",
     "get_ach": "Get achievements!!!",
     "man_file_sel_label": "Manual file selection",

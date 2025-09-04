@@ -1098,7 +1098,8 @@ def main():
     except UnicodeDecodeError:
         with open(resource_path(LANG_FILES.get(language, LANG_FILES["English"])), "r", encoding="cp1251") as f:
             translations = json.load(f)
-        last_version = settings.value("last_version", "")
+
+    last_version = settings.value("last_version", "")
 
 
     # Use the selected language for the warning dialog
