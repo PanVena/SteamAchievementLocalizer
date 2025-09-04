@@ -32,42 +32,13 @@
 - Багатомовний інтерфейс (англійська, українська).  
 
 <blockquote>
-   <h2> <p><strong><i>У посібничках до українізаторів кажемо, що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.</i></strong></p></h2>
+   <h4> <p><strong><i>У посібничках до українізаторів кажемо, що файлик кидать до "C:\Program Files (x86)\Steam\appcache\stats\", з заміною.</i></strong></p></h4>
 </blockquote>
 
 <p><strong>🧯 У разі помилок — видали файл отут і перезапусти стім і зайшовши на сторінку гри у бібліотеці:</strong><br>
 <code>C:\Program Files (x86)\Steam\appcache\stats\UserGameStatsSchema_XXXX.bin</code><br>
 <strong>Або знайшовши його у природному середовищі)</strong></p>
 
-<h2>✏️ Структура CSV-файлу</h2>
-
-<table>
-    <thead>
-        <tr>
-            <th>key</th>
-            <th>english</th>
-            <th>ukrainian</th>
-            <th>context_column (будь-яка)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>NAME_ACHIEVE</td>
-            <td>First Step</td>
-            <td>Перший крок</td>
-            <td>Pierwszy krok</td>
-        </tr>
-    </tbody>
-</table>
-
-
-<h2>📦 Встановлення (для розробників)</h2>
-<pre><code>git clone https://github.com/PanVena/SteamAchievementLocalizer.git
-cd SteamAchievementLocalizer
-pip install -r requirements.txt
-python SteamAchievementLocalizer.py
-</code></pre>
-<p><strong>Потрібно:</strong> Python 3.10+, PyQt6, csv, re</p>
 
 <h2>👥 Спільнота</h2>
 <p>Приєднуйтесь до спілки перекладачів:<br>
