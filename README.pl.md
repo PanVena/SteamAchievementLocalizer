@@ -28,41 +28,13 @@ Pozwala tłumaczyć i lokalizować opisy osiągnięć oraz zapisywać zmiany bez
 - Wielojęzyczny interfejs (angielski, ukraiński).
 
 <blockquote>
-   <h2> <p><strong><i>W przewodnikach dla tłumaczy zalecamy umieszczenie pliku w „C:\Program Files (x86)\Steam\appcache\stats\”, zastępując oryginał.</i></strong></p></h2>
+   <h4> <p><strong><i>W przewodnikach dla tłumaczy zalecamy umieszczenie pliku w „C:\Program Files (x86)\Steam\appcache\stats\”, zastępując oryginał.</i></strong></p></h4>
 </blockquote>
 
 <p><strong>🧯 Jeśli napotkasz błędy — usuń plik tutaj, zrestartuj Steam i wejdź na stronę gry w swojej bibliotece:</strong><br>
 <code>C:\Program Files (x86)\Steam\appcache\stats\UserGameStatsSchema_XXXX.bin</code><br>
 <strong>Lub znajdź go w jego naturalnym środowisku :)</strong></p>
 
-<h2>✏️ Struktura pliku CSV</h2>
-
-<table>
-    <thead>
-        <tr>
-            <th>key</th>
-            <th>english</th>
-            <th>ukrainian</th>
-            <th>context_column (dowolny)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>NAME_ACHIEVE</td>
-            <td>First Step</td>
-            <td>Перший крок</td>
-            <td>Pierwszy krok</td>
-        </tr>
-    </tbody>
-</table>
-
-<h2>📦 Instalacja (dla deweloperów)</h2>
-<pre><code>git clone https://github.com/PanVena/SteamAchievementLocalizer.git
-cd SteamAchievementLocalizer
-pip install -r requirements.txt
-python SteamAchievementLocalizer.py
-</code></pre>
-<p><strong>Wymagane:</strong> Python 3.10+, PyQt6, csv, re</p>
 
 <h2>👥 Społeczność</h2>
 <p>Dołącz do społeczności tłumaczy:<br>
