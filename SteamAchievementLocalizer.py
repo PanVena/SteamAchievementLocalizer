@@ -249,7 +249,8 @@ class BinParserGUI(QWidget):
 
         # 4. Language selection
         lang_select_layout = QHBoxLayout()
-        lang_select_layout.addWidget(QLabel(self.translations.get("lang_sel")))
+        self.lamg_select_label=QLabel(self.translations.get("lang_sel"))
+        lang_select_layout.addWidget(self.lamg_select_label)
         self.context_lang_combo = QComboBox()
         self.context_lang_combo.setFixedSize(150, 25)
         self.context_lang_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
@@ -403,8 +404,6 @@ class BinParserGUI(QWidget):
         self.settings.sync()
         self.language = lang
         self.translations = self.load_language(lang)
-        QMessageBox.information(
-            self, self.translations.get("info"), self.translations.get("lang_changed"))
         self.refresh_ui_texts()
 
     def refresh_ui_texts(self):
@@ -424,6 +423,7 @@ class BinParserGUI(QWidget):
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
         self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
         self.search_label.setText(self.translations.get("in_column_search"))
+        self.lamg_select_label.setText(self.translations.get("lang_sel"))
         self.create_menubar()
         self.update_search_column_combo()
         self.fill_context_lang_combo()

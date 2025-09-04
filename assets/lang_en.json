@@ -34,7 +34,6 @@
     "about_app": "About App",
     "about_message": "The app is made for translating Steam achievements names.<br>In case of questions:<br> - Telegram: <b>@Pan_Vena</b><br> - Discord: <b>pan_vena</b><br> - GitHub: <b>PanVena</b><br>Also thanks for pull requests: <b>Nick Defrunct</b> and <b>veydzh3r</b>",
     "info": "Info",
-    "lang_changed": "Language changed. The application will restart to apply the new interface language.",
     "error": "Error",
     "success": "Success",
     "records_loaded": "{count} records loaded",

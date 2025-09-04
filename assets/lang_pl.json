@@ -34,7 +34,6 @@
 	"about_app": "O programie",
 	"about_message": "Aplikacja służy do tłumaczenia nazw osiągnięć Steam.<br>W razie pytań:<br> - Telegram: <b>@Pan_Vena</b><br> - Discord: <b>pan_vena</b><br> - GitHub: <b>PanVena</b><br>Dziękuję również za pull requesty: <b>Nick Defrunct</b> i <b>veydzh3r</b>",
 	"info": "Informacja",
-	"lang_changed": "Język został zmieniony. Program zostanie ponownie uruchomiony, aby zastosować nowy język interfejsu.",
 	"error": "Błąd",
 	"success": "Sukces",
 	"records_loaded": "Załadowano {count} rekordów",
