@@ -6,7 +6,7 @@
 
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Download the latest version 👈</a></p>
 
-![Screenshot](assets/scrn.png)
+![Screenshot](assets/scrn_en.png)
 
 <h2>💡 Key Features</h2>
 <ul>
