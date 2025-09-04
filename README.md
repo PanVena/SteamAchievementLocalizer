@@ -2,37 +2,30 @@
 
 <h1>🏆 Steam Achievement Localizer by Vena</h1>
 
-<p><strong>Steam Achievement Localizer</strong> is a 💻 desktop application built with <strong>Python + PyQt6</strong> that makes it easy to <strong>view</strong>, <strong>export</strong>, <strong>translate</strong>, and <strong>edit achievements</strong> in Steam <code>.bin</code> files. </p>
+<p><strong>Steam Achievement Localizer</strong> is a PyQt6-based GUI tool for editing Steam achievement files (UserGameStatsSchema_xxx.bin).
+It allows you to translate and localize achievement descriptions and save changes either directly into your Steam folder or as a separate file. </p>
 
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Download the latest version 👈</a></p>
 
 ![Screenshot](assets/scrn_en.png)
 
-<h2>💡 Key Features</h2>
-<ul>
-    <li>📂 Reads Steam <code>.bin</code> files (<code>UserGameStatsSchema_XXXX.bin</code>)</li>
-    <li>📊 Convenient achievement table view</li>
-    <li>🧾 Export to <strong>CSV</strong> with <strong>context support</strong></li>
-    <li>🌐 Import your own translations from CSV back into <code>.bin</code></li>
-    <li>🌍 Supports <strong>many languages</strong>, including <code>ukrainian</code></li>
-    <li>🧠 Search result highlighting</li>
-    <li>🔎 Automatic Steam path detection</li>
-    <li>🔐 Safe editing — only necessary fields, everything else is preserved</li>
-</ul>
-
-<h2>📋 How to Use</h2>
-<ol>
-    <li>Run the program</li>
-    <li>Automatically select the Steam folder (or leave the default: <code>C:\Program Files (x86)\Steam</code>)</li>
-    <li>Enter the game ID or a link from the Steam store</li>
-    <li>Click "Find achievements"!</li>
-    <li>View the achievement table</li>
-    <li>Select a language from the list</li>
-    <li>Click "Export CSV"</li>
-    <li>Fill in the <code>ukrainian</code> column in the CSV file with your translation</li>
-    <li>Import the file back</li>
-    <li>Click "Save binary" to replace the Steam file or save a copy for yourself</li>
-</ol>
+## 📌 Features
+- Automatic detection of the Steam folder (via Windows Registry).  
+- Load `UserGameStatsSchema_*.bin` file:
+  - manually,
+  - or automatically via a game ID.  
+- View and edit achievement tables.  
+- Column-based search.  
+- Export to CSV:
+  - all languages at once,
+  - special format for translation.  
+- Import translations from CSV back into the app.  
+- Automatic support for Ukrainian (adds the column if missing).  
+- Replace translations directly inside `.bin` files.  
+- Save:
+  - directly into Steam’s folder,
+  - or to any custom location.  
+- Multi-language UI (English, Ukrainian).  
 
 <blockquote>
    <h2> <p><strong><i>In guides for localizers, we say to put the file in "C:\Program Files (x86)\Steam\appcache\stats\", replacing the original.</i></strong></p></h2>
