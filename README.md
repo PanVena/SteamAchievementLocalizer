@@ -27,7 +27,7 @@ It allows you to translate and localize achievement descriptions and save change
 - Save:
   - directly into Steam’s folder,
   - or to any custom location.  
-- Multi-language UI (English, Ukrainian).  
+- Multi-language UI (English, Ukrainian, Polish).  
 
 <blockquote>
    <h4> <p><strong><i>In guides for localizers, we say to put the file in "C:\Program Files (x86)\Steam\appcache\stats\", replacing the original.</i></strong></p></h4>
