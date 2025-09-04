@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QInputDialog, QMenu, QMenuBar, 
 )
 
-APP_VERSION = "7.6.0" 
+APP_VERSION = "7.6.1" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -1069,6 +1069,9 @@ def load_json_with_fallback(path):
                 return json.load(f)
         except Exception:
             continue
+
+    settings = QSettings("Vena", "Steam Achievement Localizer")
+    language = settings.value("language", "English")
     translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
     raise RuntimeError(f"{translations.get('cannot_decode_json')}{path}")
     
