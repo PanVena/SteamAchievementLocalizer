@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QInputDialog, QMenu, QMenuBar, 
 )
 
-APP_VERSION = "7.6.2" 
+APP_VERSION = "7.6.3" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -147,10 +147,10 @@ class BinParserGUI(QWidget):
         stats_bin_path_layout.addWidget(self.select_stats_bin_path_btn)
         
         # --- Frame ---
-        stats_group = QGroupBox(self.translations.get("man_file_sel_label"))
-        stats_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
-        stats_group.setLayout(stats_bin_path_layout)
-        self.layout.addWidget(stats_group)   
+        self.stats_group = QGroupBox(self.translations.get("man_file_sel_label"))
+        self.stats_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        self.stats_group.setLayout(stats_bin_path_layout)
+        self.layout.addWidget(self.stats_group)   
         
         
         # --- OR (with lines) ---
@@ -215,10 +215,10 @@ class BinParserGUI(QWidget):
         steam_group_layout = QVBoxLayout()
         steam_group_layout.addLayout(steam_folder_layout)
         steam_group_layout.addLayout(game_id_layout)
-        steam_group = QGroupBox(self.translations.get("indirect_file_sel_label"))
-        steam_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
-        steam_group.setLayout(steam_group_layout)
-        self.layout.addWidget(steam_group)
+        self.steam_group = QGroupBox(self.translations.get("indirect_file_sel_label"))
+        self.steam_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        self.steam_group.setLayout(steam_group_layout)
+        self.layout.addWidget(self.steam_group)
         
 
        
@@ -272,7 +272,8 @@ class BinParserGUI(QWidget):
         self.search_column_combo.setFixedSize(150, 25)
         self.search_column_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
         self.search_column_combo.addItems([h for h in self.headers if h != 'key']) 
-        search_layout.addWidget(QLabel(self.translations.get("in_column_search")))
+        self.search_label = QLabel(self.translations.get("in_column_search"))
+        search_layout.addWidget(self.search_label)
         search_layout.addWidget(self.search_column_combo)
         self.search_line = QLineEdit()
         self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
@@ -398,23 +399,34 @@ class BinParserGUI(QWidget):
 
 
     def change_language(self, lang):
-        # Save selected language
         self.settings.setValue("language", lang)
         self.settings.sync()
-
-        # Show info message
+        self.language = lang
+        self.translations = self.load_language(lang)
         QMessageBox.information(
             self, self.translations.get("info"), self.translations.get("lang_changed"))
-            
-        # We use os.execv(sys.executable, [sys.executable, '"' + sys.argv[0] + '"'] + sys.argv[1:]) instead of
-        # subprocess.Popen([python] + sys.argv) followed by self.close(), because os.execv fully replaces the
-        # current process with a new one. This ensures all resources (including temporary directories and threads)
-        # are properly cleaned up before restarting, which avoids issues typical for PyInstaller/Nuitka apps,
-        # such as "Failed to remove temporary directory" and "Failed to start embedded python interpreter".
-        # subprocess.Popen just starts a child process while the parent may still hold resources, leading to
-        # resource conflicts and crashes during restart. Wrapping sys.argv[0] in quotes prevents errors if the
-        # script path contains spaces.
-        os.execv(sys.executable, [sys.executable, '"' + sys.argv[0] + '"'] + sys.argv[1:])
+        self.refresh_ui_texts()
+
+    def refresh_ui_texts(self):
+        self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
+        self.stats_bin_path_path.setPlaceholderText(self.translations.get("man_select_file_label"))
+        self.stats_bin_path_btn.setText(self.translations.get("man_select_file"))
+        self.select_stats_bin_path_btn.setText(self.translations.get("get_ach"))
+        self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
+        self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
+        self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
+        self.select_steam_folder_btn.setText(self.translations.get("select_steam_folder"))
+        self.game_id_edit.setPlaceholderText(self.translations.get("game_id_label"))
+        self.load_game_btn.setText(self.translations.get("get_ach"))
+        self.clear_game_id.setText(self.translations.get("clear_and_paste"))
+        self.abo_label.setText(self.translations.get("OR"))
+        self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
+        self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
+        self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
+        self.search_label.setText(self.translations.get("in_column_search"))
+        self.create_menubar()
+        self.update_search_column_combo()
+        self.fill_context_lang_combo()
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
