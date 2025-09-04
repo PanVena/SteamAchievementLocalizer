@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QInputDialog, QMenu, QMenuBar, 
 )
 
-APP_VERSION = "7.6.3" 
+APP_VERSION = "7.6.4" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
