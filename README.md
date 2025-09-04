@@ -1,4 +1,6 @@
-[![uk](https://img.shields.io/badge/українською-blue.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.uk.md)
+[![uk](https://img.shields.io/badge/українська-blue.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.uk.md)
+[![pl](https://img.shields.io/badge/polski-green.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.pl.md)
+
 
 <h1>🏆 Steam Achievement Localizer by Vena</h1>
 
