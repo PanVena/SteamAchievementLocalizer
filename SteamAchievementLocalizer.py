@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QInputDialog, QMenu, QMenuBar, 
 )
 
-APP_VERSION = "7.6.1" 
+APP_VERSION = "7.6.2" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -405,10 +405,16 @@ class BinParserGUI(QWidget):
         # Show info message
         QMessageBox.information(
             self, self.translations.get("info"), self.translations.get("lang_changed"))
-        # Restart app to apply language change
-        python = sys.executable
-        subprocess.Popen([python] + sys.argv)
-        self.close() 
+            
+        # We use os.execv(sys.executable, [sys.executable, '"' + sys.argv[0] + '"'] + sys.argv[1:]) instead of
+        # subprocess.Popen([python] + sys.argv) followed by self.close(), because os.execv fully replaces the
+        # current process with a new one. This ensures all resources (including temporary directories and threads)
+        # are properly cleaned up before restarting, which avoids issues typical for PyInstaller/Nuitka apps,
+        # such as "Failed to remove temporary directory" and "Failed to start embedded python interpreter".
+        # subprocess.Popen just starts a child process while the parent may still hold resources, leading to
+        # resource conflicts and crashes during restart. Wrapping sys.argv[0] in quotes prevents errors if the
+        # script path contains spaces.
+        os.execv(sys.executable, [sys.executable, '"' + sys.argv[0] + '"'] + sys.argv[1:])
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
