@@ -1,7 +1,7 @@
 [![en](https://img.shields.io/badge/english-red.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.md)
 [![pl](https://img.shields.io/badge/polski-green.svg)](https://github.com/PanVena/SteamAchievementLocalizer/blob/main/README.pl.md)
 
-<h1>🏆 Steam Achievement Localizer від Вени</h1>
+<h1>🏆 Локалізатор досягнень Стіму від Вени</h1>
 
 <p><strong>Steam Achievement Localizer</strong> — є інструментом із графічним інтерфейсом на базі **PyQt6** для редагування файлів досягнень Steam (`UserGameStatsSchema_xxx.bin`).  
 Він дозволяє перекладати та локалізувати описи досягнень, а також зберігати зміни безпосередньо у теку Steam або у окремий файл.  
