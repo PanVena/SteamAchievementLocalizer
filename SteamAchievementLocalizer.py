@@ -5,15 +5,17 @@ import os
 import subprocess
 import winreg 
 import json
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QColor, QBrush, QAction
+from PyQt6.QtCore import Qt, QSettings, QTimer
+from PyQt6.QtGui import QIcon, QColor, QBrush, QAction,QKeySequence, QTextDocument
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMenu, QMenuBar, 
+    QInputDialog, QMenu, QMenuBar, QInputDialog, QWidgetAction, QCheckBox
 )
+from highlight_delegate import HighlightDelegate
 
-APP_VERSION = "7.6.4" 
+
+APP_VERSION = "7.7.0" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -109,6 +111,7 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
     
 class BinParserGUI(QWidget):
+
     def __init__(self, language="English"):
         super().__init__()
                 
@@ -131,7 +134,7 @@ class BinParserGUI(QWidget):
         
         self.force_manual_path = False  
 
-        self.create_menubar()
+
         
         # --- File localization selection ---
         stats_bin_path_layout = QHBoxLayout()
@@ -266,21 +269,12 @@ class BinParserGUI(QWidget):
         self.layout.addWidget(box)
 
 
-        # --- Search ---
-        self.headers = []
-        search_layout = QHBoxLayout()
-        self.search_column_combo = QComboBox()
-        self.search_column_combo.setFixedSize(150, 25)
-        self.search_column_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
-        self.search_column_combo.addItems([h for h in self.headers if h != 'key']) 
-        self.search_label = QLabel(self.translations.get("in_column_search"))
-        search_layout.addWidget(self.search_label)
-        search_layout.addWidget(self.search_column_combo)
-        self.search_line = QLineEdit()
-        self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
-        self.search_line.textChanged.connect(self.search_in_table)
-        search_layout.addWidget(self.search_line)
-        self.layout.addLayout(search_layout)
+        
+        # -- Undo/Redo ---
+        self.undo_stack = []
+        self.redo_stack = []
+        self.is_undoing = False
+        self.is_redoing = False
         
 
         # --- Table ---
@@ -288,6 +282,44 @@ class BinParserGUI(QWidget):
         self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.itemChanged.connect(self.on_table_item_changed)
+
+        # --- Context Menu for Copy/Paste/Cut/Delete/Redo ---
+        self.copy_action = QAction(self.translations.get("copy", "Copy"), self)
+        self.copy_action.setShortcut("Ctrl+C")
+        self.copy_action.triggered.connect(self.copy_selection_to_clipboard)
+
+        self.paste_action = QAction(self.translations.get("paste", "Paste"), self)
+        self.paste_action.setShortcut("Ctrl+V")
+        self.paste_action.triggered.connect(self.paste_from_clipboard)
+
+        self.cut_action = QAction(self.translations.get("cut", "Cut"), self)
+        self.cut_action.setShortcut("Ctrl+X")
+        self.cut_action.triggered.connect(self.cut_selection_to_clipboard)
+
+        self.delete_action = QAction(self.translations.get("delete", "Delete"), self)
+        self.delete_action.setShortcut("Delete")
+        self.delete_action.triggered.connect(self.clear_selection)
+        
+        self.redo_action = QAction(self.translations.get("redo", "Redo"), self)
+        self.redo_action.setShortcut("Ctrl+Y")
+        self.redo_action.triggered.connect(self.redo)
+
+        self.undo_action = QAction(self.translations.get("undo", "Undo"), self)
+        self.undo_action.setShortcut("Ctrl+Z")
+        self.undo_action.triggered.connect(self.undo)
+
+
+        # Set context menu policy and add actions
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        self.table.addAction(self.undo_action)
+        self.table.addAction(self.redo_action)
+        self.table.addAction(self.copy_action)
+        self.table.addAction(self.paste_action)
+        self.table.addAction(self.cut_action)
+        self.table.addAction(self.delete_action)
+        
+
+
         self.layout.addWidget(self.table)
         
         self.header = self.table.horizontalHeader()
@@ -327,8 +359,19 @@ class BinParserGUI(QWidget):
             else:
                 obj.setText(items["default"])
                 self.settings.setValue(items["key"], items["default"])
-    
-                
+
+        # Replace in column action
+        self.replace_in_column_action = QAction(self.translations.get("replace_in_column", "Replace"), self)
+        self.replace_in_column_action.triggered.connect(self.show_find_replace_dialog)
+        self.table.addAction(self.replace_in_column_action)
+
+        # Highlight delegate for search
+        self.highlight_delegate = HighlightDelegate(self.table)
+        self.table.setItemDelegate(self.highlight_delegate)
+
+        # Create menubar
+        self.create_menubar()
+        
     def create_menubar(self):
         menubar = QMenuBar(self)
 
@@ -339,37 +382,75 @@ class BinParserGUI(QWidget):
         file_menu.addAction(exit_action)
         menubar.addMenu(file_menu)
 
-        # --- Menu Language ---
-        language_menu = QMenu(self.translations.get("language"), self)
-        for lang in LANG_FILES.keys():
-            action = QAction(lang, self)
-            action.triggered.connect(lambda checked, l=lang: self.change_language(l))
-            language_menu.addAction(action)
-        menubar.addMenu(language_menu)
+        # --- Menu Edit ---
+        edit_menu = QMenu(self.translations.get("edit", "Edit"), self)
+        # Global search line
+        if not hasattr(self, 'global_search_line'):
+            self.global_search_line = QLineEdit()
+            self.global_search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder", ))
+            self.global_search_line.setFixedWidth(200)
+            self.global_search_line.textChanged.connect(self.global_search_in_table)
+        search_widget = QWidget(self)
+        search_layout = QHBoxLayout(search_widget)
+        search_layout.setContentsMargins(8, 2, 8, 2)
+        search_layout.addWidget(QLabel(self.translations.get("in_column_search"), self))
+        search_layout.addWidget(self.global_search_line)
+        search_action = QWidgetAction(self)
+        search_action.setDefaultWidget(search_widget)
+        edit_menu.addSeparator()
+        edit_menu.addAction(search_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.replace_in_column_action)
+        edit_menu.addSeparator() 
+        edit_menu.addAction(self.undo_action)
+        edit_menu.addAction(self.redo_action)
+        edit_menu.addSeparator() 
+        edit_menu.addAction(self.copy_action)
+        edit_menu.addAction(self.paste_action)
+        edit_menu.addAction(self.cut_action)
+        edit_menu.addAction(self.delete_action)
+        edit_menu.addSeparator()
+        # Columns submenu
+        self.columns_menu = QMenu(self.translations.get("columns", "Columns"), self)
+        self.column_actions = {}
 
+        for i, header in enumerate(self.headers):
+            checkbox = QCheckBox(header)
+            checkbox.setChecked(True)
+            if header in ["key", "ukrainian"]:
+                checkbox.setEnabled(False)
+            else:
+                checkbox.toggled.connect(lambda state, h=header: self.set_column_visible(h, state))
+            action = QWidgetAction(self)
+            action.setDefaultWidget(checkbox)
+            self.columns_menu.addAction(action)
+            self.column_actions[header] = checkbox
 
-        # --- Menu Export ---
-        export_menu = QMenu(self.translations.get("export", "Export"), self)
+        edit_menu.addMenu(self.columns_menu)
+        menubar.addMenu(edit_menu)
+
+        # --- Menu Export/Import ---
+        export_import_menu = QMenu(self.translations.get("export_import", "Export/Import"), self)
         export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
         export_bin_action.triggered.connect(self.export_bin)
         export_all_action = QAction(self.translations.get("export_all", "Export to CSV (all languages)"), self)
         export_all_action.triggered.connect(self.export_csv_all)
         export_for_translate_action = QAction(self.translations.get("export_for_translate", "Export to CSV for translation"), self)
         export_for_translate_action.triggered.connect(self.export_csv_for_translate)
-        export_menu.addAction(export_bin_action)
-        export_menu.addAction(export_all_action)
-        export_menu.addAction(export_for_translate_action)
-        menubar.addMenu(export_menu)
-
-        # --- Menu Import ---
-        import_menu = QMenu(self.translations.get("import", "Import"), self)
         import_action = QAction(self.translations.get(
             "import_csv", "Import from CSV"), self)
         import_action.triggered.connect(self.import_csv)
-        import_menu.addAction(import_action)
-        menubar.addMenu(import_menu)
+        export_import_menu.addAction(export_bin_action)
+        export_import_menu.addSeparator() 
+        export_import_menu.addAction(export_all_action)
+        export_import_menu.addAction(export_for_translate_action)
+        export_import_menu.addSeparator() 
+        export_import_menu.addAction(import_action)
+        menubar.addMenu(export_import_menu)
 
-        # --- Munu Save ---
+
+
+        # --- Menu Save ---
         save_menu = QMenu(self.translations.get("save", "Save"), self)
         save_known_action = QAction(self.translations.get(
             "save_bin_known", "Save bin file for yourself"), self)
@@ -381,6 +462,13 @@ class BinParserGUI(QWidget):
         save_menu.addAction(save_unknown_action)
         menubar.addMenu(save_menu)
 
+        # --- Menu Language ---
+        language_menu = QMenu(self.translations.get("language"), self)
+        for lang in LANG_FILES.keys():
+            action = QAction(lang, self)
+            action.triggered.connect(lambda checked, l=lang: self.change_language(l))
+            language_menu.addAction(action)
+        menubar.addMenu(language_menu) 
 
         # --- Menu About ---
         about_menu = QMenu(self.translations.get("about", "About"), self)  
@@ -421,17 +509,32 @@ class BinParserGUI(QWidget):
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
-        self.search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
-        self.search_label.setText(self.translations.get("in_column_search"))
         self.lamg_select_label.setText(self.translations.get("lang_sel"))
+        self.copy_action.setText(self.translations.get("copy", "Copy"))
+        self.paste_action.setText(self.translations.get("paste", "Paste"))
+        self.cut_action.setText(self.translations.get("cut", "Cut"))
+        self.delete_action.setText(self.translations.get("delete", "Delete"))
+        self.redo_action.setText(self.translations.get("redo", "Redo"))
+        self.undo_action.setText(self.translations.get("undo", "Undo"))
+        self.replace_in_column_action.setText(self.translations.get("replace_in_column", "Replace"))
+        if hasattr(self, 'global_search_line') and self.global_search_line is not None:
+            self.global_search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
         self.create_menubar()
-        self.update_search_column_combo()
+        for header, action in getattr(self, "column_actions", {}).items():
+            col = self.headers.index(header)
+            action.setChecked(not self.table.isColumnHidden(col))
         self.fill_context_lang_combo()
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
         return load_json_with_fallback(path)
 
+    def set_column_visible(self, header, visible):
+        try:
+            col = self.headers.index(header)
+            self.table.setColumnHidden(col, not visible)
+        except ValueError:
+            pass
 
 
 
@@ -521,6 +624,7 @@ class BinParserGUI(QWidget):
         except Exception as e:
             QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
+        
         self.parse_and_fill_table()
         self.version()
         self.gamename()
@@ -589,9 +693,10 @@ class BinParserGUI(QWidget):
             self.headers.append('ukrainian')
             for row in self.data_rows:
                 row['ukrainian'] = ''
-        self.fill_context_lang_combo()
-        self.update_search_column_combo()
+        self.fill_context_lang_combo() 
         self.stretch_columns()
+        self.update_row_heights()
+        self.create_menubar()
         self.version()
         self.gamename()
         msg = self.translations.get("records_loaded").format(count=len(all_rows))
@@ -702,6 +807,7 @@ class BinParserGUI(QWidget):
 
 
     def refresh_table(self):
+
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
         self.table.setHorizontalHeaderLabels(self.headers)
@@ -711,16 +817,27 @@ class BinParserGUI(QWidget):
                 value = row_data.get(header, '')
                 item = QTableWidgetItem(value)
                 self.table.setItem(row_i, col_i, item)
+        self.clear_row_heights()
+        self.update_row_heights()
+
 
 
            
     def on_table_item_changed(self, item):
+        if self.is_undoing or self.is_redoing:
+            return
+
         row = item.row()
         col = item.column()
         header = self.headers[col]
         new_value = item.text()
         if 0 <= row < len(self.data_rows):
+            old_value = self.data_rows[row].get(header, '')
+            self.undo_stack.append((row, col, header, old_value, new_value))
+            self.redo_stack.clear() 
             self.data_rows[row][header] = new_value
+
+       
             
             
 
@@ -869,41 +986,7 @@ class BinParserGUI(QWidget):
         except Exception as e:
             QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
 
-    def search_in_table(self, text):
-        col_name = self.search_column_combo.currentText()
-        try:
-            col_index = self.headers.index(col_name)
-        except ValueError:
-            return
 
-        search_text = text.strip().lower()
-
-        # Background reset and show all rows
-        for row in range(self.table.rowCount()):
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                if item:
-                    item.setBackground(QBrush())
-            self.table.setRowHidden(row, False)
-
-        # Search and highlight
-        if not search_text:
-            return  # If search is empty, show all rows without highlights
-
-        for row in range(self.table.rowCount()):
-            item = self.table.item(row, col_index)
-            if item and item.text().strip():
-                if search_text in item.text().lower():
-                    item.setBackground(QBrush(QColor("gray"))) 
-                    self.table.setRowHidden(row, False)
-                else:
-                    self.table.setRowHidden(row, True)
-            else:
-                self.table.setRowHidden(row, True)
-                
-    def update_search_column_combo(self):
-        self.search_column_combo.clear()
-        self.search_column_combo.addItems(self.headers)
         
 
     def set_steam_folder_path(self, force=False):
@@ -1080,6 +1163,143 @@ class BinParserGUI(QWidget):
         self.set_steam_folder_path(force=True)
 
 
+    def copy_selection_to_clipboard(self):
+        selection = self.table.selectedRanges()
+        if not selection:
+            return
+        s = ''
+        for rng in selection:
+            for row in range(rng.topRow(), rng.bottomRow()+1):
+                row_data = []
+                for col in range(rng.leftColumn(), rng.rightColumn()+1):
+                    item = self.table.item(row, col)
+                    row_data.append(item.text() if item else '')
+                s += '\t'.join(row_data) + '\n'
+        QApplication.clipboard().setText(s)
+
+    def paste_from_clipboard(self):
+        clipboard = QApplication.clipboard().text()
+        if not clipboard:
+            return
+        rows = clipboard.split('\n')
+        current = self.table.currentRow()
+        col = self.table.currentColumn()
+        for r, row_data in enumerate(rows):
+            if not row_data.strip():
+                continue
+            for c, text in enumerate(row_data.split('\t')):
+                row_idx = current + r
+                col_idx = col + c
+                if row_idx < self.table.rowCount() and col_idx < self.table.columnCount():
+                    self.table.setItem(row_idx, col_idx, QTableWidgetItem(text))
+
+    def undo(self):
+        if not self.undo_stack:
+            return
+        self.is_undoing = True
+        row, col, header, old_value, new_value = self.undo_stack.pop()
+        self.data_rows[row][header] = old_value
+        item = self.table.item(row, col)
+        if not item:
+            item = QTableWidgetItem(old_value)
+            self.table.setItem(row, col, item)
+        else:
+            item.setText(old_value)
+        self.redo_stack.append((row, col, header, new_value, old_value))
+        self.is_undoing = False
+
+    def redo(self):
+        if not self.redo_stack:
+            return
+        self.is_redoing = True
+        row, col, header, new_value, old_value = self.redo_stack.pop()
+        self.data_rows[row][header] = new_value
+        item = self.table.item(row, col)
+        if not item:
+            item = QTableWidgetItem(new_value)
+            self.table.setItem(row, col, item)
+        else:
+            item.setText(new_value)
+        self.undo_stack.append((row, col, header, old_value, new_value))
+        self.is_redoing = False
+
+    def keyPressEvent(self, event):
+        if event.matches(QKeySequence.StandardKey.Undo):
+            self.undo()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def cut_selection_to_clipboard(self):
+        self.copy_selection_to_clipboard()
+        self.clear_selection()
+
+    def clear_selection(self):
+        selected_ranges = self.table.selectedRanges()
+        for rng in selected_ranges:
+            for row in range(rng.topRow(), rng.bottomRow() + 1):
+                for col in range(rng.leftColumn(), rng.rightColumn() + 1):
+                    item = self.table.item(row, col)
+                    if item:
+                        item.setText("")  
+                    else:
+                        self.table.setItem(row, col, QTableWidgetItem(""))
+
+                    if 0 <= row < len(self.data_rows) and 0 <= col < len(self.headers):
+                        header = self.headers[col]
+                        self.data_rows[row][header] = ""
+
+
+    def show_find_replace_dialog(self):
+        from find_replace_dialog import FindReplaceDialog
+        dlg = FindReplaceDialog(self, self.headers)
+        dlg.exec()
+
+
+    def global_search_in_table(self, text):
+        search_text = text.strip().lower()
+
+        for row in range(self.table.rowCount()):
+            self.table.setRowHidden(row, False)
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                
+                    
+
+        if not search_text:
+            self.highlight_delegate.set_highlight("")
+            self.highlight_delegate.highlight_column = -1
+            self.table.viewport().update()
+            return
+
+        self.highlight_delegate.set_highlight(search_text)
+        self.highlight_delegate.highlight_column = -1 
+        self.table.viewport().update()
+
+        for row in range(self.table.rowCount()):
+            row_has_match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+
+                    row_has_match = True
+            self.table.setRowHidden(row, not row_has_match)
+
+
+    def update_row_heights(self):
+        for row in range(self.table.rowCount()):
+            max_height = self.table.verticalHeader().defaultSectionSize()
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and item.text():
+                    doc = QTextDocument()
+                    doc.setHtml(item.text())
+                    doc.setTextWidth(self.table.columnWidth(col))
+                    height = doc.size().height() + 8
+                    if height > max_height:
+                        max_height = height
+            self.table.setRowHeight(row, int(max_height))
+
 def load_json_with_fallback(path):
     for encoding in ("utf-8-sig", "utf-8", "cp1251"):
         try:
@@ -1096,6 +1316,7 @@ def load_json_with_fallback(path):
  
 
 def main():
+    global window
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     language = choose_language()
@@ -1124,7 +1345,9 @@ def main():
 
     window = BinParserGUI(language)
     window.show()
+
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()
