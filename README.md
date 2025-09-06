@@ -9,7 +9,7 @@ It allows you to translate and localize achievement descriptions and save change
 
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Download the latest version 👈</a></p>
 
-![Screenshot](assets/screens/scrn_en.png)
+![Screenshot](screens/scrn_en.png)
 
 ## 📌 Features
 - Automatic detection of the Steam folder (via Windows Registry).  

@@ -7,7 +7,7 @@ Pozwala tłumaczyć i lokalizować opisy osiągnięć oraz zapisywać zmiany bez
 
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Pobierz najnowszą wersję 👈</a></p>
 
-![Screenshot](assets/screens/scrn_pl.png)
+![Screenshot](screens/scrn_pl.png)
 
 ## 📌 Funkcje
 - Automatyczne wykrywanie folderu Steam (przez Rejestr Windows).
