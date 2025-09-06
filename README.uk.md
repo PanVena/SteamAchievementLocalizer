@@ -9,7 +9,7 @@
 <p><a class="button-link" href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest" target="_blank">👉 Завантажити останню версію 👈</a></p>
 
 
-![Скрін](assets/scrn_ukr.png)
+![Скрін](assets/screens/scrn_ukr.png)
 
 
 

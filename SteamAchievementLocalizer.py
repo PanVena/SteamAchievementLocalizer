@@ -12,17 +12,17 @@ from PyQt6.QtWidgets import (
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
     QInputDialog, QMenu, QMenuBar, QInputDialog, QWidgetAction, QCheckBox
 )
-from highlight_delegate import HighlightDelegate
-
+from assets.plugins.highlight_delegate import HighlightDelegate
+from assets.plugins.find_replace_dialog import FindReplaceDialog
 
 APP_VERSION = "7.7.0" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
 LANG_FILES = {
-    "English": "assets/lang_en.json",
-    "Українська": "assets/lang_ua.json",
-    "Polski": "assets/lang_pl.json"
+    "English": "assets/locales/lang_en.json",
+    "Українська": "assets/locales/lang_ua.json",
+    "Polski": "assets/locales/lang_pl.json"
 }
 
 
@@ -1250,8 +1250,7 @@ class BinParserGUI(QWidget):
                         self.data_rows[row][header] = ""
 
 
-    def show_find_replace_dialog(self):
-        from find_replace_dialog import FindReplaceDialog
+    def show_find_replace_dialog(self):   
         dlg = FindReplaceDialog(self, self.headers)
         dlg.exec()
 
