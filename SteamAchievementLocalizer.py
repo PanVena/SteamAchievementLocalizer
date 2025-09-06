@@ -207,7 +207,8 @@ class BinParserGUI(QWidget):
         self.clear_game_id = QPushButton(self.translations.get("clear_and_paste"))
         self.clear_game_id.pressed.connect(lambda: ( 
             self.game_id_edit.clear(),
-            self.game_id_edit.setText(QApplication.clipboard().text())
+            self.game_id_edit.setText(QApplication.clipboard().text()),
+            self.handle_game_id_action()
         ))
         game_id_layout.addWidget(self.game_id_edit)
         game_id_layout.addWidget(self.load_game_btn)
@@ -1298,6 +1299,13 @@ class BinParserGUI(QWidget):
                     if height > max_height:
                         max_height = height
             self.table.setRowHeight(row, int(max_height))
+
+    def handle_game_id_action(self):
+        game_id = self.game_id()
+        if game_id:
+            self.load_steam_game_stats()
+        else:
+            self.game_id_edit.clear()
 
 def load_json_with_fallback(path):
     for encoding in ("utf-8-sig", "utf-8", "cp1251"):
