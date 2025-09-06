@@ -5,8 +5,8 @@ import os
 import subprocess
 import winreg 
 import json
-from PyQt6.QtCore import Qt, QSettings, QTimer
-from PyQt6.QtGui import QIcon, QColor, QBrush, QAction,QKeySequence, QTextDocument
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
