@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QLabel, QPushButton, QHBoxLayout, QLineEdit
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QLabel, QPushButton, QHBoxLayout, QLineEdit, QSizePolicy, QSpacerItem
 from PyQt6.QtCore import Qt
 import os
 import re
@@ -33,15 +33,33 @@ class UserGameStatsListDialog(QDialog):
         self.stats_list = stats_list
         self.fill_table(stats_list)
         self.table.resizeColumnsToContents()
+        self.table.cellClicked.connect(self.on_table_cell_clicked)
         layout.addWidget(self.table)
+
+        # --- Нижній layout під таблицею ---
         btn_box = QHBoxLayout()
+        self.select_btn = QPushButton(translations.get("get_ach"))
+        self.select_btn.setEnabled(False)
+        self.select_btn.clicked.connect(self.select_game)
+        btn_box.addWidget(self.select_btn)
+
+        self.selected_gamename_label = QLabel("")
+        self.selected_gamename_label.setWordWrap(True)
+        self.selected_gamename_label.setMinimumWidth(350)  
+        btn_box.addWidget(self.selected_gamename_label)
+        btn_box.addStretch(1)
+
         close_btn = QPushButton(translations.get("close"))
         close_btn.clicked.connect(self.accept)
-        btn_box.addStretch(1)
         btn_box.addWidget(close_btn)
+
         layout.addLayout(btn_box)
+
         self.setLayout(layout)
         self.stretch_columns() 
+
+
+        self.selected_row = None
 
     def fill_table(self, stats_list):
         self.table.setRowCount(len(stats_list))
@@ -70,6 +88,9 @@ class UserGameStatsListDialog(QDialog):
             if not text or any(text in str(cell).lower() for cell in row_data):
                 filtered.append(row_data)
         self.fill_table(filtered)
+        self.selected_row = None
+        self.select_btn.setEnabled(False)
+        self.selected_gamename_label.setText("")
 
     def stretch_columns(self):
         header = self.table.horizontalHeader()
@@ -80,6 +101,28 @@ class UserGameStatsListDialog(QDialog):
             else:
                 header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Stretch)
         self.table.viewport().update()
+     
+    def on_table_cell_clicked(self, row, col):
+        self.table.selectRow(row)
+        gamename = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
+        self.selected_gamename_label.setText(gamename)
+        self.selected_row = row
+        self.select_btn.setEnabled(True)
+
+    def select_game(self):
+        if self.selected_row is None:
+            return
+        item_id = self.table.item(self.selected_row, 3)
+        if not item_id:
+            return
+        game_id = item_id.text()
+        parent = self.parent()
+        if hasattr(parent, "game_id_edit"):
+            parent.game_id_edit.setText(game_id)
+            if hasattr(parent, "load_steam_game_stats"):
+                parent.load_steam_game_stats()
+        self.accept()
+
     @staticmethod
     def parse_stats_file(path):
         try:
@@ -94,4 +137,3 @@ class UserGameStatsListDialog(QDialog):
             return version, game_id
         except Exception:
             return "?", "?"
-
