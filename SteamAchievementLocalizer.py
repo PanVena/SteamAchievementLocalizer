@@ -16,7 +16,7 @@ from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
 
-APP_VERSION = "7.7.7" 
+APP_VERSION = "7.7.8" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
