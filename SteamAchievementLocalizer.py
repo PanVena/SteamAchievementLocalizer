@@ -3,7 +3,6 @@ import csv
 import re
 import os
 import subprocess
-import winreg 
 import json
 from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
@@ -15,6 +14,9 @@ from PyQt6.QtWidgets import (
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
+
+if sys.platform == "win32":
+    import winreg
 
 APP_VERSION = "7.7.8" 
 
@@ -982,11 +984,14 @@ class BinParserGUI(QMainWindow):
             if detected:
                 path = detected
             else:
-                fallback = "C:\\Program Files (x86)\\Steam"
-                if os.path.exists(fallback):
-                    path = fallback
+                if sys.platform == "win32":
+                    fallback = "C:\\Program Files (x86)\\Steam"
+                    if os.path.exists(fallback):
+                        path = fallback
+                    else:
+                        QMessageBox.warning(self, self.translations.get("attention"), self.translations.get("folder_not_found_auto"))
+                        path = ""
                 else:
-                    QMessageBox.warning(self, self.translations.get("attention"), self.translations.get("folder_not_found_auto"))
                     path = ""
 
             self.settings.setValue("UserSteamPath", path)
@@ -996,6 +1001,9 @@ class BinParserGUI(QMainWindow):
 
 
     def detect_steam_path(self):
+        if sys.platform != "win32":
+            return None
+
         try:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam") as key:
                 steam_path = winreg.QueryValueEx(key, "SteamPath")[0]
