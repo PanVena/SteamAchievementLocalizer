@@ -76,7 +76,7 @@ class UserGameStatsListDialog(QDialog):
         for i in range(self.table.columnCount()):
             if i in (1,3, 4):
                 header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Interactive)
-                self.table.setColumnWidth(i, 70)
+                self.table.setColumnWidth(i, 80)
             else:
                 header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Stretch)
         self.table.viewport().update()
