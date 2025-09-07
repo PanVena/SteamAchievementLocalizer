@@ -93,5 +93,12 @@
 	"cancel": "Anuluj",
 	"columns": "Kolumny",
 	"yes": "Tak",
-	"no": "Nie"
+	"no": "Nie",
+	"user_game_stats_list": "Lista dostępnych plików osiągnięć",
+	"show_user_game_stats": "Dostępne pliki",
+	"file_name": "Nazwa pliku",
+	"version": "Wersja pliku",
+	"gamename_list": "Nazwa gry lub jej kodowa nazwa",
+	"game_id": "ID gry",
+    "achievements_count": "Osiągnięć"
 }

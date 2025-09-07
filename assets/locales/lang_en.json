@@ -93,5 +93,12 @@
     "cancel": "Cancel",
     "columns": "Columns: ",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "user_game_stats_list": "List of available achievement files",
+    "show_user_game_stats": "Available files",
+    "file_name": "File name",
+    "version": "File version",
+    "gamename_list": "Game name or its code name",
+    "game_id": "Game ID",
+    "achievements_count": "Achievements"
 }

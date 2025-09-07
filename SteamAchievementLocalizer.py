@@ -14,8 +14,9 @@ from PyQt6.QtWidgets import (
 )
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
+from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
 
-APP_VERSION = "7.7.6" 
+APP_VERSION = "7.7.7" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -471,6 +472,12 @@ class BinParserGUI(QMainWindow):
         save_menu.addAction(save_unknown_action)
         menubar.addMenu(save_menu)
 
+        # --- File stats list ---
+        show_stats_action = QAction(self.translations.get("show_user_game_stats"), self)
+        show_stats_action.triggered.connect(self.show_user_game_stats_list)
+        menubar.addAction(show_stats_action)
+ 
+
         # --- Menu Language ---
         language_menu = QMenu(self.translations.get("language"), self)
         for lang in LANG_FILES.keys():
@@ -479,18 +486,16 @@ class BinParserGUI(QMainWindow):
             language_menu.addAction(action)
         menubar.addMenu(language_menu) 
 
-        # --- Menu About ---
-        about_menu = QMenu(self.translations.get("about", "About"), self)  
-        about_action = QAction(self.translations.get("about_app", "About App"), self)
+        # --- About Button ---
+        about_action = QAction(self.translations.get("about", "About"), self)
         about_action.triggered.connect(
             lambda: QMessageBox.information(
                 self,
                 self.translations.get("about_app", "About App"),
-                self.translations.get("about_message",)
+                self.translations.get("about_message", "About message text")
             )
         )
-        about_menu.addAction(about_action)
-        menubar.addMenu(about_menu)
+        menubar.addAction(about_action)
 
         # Adding menubar to the layout
         self.setMenuWidget(menubar)
@@ -1233,6 +1238,47 @@ class BinParserGUI(QMainWindow):
 
     def show_find_replace_dialog(self):   
         dlg = FindReplaceDialog(self, self.headers)
+        dlg.exec()
+
+    def show_user_game_stats_list(self):
+        import re
+        stats_dir = os.path.join(self.steam_folder, "appcache", "stats")
+        if not os.path.isdir(stats_dir):
+            QMessageBox.warning(self, "Error", f"Stats directory not found:\n{stats_dir}")
+            return
+        stats_files = [f for f in os.listdir(stats_dir) if f.startswith("UserGameStatsSchema_") and f.endswith(".bin")]
+        stats_list = []
+        orig_game_id = self.game_id_edit.text()
+        orig_steam_folder = self.steam_folder
+        for fname in stats_files:
+            m = re.match(r"UserGameStatsSchema_(\d+)\.bin", fname)
+            game_id = m.group(1) if m else "?"
+            file_path = os.path.join(stats_dir, fname)
+            # Count achievements
+            try:
+                with open(file_path, "rb") as f:
+                    file_data = f.read()
+                chunk_count = len(split_chunks(file_data))
+                achievement_count = chunk_count // 2
+            except Exception:
+                achievement_count = "?"
+            # Temporarily set game ID and steam folder to load version and name
+            self.game_id_edit.setText(game_id)
+            self.steam_folder = self.steam_folder_path.text().strip()
+            version = self.version()
+            gamename = self.gamename()
+            stats_list.append((
+                fname,
+                str(version) if version is not None else "?",
+                gamename if gamename else "?",
+                game_id,
+                str(achievement_count)
+            ))
+        # Restore original values
+        self.game_id_edit.setText(orig_game_id)
+        self.steam_folder = orig_steam_folder
+        # Show dialog
+        dlg = UserGameStatsListDialog(self, stats_list)
         dlg.exec()
 
 
