@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 
-APP_VERSION = "7.7.2" 
+APP_VERSION = "7.7.3" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -111,6 +111,15 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
     
 class BinParserGUI(QWidget):
+    def sync_table_to_data_rows(self):
+        """Синхронізує всі значення з self.table у self.data_rows."""
+        for row_i in range(self.table.rowCount()):
+            if row_i >= len(self.data_rows):
+                continue
+            for col_i, header in enumerate(self.headers):
+                item = self.table.item(row_i, col_i)
+                value = item.text() if item else ''
+                self.data_rows[row_i][header] = value
 
     def __init__(self, language="English"):
         super().__init__()
@@ -842,96 +851,63 @@ class BinParserGUI(QWidget):
             
 
     def replace_lang_in_bin(self):
-
         selected_column = self.context_lang_combo.currentText()
         if not selected_column:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_column_choosen_to_replace"))
             return
 
-        try:
-            col_index = self.headers.index(selected_column)
-        except ValueError:
-            return
-
-        # Value collection
-        values = []
-        for row_i in range(self.table.rowCount()):
-            item = self.table.item(row_i, col_index)
-            value = item.text() if item else ''
-            values.append(value)
-
+        values = [row.get(selected_column, '') for row in self.data_rows]
         file_path = self.get_stats_bin_path()
-
         try:
             with open(file_path, "rb") as f:
                 data = f.read()
         except FileNotFoundError:
             return
 
+    # Remove all old markers for the selected language
+        marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
+        cleaned = bytearray()
+        i = 0
+        while i < len(data):
+            idx = data.find(marker, i)
+            if idx == -1:
+                cleaned.extend(data[i:])
+                break
+            # Copy everything up to the marker
+            cleaned.extend(data[i:idx])
+            # Skip marker and value
+            i = idx + len(marker)
+            end = data.find(b'\x00', i)
+            if end == -1:
+                break
+            i = end + 1
+
+    # Now insert new markers according to the table
+    # Insert before each english_marker
+        english_marker = b'\x01english\x00'
         output = bytearray()
         i = 0
         v_idx = 0
-
-        marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
-
-        if marker in data:
-            # Language exists — replace values
-            while i < len(data):
-                idx = data.find(marker, i)
-                if idx == -1:
-                    output.extend(data[i:])
-                    break
-
-                # Copy up to the marker
-                output.extend(data[i:idx + len(marker)])
-                i = idx + len(marker)
-
-                end = data.find(b'\x00', i)
-                if end == -1:
-                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_end_was_found"))
-                    return
-
-                # Replace with new value
-                if v_idx < len(values):
-                    new_text = values[v_idx].encode("utf-8")
-                else:
-                    new_text = b''
-
-                output.extend(new_text + b'\x00')
-                i = end + 1
-                v_idx += 1
-
-        else:
-            # Language does not exist — insert new language before english
-            english_marker = b'\x01english\x00'
-            while i < len(data):
-                idx = data.find(english_marker, i)
-                if idx == -1:
-                    output.extend(data[i:])
-                    break
-
-                output.extend(data[i:idx])
-
-                # Insert new language only if value is not empty
-                if v_idx < len(values):
-                    ukr_text = values[v_idx].encode("utf-8")
-                else:
-                    ukr_text = b''
-
-                if ukr_text:  # Only insert if not empty
-                    output.extend(b'\x01ukrainian\x00' + ukr_text + b'\x00')
-
-                output.extend(english_marker)
-
-                i = idx + len(english_marker)
-                end = data.find(b'\x00', i)
-                if end == -1:
-                    QMessageBox.warning(self, self.translations.get("error"),  self.translations.get("error_nothing_after_english"))
-                    return
-                output.extend(data[i:end+1])
-                i = end + 1
-                v_idx += 1
-
+        while i < len(cleaned):
+            idx = cleaned.find(english_marker, i)
+            if idx == -1:
+                output.extend(cleaned[i:])
+                break
+            output.extend(cleaned[i:idx])
+            # Insert new marker if there is a value
+            if v_idx < len(values):
+                val = values[v_idx]
+                if val:
+                    output.extend(b'\x01' + selected_column.encode("utf-8") + b'\x00' + val.encode("utf-8") + b'\x00')
+            output.extend(english_marker)
+            i = idx + len(english_marker)
+            # Copy the english value
+            end = cleaned.find(b'\x00', i)
+            if end == -1:
+                break
+            output.extend(cleaned[i:end+1])
+            i = end + 1
+            v_idx += 1
         return output
 
 
@@ -945,6 +921,7 @@ class BinParserGUI(QWidget):
   
 
     def save_bin_unknow(self):
+        self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
         if self.force_manual_path is True:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_manually_selected_file"))
@@ -975,7 +952,7 @@ class BinParserGUI(QWidget):
 
         if not save_path:
             return
-
+        self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
         if datas is None:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_data_to_save"))
