@@ -32,7 +32,7 @@
     "save_changes_title": "Зберегти зміни?",
     "save_changes_msg": "Бажаєте зберегти зміни перед виходом?",
     "save_where_title": "Куди зберегти?",
-    "save_where_msg": "Куди бажаєте зберегти зміни?",
+    "save_where_msg": "Куди бажаєте зберегти зміни?<br><br>Вибрана мова для заміни: <b>{context}</b>",
     "save_for_self": "Для себе",
     "save_to_steam": "У теку Steam",
     "about": "Про програму",
@@ -90,5 +90,8 @@
     "found_nothing": "Нічого не знайдено",
     "found": "Знайдено співпадінь: {match_count}",
     "close": "Закрити",
-    "columns": "Колонки"
+    "cancel": "Скасувати",
+    "columns": "Колонки",
+    "yes": "Так",
+    "no": "Ні"
 }

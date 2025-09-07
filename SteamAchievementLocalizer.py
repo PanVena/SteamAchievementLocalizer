@@ -10,12 +10,12 @@ from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMenu, QMenuBar, QInputDialog, QWidgetAction, QCheckBox
+    QInputDialog, QMenu, QMenuBar, QInputDialog, QWidgetAction, QCheckBox, QMainWindow
 )
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 
-APP_VERSION = "7.7.3" 
+APP_VERSION = "7.7.4" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -110,78 +110,23 @@ def resource_path(relative_path: str) -> str:
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
     
-class BinParserGUI(QWidget):
-    def is_modified(self):
-        """Check if there are unsaved changes in the table compared to data_rows."""
-        for row_i, row in enumerate(self.data_rows):
-            for col_i, header in enumerate(self.headers):
-                item = self.table.item(row_i, col_i)
-                value = item.text() if item else ''
-                if value != row.get(header, ''):
-                    return True
-        return False
-
-    def maybe_save_before_exit(self):
-        if not self.is_modified():
-            return True  # No changes, allow exit
-        reply = QMessageBox.question(
-            self,
-            self.translations.get("save_changes_title", "Save Changes?"),
-            self.translations.get("save_changes_msg", "Do you want to save your changes before exiting?"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            # Ask where to save: for yourself or to Steam folder
-            save_dialog = QMessageBox(self)
-            save_dialog.setWindowTitle(self.translations.get("save_where_title", "Where to save?"))
-            save_dialog.setText(self.translations.get("save_where_msg", "Where do you want to save your changes?"))
-            btn_self = save_dialog.addButton(self.translations.get("save_for_self", "For yourself"), QMessageBox.ButtonRole.AcceptRole)
-            btn_steam = save_dialog.addButton(self.translations.get("save_to_steam", "To Steam folder"), QMessageBox.ButtonRole.AcceptRole)
-            btn_cancel = save_dialog.addButton(self.translations.get("cancel", "Cancel"), QMessageBox.ButtonRole.RejectRole)
-            save_dialog.setDefaultButton(btn_self)
-            save_dialog.exec()
-            clicked = save_dialog.clickedButton()
-            if clicked == btn_self:
-                self.save_bin_know()
-                return not self.is_modified()
-            elif clicked == btn_steam:
-                self.save_bin_unknow()
-                return not self.is_modified()
-            else:
-                return False
-        elif reply == QMessageBox.StandardButton.No:
-            return True
-        else:
-            return False
-
-    def closeEvent(self, event):
-        if self.maybe_save_before_exit():
-            event.accept()
-        else:
-            event.ignore()
-    def sync_table_to_data_rows(self):
-        """Синхронізує всі значення з self.table у self.data_rows."""
-        for row_i in range(self.table.rowCount()):
-            if row_i >= len(self.data_rows):
-                continue
-            for col_i, header in enumerate(self.headers):
-                item = self.table.item(row_i, col_i)
-                value = item.text() if item else ''
-                self.data_rows[row_i][header] = value
+class BinParserGUI(QMainWindow):
 
     def __init__(self, language="English"):
-        super().__init__()
-                
+        self.modified = False
+        super().__init__(parent=None)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.language = language
         self.translations = self.load_language(language)
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
-        
         self.setMinimumSize(800, 800)
         self.set_window_size()
 
+        self.central_widget = QWidget()
         self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.central_widget.setLayout(self.layout)
+        self.setCentralWidget(self.central_widget)
         
 
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
@@ -429,7 +374,9 @@ class BinParserGUI(QWidget):
 
         # Create menubar
         self.create_menubar()
-        
+      
+    
+            
     def create_menubar(self):
         menubar = QMenuBar(self)
 
@@ -440,10 +387,7 @@ class BinParserGUI(QWidget):
         file_menu.addAction(exit_action)
         menubar.addMenu(file_menu)
 
-    def _on_exit_action(self):
-        # Called when user selects Exit from menu
-        if self.maybe_save_before_exit():
-            self.close()
+    
 
         # --- Menu Edit ---
         edit_menu = QMenu(self.translations.get("edit", "Edit"), self)
@@ -547,7 +491,8 @@ class BinParserGUI(QWidget):
         menubar.addMenu(about_menu)
 
         # Adding menubar to the layout
-        self.layout.setMenuBar(menubar)
+        self.setMenuWidget(menubar)
+
 
 
     def change_language(self, lang):
@@ -898,7 +843,7 @@ class BinParserGUI(QWidget):
             self.undo_stack.append((row, col, header, old_value, new_value))
             self.redo_stack.clear() 
             self.data_rows[row][header] = new_value
-
+        self.set_modified(True)
        
             
             
@@ -1337,6 +1282,76 @@ class BinParserGUI(QWidget):
             self.load_steam_game_stats()
         else:
             self.game_id_edit.clear()
+
+    def _on_exit_action(self):
+            # Called when user selects Exit from menu
+            if self.maybe_save_before_exit():
+                self.close()
+
+    def set_modified(self, value=True):
+        self.modified = value
+    def is_modified(self):
+        return getattr(self, 'modified', False)
+
+    def maybe_save_before_exit(self):
+        if not self.is_modified():
+            return True  # No changes, allow exit
+
+
+        save_box = QMessageBox(self)
+        save_box.setWindowTitle(self.translations.get("save_changes_title"))
+        save_box.setText(self.translations.get("save_changes_msg"))
+        btn_yes = save_box.addButton(self.translations.get("yes"), QMessageBox.ButtonRole.YesRole)
+        btn_no = save_box.addButton(self.translations.get("no"), QMessageBox.ButtonRole.NoRole)
+        btn_cancel = save_box.addButton(self.translations.get("cancel"), QMessageBox.ButtonRole.RejectRole)
+        save_box.setDefaultButton(btn_yes)
+        save_box.exec()
+        clicked = save_box.clickedButton()
+
+        if clicked == btn_yes:
+
+            save_dialog = QMessageBox(self)
+            save_dialog.setWindowTitle(self.translations.get("save_where_title"))
+            context_lang = self.context_lang_combo.currentText()
+            msg4 = self.translations.get("save_where_msg").format(context=context_lang)
+            save_dialog.setText(msg4)
+            btn_self = save_dialog.addButton(self.translations.get("save_for_self"), QMessageBox.ButtonRole.AcceptRole)
+            btn_steam = save_dialog.addButton(self.translations.get("save_to_steam"), QMessageBox.ButtonRole.AcceptRole)
+            btn_cancel2 = save_dialog.addButton(self.translations.get("cancel"), QMessageBox.ButtonRole.RejectRole)
+            save_dialog.setDefaultButton(btn_self)
+            save_dialog.exec()
+            clicked2 = save_dialog.clickedButton()
+            if clicked2 == btn_self:
+                self.save_bin_know()
+                self.close()
+                return not self.is_modified()
+            elif clicked2 == btn_steam:
+                self.save_bin_unknow()
+                self.close()
+                return not self.is_modified()
+            else:
+                return False
+        elif clicked == btn_no:
+            return True
+        else:
+            return False
+
+    def closeEvent(self, event):
+        if self.maybe_save_before_exit():
+            event.accept()
+        else:
+            event.ignore()
+
+    def sync_table_to_data_rows(self):
+    # Sync changes from table widget back to data_rows
+        for row_i in range(self.table.rowCount()):
+            if row_i >= len(self.data_rows):
+                continue
+        for col_i, header in enumerate(self.headers):
+            item = self.table.item(row_i, col_i)
+            value = item.text() if item else ''
+            self.data_rows[row_i][header] = value
+
 
 def load_json_with_fallback(path):
     for encoding in ("utf-8-sig", "utf-8", "cp1251"):
