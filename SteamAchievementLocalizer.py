@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 
-APP_VERSION = "7.7.4" 
+APP_VERSION = "7.7.5" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -428,10 +428,12 @@ class BinParserGUI(QMainWindow):
                 checkbox.setEnabled(False)
             else:
                 checkbox.toggled.connect(lambda state, h=header: self.set_column_visible(h, state))
+                checkbox.toggled.connect(self.stretch_columns)
             action = QWidgetAction(self)
             action.setDefaultWidget(checkbox)
             self.columns_menu.addAction(action)
             self.column_actions[header] = checkbox
+            
 
         edit_menu.addMenu(self.columns_menu)
         menubar.addMenu(edit_menu)
@@ -540,7 +542,7 @@ class BinParserGUI(QMainWindow):
     def set_column_visible(self, header, visible):
         try:
             col = self.headers.index(header)
-            self.table.setColumnHidden(col, not visible)
+            self.table.setColumnHidden(col, not visible)        
         except ValueError:
             pass
 
