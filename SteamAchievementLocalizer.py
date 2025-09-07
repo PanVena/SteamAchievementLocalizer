@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 
-APP_VERSION = "7.7.1" 
+APP_VERSION = "7.7.2" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -818,7 +818,6 @@ class BinParserGUI(QWidget):
                 value = row_data.get(header, '')
                 item = QTableWidgetItem(value)
                 self.table.setItem(row_i, col_i, item)
-        self.clear_row_heights()
         self.update_row_heights()
 
 
@@ -913,13 +912,15 @@ class BinParserGUI(QWidget):
 
                 output.extend(data[i:idx])
 
-                # Insert new language
+                # Insert new language only if value is not empty
                 if v_idx < len(values):
                     ukr_text = values[v_idx].encode("utf-8")
                 else:
                     ukr_text = b''
 
-                output.extend(b'\x01ukrainian\x00' + ukr_text + b'\x00')
+                if ukr_text:  # Only insert if not empty
+                    output.extend(b'\x01ukrainian\x00' + ukr_text + b'\x00')
+
                 output.extend(english_marker)
 
                 i = idx + len(english_marker)
