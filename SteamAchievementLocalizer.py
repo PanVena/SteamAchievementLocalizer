@@ -534,6 +534,8 @@ class BinParserGUI(QMainWindow):
             col = self.headers.index(header)
             action.setChecked(not self.table.isColumnHidden(col))
         self.fill_context_lang_combo()
+        self.version()
+        self.gamename()
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
