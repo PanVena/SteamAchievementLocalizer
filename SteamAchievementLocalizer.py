@@ -111,6 +111,54 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
     
 class BinParserGUI(QWidget):
+    def is_modified(self):
+        """Check if there are unsaved changes in the table compared to data_rows."""
+        for row_i, row in enumerate(self.data_rows):
+            for col_i, header in enumerate(self.headers):
+                item = self.table.item(row_i, col_i)
+                value = item.text() if item else ''
+                if value != row.get(header, ''):
+                    return True
+        return False
+
+    def maybe_save_before_exit(self):
+        if not self.is_modified():
+            return True  # No changes, allow exit
+        reply = QMessageBox.question(
+            self,
+            self.translations.get("save_changes_title", "Save Changes?"),
+            self.translations.get("save_changes_msg", "Do you want to save your changes before exiting?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            # Ask where to save: for yourself or to Steam folder
+            save_dialog = QMessageBox(self)
+            save_dialog.setWindowTitle(self.translations.get("save_where_title", "Where to save?"))
+            save_dialog.setText(self.translations.get("save_where_msg", "Where do you want to save your changes?"))
+            btn_self = save_dialog.addButton(self.translations.get("save_for_self", "For yourself"), QMessageBox.ButtonRole.AcceptRole)
+            btn_steam = save_dialog.addButton(self.translations.get("save_to_steam", "To Steam folder"), QMessageBox.ButtonRole.AcceptRole)
+            btn_cancel = save_dialog.addButton(self.translations.get("cancel", "Cancel"), QMessageBox.ButtonRole.RejectRole)
+            save_dialog.setDefaultButton(btn_self)
+            save_dialog.exec()
+            clicked = save_dialog.clickedButton()
+            if clicked == btn_self:
+                self.save_bin_know()
+                return not self.is_modified()
+            elif clicked == btn_steam:
+                self.save_bin_unknow()
+                return not self.is_modified()
+            else:
+                return False
+        elif reply == QMessageBox.StandardButton.No:
+            return True
+        else:
+            return False
+
+    def closeEvent(self, event):
+        if self.maybe_save_before_exit():
+            event.accept()
+        else:
+            event.ignore()
     def sync_table_to_data_rows(self):
         """Синхронізує всі значення з self.table у self.data_rows."""
         for row_i in range(self.table.rowCount()):
@@ -388,9 +436,14 @@ class BinParserGUI(QWidget):
         # --- Menu File ---
         file_menu = QMenu(self.translations.get("file", "File"), self)
         exit_action = QAction(self.translations.get("exit", "Exit"), self)
-        exit_action.triggered.connect(self.close)
+        exit_action.triggered.connect(self._on_exit_action)
         file_menu.addAction(exit_action)
         menubar.addMenu(file_menu)
+
+    def _on_exit_action(self):
+        # Called when user selects Exit from menu
+        if self.maybe_save_before_exit():
+            self.close()
 
         # --- Menu Edit ---
         edit_menu = QMenu(self.translations.get("edit", "Edit"), self)
