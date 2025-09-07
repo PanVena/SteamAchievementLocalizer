@@ -1254,12 +1254,11 @@ class BinParserGUI(QMainWindow):
             m = re.match(r"UserGameStatsSchema_(\d+)\.bin", fname)
             game_id = m.group(1) if m else "?"
             file_path = os.path.join(stats_dir, fname)
-            # Count achievements
             try:
                 with open(file_path, "rb") as f:
                     file_data = f.read()
-                chunk_count = len(split_chunks(file_data))
-                achievement_count = chunk_count // 2
+                chunks = split_chunks(file_data)
+                achievement_count = sum(1 for chunk in chunks if chunk.count(b'\x01english\x00') >= 2)
             except Exception:
                 achievement_count = "?"
             # Temporarily set game ID and steam folder to load version and name
@@ -1346,8 +1345,6 @@ class BinParserGUI(QMainWindow):
     def maybe_save_before_exit(self):
         if not self.is_modified():
             return True  # No changes, allow exit
-
-
         save_box = QMessageBox(self)
         save_box.setWindowTitle(self.translations.get("save_changes_title"))
         save_box.setText(self.translations.get("save_changes_msg"))
