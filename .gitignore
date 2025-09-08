@@ -2,5 +2,6 @@ __pycache__
 .csv
 .bin
 .vs
-/SteamAchievementLocalizer.dist
-/SteamAchievementLocalizer.exe
+.dist
+.exe
+.zip

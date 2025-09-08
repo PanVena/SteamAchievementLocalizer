@@ -4,6 +4,7 @@ import re
 import os
 import subprocess
 import json
+import shutil
 from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
 from PyQt6.QtWidgets import (
@@ -113,6 +114,19 @@ def resource_path(relative_path: str) -> str:
         # when we are running as a normal .py file
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
+
+def load_json_with_fallback(path):
+    for encoding in ("utf-8-sig", "utf-8", "cp1251"):
+        try:
+            with open(path, "r", encoding=encoding) as f:
+                return json.load(f)
+        except Exception:
+            continue
+
+    settings = QSettings("Vena", "Steam Achievement Localizer")
+    language = settings.value("language", "English")
+    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
+    raise RuntimeError(f"{translations.get('cannot_decode_json')}{path}")
     
 class BinParserGUI(QMainWindow):
 
@@ -370,8 +384,12 @@ class BinParserGUI(QMainWindow):
 
         # --- Menu File ---
         file_menu = QMenu(self.translations.get("file", "File"), self)
+        export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
+        export_bin_action.triggered.connect(self.export_bin)
         exit_action = QAction(self.translations.get("exit", "Exit"), self)
         exit_action.triggered.connect(self._on_exit_action)
+        file_menu.addAction(export_bin_action)
+        file_menu.addSeparator() 
         file_menu.addAction(exit_action)
         menubar.addMenu(file_menu)
 
@@ -428,8 +446,6 @@ class BinParserGUI(QMainWindow):
 
         # --- Menu Export/Import ---
         export_import_menu = QMenu(self.translations.get("export_import", "Export/Import"), self)
-        export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
-        export_bin_action.triggered.connect(self.export_bin)
         export_all_action = QAction(self.translations.get("export_all", "Export to CSV (all languages)"), self)
         export_all_action.triggered.connect(self.export_csv_all)
         export_for_translate_action = QAction(self.translations.get("export_for_translate", "Export to CSV for translation"), self)
@@ -437,8 +453,6 @@ class BinParserGUI(QMainWindow):
         import_action = QAction(self.translations.get(
             "import_csv", "Import from CSV"), self)
         import_action.triggered.connect(self.import_csv)
-        export_import_menu.addAction(export_bin_action)
-        export_import_menu.addSeparator() 
         export_import_menu.addAction(export_all_action)
         export_import_menu.addAction(export_for_translate_action)
         export_import_menu.addSeparator() 
@@ -899,7 +913,32 @@ class BinParserGUI(QMainWindow):
 
     def export_bin(self):
         filepath = os.path.abspath(self.get_stats_bin_path())
-        subprocess.run(f'explorer /select,"{filepath}"')
+        if not os.path.isfile(filepath):
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_no_file')}{filepath}")
+            return
+        folder = os.path.dirname(filepath)
+        if sys.platform == "win32":
+            subprocess.run(f'explorer /select,"{filepath}"')
+        elif sys.platform == "darwin":
+            subprocess.run(["open", "-R", filepath])
+        else:
+            candidates = [
+                ["nautilus", "--select", filepath],
+                ["dolphin", "--select", filepath],
+                ["thunar", "--select", filepath],
+                ["nemo", "--browser", "--select", filepath]
+            ]
+            for cmd in candidates:
+                if shutil.which(cmd[0]):
+                    try:
+                        subprocess.run(cmd, check=True)
+                        return
+                    except Exception:
+                        continue
+            try:
+                subprocess.run(["xdg-open", folder])
+            except Exception as e:
+                QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
         
         
   
@@ -968,26 +1007,49 @@ class BinParserGUI(QMainWindow):
                         path = ""
                 else:
                     path = ""
-
             self.settings.setValue("UserSteamPath", path)
             self.settings.sync()
 
         self.steam_folder_path.setText(path)
 
 
-    def detect_steam_path(self):
-        if sys.platform != "win32":
-            return None
 
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam") as key:
-                steam_path = winreg.QueryValueEx(key, "SteamPath")[0]
-                steam_path = os.path.realpath(steam_path)
-                if os.path.exists(steam_path):
-                    return steam_path
-        except Exception:
-            return None
-        return None
+    def detect_steam_path(self):
+        home = os.path.expanduser("~")
+        possible_paths = [
+            # Стандартні Linux/Mac шляхи
+            os.path.join(home, ".steam", "steam"),
+            os.path.join(home, ".steam", "Steam"),
+            os.path.join(home, ".local", "share", "Steam"),
+            os.path.join(home, ".local", "share", "steam"),
+            os.path.join(home, ".steam", "root"),
+            os.path.join(home, ".steam", "Root"),
+            # Snap версія Steam
+            os.path.join(home, "snap", "steam", "common", ".local", "share", "Steam"),
+            os.path.join(home, "snap", "steam", "common", ".steam", "steam"),
+            os.path.join(home, "snap", "steam", "common", ".steam", "Steam"),
+            os.path.join(home, "snap", "steam", "common", ".steam", "root"),
+            os.path.join(home, "snap", "steam", "common", ".steam", "Root"),
+        ]
+        # Windows detection (як раніше)
+        if sys.platform == "win32":
+            try:
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam") as key:
+                    steam_path = winreg.QueryValueEx(key, "SteamPath")[0]
+                    steam_path = os.path.realpath(steam_path)
+                    if os.path.exists(steam_path):
+                        return steam_path
+            except Exception:
+                fallback = "C:\\Program Files (x86)\\Steam"
+                if os.path.exists(fallback):
+                    return fallback
+                return ""
+        else:
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+            return ""
 
     def prioritize_headers(self, headers):
         headers = [h for h in headers if h != 'key']
@@ -1383,18 +1445,6 @@ class BinParserGUI(QMainWindow):
             self.data_rows[row_i][header] = value
 
 
-def load_json_with_fallback(path):
-    for encoding in ("utf-8-sig", "utf-8", "cp1251"):
-        try:
-            with open(path, "r", encoding=encoding) as f:
-                return json.load(f)
-        except Exception:
-            continue
-
-    settings = QSettings("Vena", "Steam Achievement Localizer")
-    language = settings.value("language", "English")
-    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
-    raise RuntimeError(f"{translations.get('cannot_decode_json')}{path}")
     
  
 
