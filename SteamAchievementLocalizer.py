@@ -14,11 +14,12 @@ from PyQt6.QtWidgets import (
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
+from assets.plugins.context_lang_dialog import ContextLangDialog
 
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "7.7.8" 
+APP_VERSION = "7.7.9" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -249,22 +250,6 @@ class BinParserGUI(QMainWindow):
         # 3. File version
         self.version_label = QLabel(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
         lang_layout.addWidget(self.version_label)
-
-        # Vertical separator
-        line3 = QFrame()
-        line3.setFrameShape(QFrame.Shape.VLine)
-        line3.setFrameShadow(QFrame.Shadow.Sunken)
-        lang_layout.addWidget(line3)
-
-        # 4. Language selection
-        lang_select_layout = QHBoxLayout()
-        self.lamg_select_label=QLabel(self.translations.get("lang_sel"))
-        lang_select_layout.addWidget(self.lamg_select_label)
-        self.context_lang_combo = QComboBox()
-        self.context_lang_combo.setFixedSize(150, 25)
-        self.context_lang_combo.setStyleSheet("QComboBox { combobox-popup: 0; }")
-        lang_select_layout.addWidget(self.context_lang_combo)
-        lang_layout.addLayout(lang_select_layout)
 
 
 
@@ -526,7 +511,6 @@ class BinParserGUI(QMainWindow):
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
-        self.lamg_select_label.setText(self.translations.get("lang_sel"))
         self.copy_action.setText(self.translations.get("copy", "Copy"))
         self.paste_action.setText(self.translations.get("paste", "Paste"))
         self.cut_action.setText(self.translations.get("cut", "Cut"))
@@ -540,7 +524,6 @@ class BinParserGUI(QMainWindow):
         for header, action in getattr(self, "column_actions", {}).items():
             col = self.headers.index(header)
             action.setChecked(not self.table.isColumnHidden(col))
-        self.fill_context_lang_combo()
         self.version()
         self.gamename()
 
@@ -712,7 +695,6 @@ class BinParserGUI(QMainWindow):
             self.headers.append('ukrainian')
             for row in self.data_rows:
                 row['ukrainian'] = ''
-        self.fill_context_lang_combo() 
         self.stretch_columns()
         self.update_row_heights()
         self.create_menubar()
@@ -722,21 +704,6 @@ class BinParserGUI(QMainWindow):
         QMessageBox.information(self, self.translations.get("success"), msg)
        
 
-    def fill_context_lang_combo(self):
-        if not self.headers:
-            return
-        self.context_lang_combo.clear()
-        langs = [h for h in self.headers if h != 'key']
-        if 'english' in langs:
-            langs.remove('english')
-            langs = ['english'] + langs
-        self.context_lang_combo.clear()
-        self.context_lang_combo.addItems([h for h in self.headers if h not in ['key']])
-
-        if 'english' in langs:
-            self.context_lang_combo.setCurrentIndex(0)
-        elif langs:
-            self.context_lang_combo.setCurrentIndex(0)
 
     def export_csv_all(self):
         fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), '', 'CSV Files (*.csv)')
@@ -757,72 +724,63 @@ class BinParserGUI(QMainWindow):
         if 'english' not in self.headers:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_english"))
             return
-        key_col = 'key'
-        translate_col = 'english'
-        translated_col = 'ukrainian'
-        context_col = self.context_lang_combo.currentText()
-        msg1 = self.translations.get("export_csv_for_translate_info").format(context=context_col)
-        QMessageBox.information(self, self.translations.get("info"), msg1)
-
-        if not context_col:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_context"))
+        info_text = self.translations.get("export_csv_for_translate_info", "")
+        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='export', parent=self)
+        if not dlg.exec():
             return
-        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_for_translate_file_dialog"), "", "CSV Files (*.csv)")
+        params = dlg.get_selected()
+        context_col = params["context_col"]
+
+        fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), "", "CSV Files (*.csv)")
         if not fname:
             return
         try:
             with open(fname, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow([key_col, translate_col, translated_col, context_col])
+                writer.writerow(['key', 'english', 'translation', context_col])
                 for row in self.data_rows:
                     writer.writerow([
-                        row.get(key_col, ''),
-                        row.get(translate_col, ''),
-                        row.get(translated_col, ''),
+                        row.get('key', ''),
+                        row.get('english', ''),
+                        row.get('ukrainian', ''),  
                         row.get(context_col, ''),
                     ])
             QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
         except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
+            QMessageBox.warning(self, self.translations.get("error"), str(e))
 
-    def import_csv(self):       
-        context_lang = self.context_lang_combo.currentText()
-        msg2 = self.translations.get("import_csv_info").format(context=context_lang)
-        QMessageBox.information(self, self.translations.get("info"), msg2)
+    def import_csv(self):
+        info_text = self.translations.get("import_csv_info", "")
+        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='import', parent=self)
+        if not dlg.exec():
+            return
+        params = dlg.get_selected()
+        import_col = params["context_col"]
+
         fname, _ = QFileDialog.getOpenFileName(self, self.translations.get("import_csv_file_dialog"), "", "CSV Files (*.csv)")
         if not fname:
             return
 
-        if not context_lang:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_lang_for_import"))
-            return
-
         try:
             with open(fname, 'r', encoding='utf-8') as csvfile:
-                reader = csv.DictReader(csvfile)
-            # Сolumns check
-                if 'key' not in reader.fieldnames or 'ukrainian' not in reader.fieldnames:
-                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_columns"))
-                    return
-
+                rows = list(csv.reader(csvfile))
+                if not rows:
+                    raise Exception(self.translations.get("error_empty"))
+                header = rows[0]
+                key_idx = header.index('key')
+                translation_idx = header.index('translation')
                 key_to_row = {row['key']: row for row in self.data_rows}
-
-            # Read and update rows
-                for csv_row in reader:
-                    key = csv_row.get('key', '')
-                    ukrainian_val = csv_row.get('ukrainian', '').strip()
-                    if not key or key not in key_to_row:
+                for csv_row in rows[1:]:
+                    if len(csv_row) <= max(key_idx, translation_idx):
                         continue
-
-                # Update only if ukrainian_val is not empty
-                    if ukrainian_val:
-                        key_to_row[key][context_lang] = ukrainian_val
-
-        # Update data_rows to reflect changes
+                    key = csv_row[key_idx]
+                    val = csv_row[translation_idx].strip()
+                    if key and key in key_to_row and val:
+                        key_to_row[key][import_col] = val
             self.refresh_table()
             QMessageBox.information(self, self.translations.get("success"), self.translations.get("import_success"))
         except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_doesnt_imported')}{e}")
+            QMessageBox.warning(self, self.translations.get("error"), str(e))
 
 
     def refresh_table(self):
@@ -858,14 +816,8 @@ class BinParserGUI(QMainWindow):
        
             
             
-
     def replace_lang_in_bin(self):
-        selected_column = self.context_lang_combo.currentText()
-        if not selected_column:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_column_choosen_to_replace"))
-            return
-
-        values = [row.get(selected_column, '') for row in self.data_rows]
+        lang_columns = [col for col in self.data_rows[0].keys() if col != "key"]
         file_path = self.get_stats_bin_path()
         try:
             with open(file_path, "rb") as f:
@@ -873,52 +825,75 @@ class BinParserGUI(QMainWindow):
         except FileNotFoundError:
             return
 
-    # Remove all old markers for the selected language
-        marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
-        cleaned = bytearray()
-        i = 0
-        while i < len(data):
-            idx = data.find(marker, i)
-            if idx == -1:
-                cleaned.extend(data[i:])
-                break
-            # Copy everything up to the marker
-            cleaned.extend(data[i:idx])
-            # Skip marker and value
-            i = idx + len(marker)
-            end = data.find(b'\x00', i)
-            if end == -1:
-                break
-            i = end + 1
+        cleaned = bytearray(data)
+        for selected_column in lang_columns:
+            values = [row.get(selected_column, '') for row in self.data_rows]
+            if selected_column == "english":
+                english_marker = b'\x01english\x00'
+                output = bytearray()
+                i = 0
+                v_idx = 0
+                while i < len(cleaned):
+                    idx = cleaned.find(english_marker, i)
+                    if idx == -1:
+                        output.extend(cleaned[i:])
+                        break
+                    output.extend(cleaned[i:idx + len(english_marker)])
+                    i = idx + len(english_marker)
+                    end = cleaned.find(b'\x00', i)
+                    if end == -1:
+                        break
+                    if v_idx < len(values):
+                        val = values[v_idx]
+                        output.extend(val.encode("utf-8"))
+                    output.extend(b'\x00')
+                    i = end + 1
+                    v_idx += 1
+                cleaned = output
+            else:
+                # Delete old markers of this language
+                marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
+                new_cleaned = bytearray()
+                i = 0
+                while i < len(cleaned):
+                    idx = cleaned.find(marker, i)
+                    if idx == -1:
+                        new_cleaned.extend(cleaned[i:])
+                        break
+                    new_cleaned.extend(cleaned[i:idx])
+                    i = idx + len(marker)
+                    end = cleaned.find(b'\x00', i)
+                    if end == -1:
+                        break
+                    i = end + 1
+                cleaned = new_cleaned
 
-    # Now insert new markers according to the table
-    # Insert before each english_marker
-        english_marker = b'\x01english\x00'
-        output = bytearray()
-        i = 0
-        v_idx = 0
-        while i < len(cleaned):
-            idx = cleaned.find(english_marker, i)
-            if idx == -1:
-                output.extend(cleaned[i:])
-                break
-            output.extend(cleaned[i:idx])
-            # Insert new marker if there is a value
-            if v_idx < len(values):
-                val = values[v_idx]
-                if val:
-                    output.extend(b'\x01' + selected_column.encode("utf-8") + b'\x00' + val.encode("utf-8") + b'\x00')
-            output.extend(english_marker)
-            i = idx + len(english_marker)
-            # Copy the english value
-            end = cleaned.find(b'\x00', i)
-            if end == -1:
-                break
-            output.extend(cleaned[i:end+1])
-            i = end + 1
-            v_idx += 1
-        return output
-
+                # Insert new markers and values
+                english_marker = b'\x01english\x00'
+                output = bytearray()
+                i = 0
+                v_idx = 0
+                while i < len(cleaned):
+                    idx = cleaned.find(english_marker, i)
+                    if idx == -1:
+                        output.extend(cleaned[i:])
+                        break
+                    output.extend(cleaned[i:idx])
+                    # Insert new marker if there is a value
+                    if v_idx < len(values):
+                        val = values[v_idx]
+                        if val:
+                            output.extend(b'\x01' + selected_column.encode("utf-8") + b'\x00' + val.encode("utf-8") + b'\x00')
+                    output.extend(english_marker)
+                    i = idx + len(english_marker)
+                    end = cleaned.find(b'\x00', i)
+                    if end == -1:
+                        break
+                    output.extend(cleaned[i:end+1])
+                    i = end + 1
+                    v_idx += 1
+                cleaned = output
+        return cleaned
 
         
 

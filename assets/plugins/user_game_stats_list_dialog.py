@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt
 import os
 import re
+from assets.plugins.highlight_delegate import HighlightDelegate
 
 class UserGameStatsListDialog(QDialog):
     def __init__(self, parent, stats_list):
@@ -36,7 +37,10 @@ class UserGameStatsListDialog(QDialog):
         self.table.cellClicked.connect(self.on_table_cell_clicked)
         layout.addWidget(self.table)
 
-        # --- Нижній layout під таблицею ---
+        self.highlight_delegate = HighlightDelegate(self.table)
+        self.table.setItemDelegate(self.highlight_delegate)
+
+        # --- Buttons and selected game display ---
         btn_box = QHBoxLayout()
         self.select_btn = QPushButton(translations.get("get_ach"))
         self.select_btn.setEnabled(False)
@@ -91,6 +95,11 @@ class UserGameStatsListDialog(QDialog):
         self.selected_row = None
         self.select_btn.setEnabled(False)
         self.selected_gamename_label.setText("")
+
+        # Update highlighting
+        self.highlight_delegate.set_highlight(text)
+        self.highlight_delegate.highlight_column = -1  
+        self.table.viewport().update()
 
     def stretch_columns(self):
         header = self.table.horizontalHeader()
