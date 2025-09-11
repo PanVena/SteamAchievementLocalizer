@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Існуючий тег (vX.Y.Z). Якщо порожньо — візьме останній."
+        description: "Існуючий тег (vX.Y.Z). Порожньо => візьме останній."
         required: false
 
 permissions:
@@ -19,6 +19,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag (push or manual)
+        id: picktag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git fetch --tags --force
+            if [ -n "${{ github.event.inputs.tag }}" ]; then
+              TAG="${{ github.event.inputs.tag }}"
+            else
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "Using tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git checkout "$TAG"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,15 +48,47 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install --upgrade nuitka ordered-set zstandard
+
           python -m nuitka --version
-      
+
+      - name: Verify version matches tag
+        id: ver
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $tag = "${{ steps.picktag.outputs.tag }}"      
+          $tagNoV = $tag.TrimStart('v')
+
+          $match = Select-String -Path SteamAchievementLocalizer.py -Pattern 'APP_VERSION *= *"([0-9]+\.[0-9]+\.[0-9]+)"' | Select-Object -First 1
+          if (-not $match) {
+            Write-Error "APP_VERSION not found in SteamAchievementLocalizer.py"
+          }
+          $srcVersion = $match.Matches[0].Groups[1].Value
+          Write-Host "Source version: $srcVersion | Tag version: $tagNoV"
+
+          if ($srcVersion -ne $tagNoV) {
+            Write-Error "ERROR: APP_VERSION ($srcVersion) != tag ($tagNoV)"
+          }
+
+          "app_version=$srcVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Build (Nuitka onefile)
         shell: powershell
         run: |
-          Remove-Item dist,build -Recurse -Force -ErrorAction SilentlyContinue
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+
+          # Чистимо минулі артефакти
+          Remove-Item dist, build -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -Filter '*.build' | Remove-Item -Force -ErrorAction SilentlyContinue
+
           python -m nuitka SteamAchievementLocalizer.py --onefile `
             --remove-output `
             --output-dir=dist `
@@ -50,51 +102,54 @@ jobs:
             --assume-yes-for-downloads `
             --show-progress
 
-      - name: Debug list files
-        shell: bash
-        run: |
-          echo "Root:"
-          ls -al
-          echo "dist/:"
-          ls -al dist || true
-          echo "Find any exe:"
-          find dist -maxdepth 2 -type f -iname "*.exe" -printf "%P\n" || true
+          Write-Host "Listing dist/:"
+          Get-ChildItem dist | Format-Table -AutoSize
 
-      - name: Locate artifact
+      - name: Rename artifact
         id: artifact
-        shell: bash
+        shell: powershell
         run: |
-          set -e
-          FILE=$(find dist -maxdepth 1 -type f -iname "SteamAchievementLocalizer*.exe" -printf "%P\n" | head -n1 || true)
-          if [ -z "$FILE" ]; then
-            echo "No exe built"
-            ls -al dist || true
-            exit 1
-          fi
-          echo "file=dist/$FILE" >> "$GITHUB_OUTPUT"
-          echo "Using artifact: dist/$FILE"
+          $ErrorActionPreference = 'Stop'
+
+          $version = "${{ steps.ver.outputs.app_version }}"
+          if (-not (Test-Path dist)) {
+            Write-Error "dist directory not found"
+          }
+
+          $raw = Get-ChildItem dist -Filter *.exe -File | Select-Object -First 1
+          if (-not $raw) {
+            Write-Error "No exe produced"
+          }
+
+          $newName = "SteamAchievementLocalizer-v$version-win64.exe"
+          Rename-Item -Path $raw.FullName -NewName $newName
+
+          $fullPath = Join-Path dist $newName
+          Write-Host "Renamed $($raw.Name) -> $newName"
+
+          "file=$fullPath"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact_name=$newName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
 
       - name: Upload artifact (CI record)
         uses: actions/upload-artifact@v4
         with:
-          name: SteamAchievementLocalizer-${{ github.ref_name }}-win64
+          name: ${{ steps.artifact.outputs.artifact_name }}
           path: ${{ steps.artifact.outputs.file }}
 
-      - name: Extract version from source
-        id: ver
-        shell: bash
-        run: |
-          set -e
-          ver=$(grep -Eo 'APP_VERSION *= *"[0-9]+\.[0-9]+\.[0-9]+"' SteamAchievementLocalizer.py | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
-          echo "app_version=$ver" >> $GITHUB_OUTPUT
-          echo "Detected version $ver"
-
-      - name: Create Release
+      - name: Create or Update Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          gh release create "$TAG" "${{ steps.artifact.outputs.file }}" \
-            --title "SteamAchievementLocalizer $TAG" \
-            --generate-notes
+          TAG="${{ steps.picktag.outputs.tag }}"
+          TITLE="Steam Achievement Localizer by Pan_Vena v${{ steps.ver.outputs.app_version }}"
+          ASSET="${{ steps.artifact.outputs.file }}"
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release exists, updating..."
+            gh release upload "$TAG" "$ASSET" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_FILE"
+          else
+            gh release create "$TAG" "$ASSET" --title "$TITLE" --notes-file "$NOTES_FILE"
+          fi
