@@ -1,19 +1,39 @@
-name: Build & Release on Tag
+name: Build & Release after Bump
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["Bump & Tag Version"]
+    types: [completed]
 
 permissions:
   contents: write
 
 jobs:
   build_and_release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --tags --force
+
+      - name: Determine latest tag
+        id: tag
+        shell: bash
+        run: |
+          TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          if [ -z "$TAG" ]; then
+            echo "No tags found"
+            exit 1
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag $TAG"
+          # Checkout саме тег
+          git checkout "$TAG"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,7 +46,7 @@ jobs:
           pip install -r requirements.txt
           pip install nuitka
 
-      - name: Build (Nuitka onefile)
+      - name: Build (Nuitka)
         run: |
           nuitka SteamAchievementLocalizer.py --onefile --windows-console-mode=disable --plugin-enable=pyqt6 --windows-icon-from-ico=assets/icon.ico ^
             --include-data-files=assets/icon.ico=assets/icon.ico ^
@@ -38,34 +58,24 @@ jobs:
         id: artifact
         shell: bash
         run: |
-          CANDIDATES=$(ls -1 *.exe 2>/dev/null || ls -1 dist/*.exe 2>/dev/null || true)
-          if [ -z "$CANDIDATES" ]; then
+          FILE=$(ls -1 *.exe 2>/dev/null || ls -1 dist/*.exe 2>/dev/null || true)
+          if [ -z "$FILE" ]; then
             echo "No exe built"
             exit 1
           fi
-            FILE=$(echo "$CANDIDATES" | head -n1)
-            echo "file=$FILE" >> $GITHUB_OUTPUT
-            echo "Using artifact: $FILE"
+          echo "file=$FILE" >> $GITHUB_OUTPUT
+          echo "Artifact: $FILE"
 
       - name: Upload artifact (CI record)
         uses: actions/upload-artifact@v4
         with:
-          name: SteamAchievementLocalizer-${{ github.ref_name }}-win64
+          name: SteamAchievementLocalizer-${{ steps.tag.outputs.tag }}-win64
           path: ${{ steps.artifact.outputs.file }}
-
-      - name: Extract version from source
-        id: ver
-        shell: bash
-        run: |
-          ver=$(grep -Eo 'APP_VERSION *= *"[0-9]+\.[0-9]+\.[0-9]+"' SteamAchievementLocalizer.py | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
-          echo "app_version=$ver" >> $GITHUB_OUTPUT
-          echo "Detected version $ver"
 
       - name: Create Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          gh release create "$TAG" "${{ steps.artifact.outputs.file }}" \
-            --title "SteamAchievementLocalizer $TAG" \
+          gh release create "${{ steps.tag.outputs.tag }}" "${{ steps.artifact.outputs.file }}" \
+            --title "SteamAchievementLocalizer ${{ steps.tag.outputs.tag }}" \
             --generate-notes
