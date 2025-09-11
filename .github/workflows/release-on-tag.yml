@@ -1,9 +1,9 @@
-name: Build & Release after Bump
+name: Build & Release on Tag
 
 on:
-  workflow_run:
-    workflows: ["Bump & Tag Version"]
-    types: [completed]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -25,10 +25,14 @@ jobs:
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
-            # Встановимо PyQt6 із requirements
-          pip install -r requirements.txt
-            # Nuitka + корисні залежності (zstandard прискорює упаковку)
-          pip install nuitka ordered-set zstandard
+          python -m pip install -r requirements.txt
+          # Nuitka + рекомендовані для швидкості пакети
+          python -m pip install --upgrade nuitka ordered-set zstandard
+          # Діагностика
+            echo "PythonLocation: $PythonLocation"
+          echo "PATH(before)=$PATH"
+          python -m pip show nuitka
+          python -m nuitka --version
 
       - name: Build (Nuitka onefile)
         shell: bash
@@ -56,8 +60,8 @@ jobs:
           ls -al
           echo "dist/:"
           ls -al dist || true
-          echo "Find any exe:"
-          find . -maxdepth 3 -type f -iname "*.exe" -printf "%P\n" || true
+          echo "Find exe:"
+          find dist -maxdepth 2 -type f -iname "*.exe" -printf "%P\n" || true
 
       - name: Locate artifact
         id: artifact
@@ -67,6 +71,8 @@ jobs:
           FILE=$(find dist -maxdepth 1 -type f -iname "SteamAchievementLocalizer*.exe" -printf "%P\n" | head -n1 || true)
           if [ -z "$FILE" ]; then
             echo "No exe built"
+            echo "Contents of dist for debugging:"
+            ls -al dist || true
             exit 1
           fi
           echo "file=dist/$FILE" >> "$GITHUB_OUTPUT"
