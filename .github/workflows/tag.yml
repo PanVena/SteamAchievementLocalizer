@@ -1,0 +1,58 @@
+name: Bump & Tag Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Тип оновлення версії (patch | minor | major | none)"
+        required: true
+        default: "patch"
+
+permissions:
+  contents: write
+
+jobs:
+  bump_and_tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for tagging)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: "3.12"
+
+      - name: Install (none needed, using stdlib)
+        run: echo "No external deps"
+
+      - name: Bump version
+        id: bump
+        run: |
+          NEW_VER=$(python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump "${{ github.event.inputs.bump }}")
+          echo "new=$NEW_VER" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VER"
+
+      - name: Commit version change (if changed)
+        run: |
+          if git diff --quiet SteamAchievementLocalizer.py; then
+            echo "Version unchanged (bump probably 'none')"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add SteamAchievementLocalizer.py
+            git commit -m "chore: bump version to ${{ steps.bump.outputs.new }}"
+            git push
+          fi
+
+      - name: Create tag
+        run: |
+          TAG="v${{ steps.bump.outputs.new }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            exit 1
+          fi
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
