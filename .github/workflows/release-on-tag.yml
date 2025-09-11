@@ -46,12 +46,15 @@ jobs:
           pip install -r requirements.txt
           pip install nuitka
 
-      - name: Build (Nuitka)
+      - name: Build (Nuitka onefile)
         run: |
-          nuitka SteamAchievementLocalizer.py --onefile --windows-console-mode=disable --plugin-enable=pyqt6 --windows-icon-from-ico=assets/icon.ico ^
-            --include-data-files=assets/icon.ico=assets/icon.ico ^
-            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json ^
-            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json ^
+          nuitka SteamAchievementLocalizer.py --onefile `
+            --windows-console-mode=disable `
+            --plugin-enable=pyqt6 `
+            --windows-icon-from-ico=assets/icon.ico `
+            --include-data-files=assets/icon.ico=assets/icon.ico `
+            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json `
+            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json `
             --include-data-files=assets/locales/lang_pl.json=assets/locales/lang_pl.json
 
       - name: Locate artifact
