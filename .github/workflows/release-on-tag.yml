@@ -26,12 +26,9 @@ jobs:
           set -euxo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          # Nuitka + рекомендовані для швидкості пакети
           python -m pip install --upgrade nuitka ordered-set zstandard
-          # Діагностика
-            echo "PythonLocation: $PythonLocation"
-          echo "PATH(before)=$PATH"
-          python -m pip show nuitka
+          echo "Python executable: $(which python)"
+          echo "PATH (first 500 chars): ${PATH:0:500}"
           python -m nuitka --version
 
       - name: Build (Nuitka onefile)
@@ -60,7 +57,7 @@ jobs:
           ls -al
           echo "dist/:"
           ls -al dist || true
-          echo "Find exe:"
+          echo "Find any exe:"
           find dist -maxdepth 2 -type f -iname "*.exe" -printf "%P\n" || true
 
       - name: Locate artifact
@@ -71,7 +68,6 @@ jobs:
           FILE=$(find dist -maxdepth 1 -type f -iname "SteamAchievementLocalizer*.exe" -printf "%P\n" | head -n1 || true)
           if [ -z "$FILE" ]; then
             echo "No exe built"
-            echo "Contents of dist for debugging:"
             ls -al dist || true
             exit 1
           fi
