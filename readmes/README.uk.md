@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="readmes/screens/scrn_ukr.png" alt="Скріншот" width="720">
+  <img src="../readmes/screens/scrn_ukr.png" alt="Скріншот" width="720">
 </p>
 
 ---
