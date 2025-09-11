@@ -21,33 +21,28 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        shell: bash
+        shell: powershell
         run: |
-          set -euxo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install --upgrade nuitka ordered-set zstandard
-          echo "Python executable: $(which python)"
-          echo "PATH (first 500 chars): ${PATH:0:500}"
           python -m nuitka --version
-
+      
       - name: Build (Nuitka onefile)
-        shell: bash
+        shell: powershell
         run: |
-          set -euxo pipefail
-          rm -rf dist build *.build || true
-          python -m nuitka SteamAchievementLocalizer.py \
-            --onefile \
-            --remove-output \
-            --output-dir=dist \
-            --windows-console-mode=disable \
-            --plugin-enable=pyqt6 \
-            --windows-icon-from-ico=assets/icon.ico \
-            --include-data-files=assets/icon.ico=assets/icon.ico \
-            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json \
-            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json \
-            --include-data-files=assets/locales/lang_pl.json=assets/locales/lang_pl.json \
-            --assume-yes-for-downloads \
+          Remove-Item dist,build -Recurse -Force -ErrorAction SilentlyContinue
+          python -m nuitka SteamAchievementLocalizer.py --onefile `
+            --remove-output `
+            --output-dir=dist `
+            --windows-console-mode=disable `
+            --plugin-enable=pyqt6 `
+            --windows-icon-from-ico=assets/icon.ico `
+            --include-data-files=assets/icon.ico=assets/icon.ico `
+            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json `
+            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json `
+            --include-data-files=assets/locales/lang_pl.json=assets/locales/lang_pl.json `
+            --assume-yes-for-downloads `
             --show-progress
 
       - name: Debug list files
