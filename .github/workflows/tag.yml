@@ -15,7 +15,7 @@ jobs:
   bump_and_tag:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (full history for tagging)
+      - name: Checkout (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -25,9 +25,6 @@ jobs:
         with:
             python-version: "3.12"
 
-      - name: Install (none needed, using stdlib)
-        run: echo "No external deps"
-
       - name: Bump version
         id: bump
         run: |
@@ -35,19 +32,25 @@ jobs:
           echo "new=$NEW_VER" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VER"
 
+      - name: Configure git (use PAT to allow triggering downstream workflows)
+        env:
+          PAT: ${{ secrets.ACTIONS_PAT }}
+        run: |
+          git config user.name "panvena-actions"
+          git config user.email "panvena-actions@users.noreply.github.com"
+          git remote set-url origin https://${PAT}@github.com/PanVena/SteamAchievementLocalizer.git
+
       - name: Commit version change (if changed)
         run: |
           if git diff --quiet SteamAchievementLocalizer.py; then
             echo "Version unchanged (bump probably 'none')"
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add SteamAchievementLocalizer.py
             git commit -m "chore: bump version to ${{ steps.bump.outputs.new }}"
             git push
           fi
 
-      - name: Create tag
+      - name: Create tag (with PAT)
         run: |
           TAG="v${{ steps.bump.outputs.new }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
