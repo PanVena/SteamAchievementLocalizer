@@ -384,11 +384,19 @@ class BinParserGUI(QMainWindow):
 
         # --- Menu File ---
         file_menu = QMenu(self.translations.get("file", "File"), self)
+
         export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
         export_bin_action.triggered.connect(self.export_bin)
+
+        delete_file_action = QAction(self.translations.get("delete_stats_file", "Delete stats file"), self)
+        delete_file_action.triggered.connect(self.delete_current_stats_file)
+
+
         exit_action = QAction(self.translations.get("exit", "Exit"), self)
         exit_action.triggered.connect(self._on_exit_action)
+
         file_menu.addAction(export_bin_action)
+        file_menu.addAction(delete_file_action)
         file_menu.addSeparator() 
         file_menu.addAction(exit_action)
         menubar.addMenu(file_menu)
@@ -944,25 +952,45 @@ class BinParserGUI(QMainWindow):
   
 
     def save_bin_unknow(self):
+        # Save to Steam folder
         self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
-        if self.force_manual_path is True:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_manually_selected_file"))
-            return
         if datas is None:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_data_to save"))
+            QMessageBox.warning(self,
+                                self.translations.get("error"),
+                                self.translations.get("error_no_data_to_save"))
+            return
+
+        game_id = self.current_game_id()
+        if not game_id:
+            QMessageBox.warning(self,
+                                self.translations.get("error"),
+                                self.translations.get("error_no_id"))
             return
 
         save_path = os.path.join(
-            self.steam_folder, "appcache", "stats",
-            f"UserGameStatsSchema_{self.game_id()}.bin"
+            self.steam_folder,
+            "appcache",
+            "stats",
+            f"UserGameStatsSchema_{game_id}.bin"
         )
+
         try:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
             with open(save_path, "wb") as f:
                 f.write(datas)
-            QMessageBox.information(self, self.translations.get("success"), self.translations.get("in_steam_folder_saved"))
+            QMessageBox.information(
+                self,
+                self.translations.get("success"),
+                self.translations.get("in_steam_folder_saved")
+            )
+            self.set_modified(False)
         except Exception as e:
-            QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
+            QMessageBox.critical(
+                self,
+                self.translations.get("error"),
+                f"{self.translations.get('error_cannot_save')}{e}"
+            )
             
   
     def save_bin_know(self):
@@ -1180,8 +1208,16 @@ class BinParserGUI(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
-            
+
+        # Activate manual path usage
         self.force_manual_path = True
+
+        # Try to extract game_id from filename
+        import re
+        m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', path)
+        if m:
+            self.game_id_edit.setText(m.group(1))
+
         self.parse_and_fill_table()
         self.version()
         self.gamename()
@@ -1440,14 +1476,100 @@ class BinParserGUI(QMainWindow):
         for row_i in range(self.table.rowCount()):
             if row_i >= len(self.data_rows):
                 continue
-        for col_i, header in enumerate(self.headers):
-            item = self.table.item(row_i, col_i)
-            value = item.text() if item else ''
-            self.data_rows[row_i][header] = value
+            for col_i, header in enumerate(self.headers):
+                item = self.table.item(row_i, col_i)
+                value = item.text() if item else ''
+                self.data_rows[row_i][header] = value
 
-
+    def current_game_id(self):
+        # Return game ID based on current mode (manual or steam path)
+        if self.force_manual_path:
+            manual_path = self.stats_bin_path_path.text().strip()
+            import re
+            m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', manual_path)
+            if m:
+                return m.group(1)
+        return self.game_id()
     
- 
+
+
+    def delete_current_stats_file(self):
+        # Check if file exists
+        path = self.get_stats_bin_path()
+        if not os.path.isfile(path):
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setWindowTitle(self.translations.get("error", "Error"))
+            box.setText(f"{self.translations.get('error_no_file')}{path}")
+            btn_close = box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
+            box.setDefaultButton(btn_close)
+            box.exec()
+            return
+
+        confirm_text = self.translations.get(
+            "delete_stats_file_confirm"
+        ).format(path=path)
+        
+        done_msg = self.translations.get(
+            "delete_stats_file_done"
+        ).format(gamename=self.gamename())
+
+        # Confirmation dialog
+        confirm_box = QMessageBox(self)
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setWindowTitle(self.translations.get("delete_stats_file"))
+        confirm_box.setText(confirm_text)
+        btn_CSV = confirm_box.addButton(self.translations.get(
+            "CSV", "Want to save CSV"), QMessageBox.ButtonRole.ActionRole)
+        btn_yes = confirm_box.addButton(self.translations.get("yes", "Yes"), QMessageBox.ButtonRole.YesRole)
+        btn_no = confirm_box.addButton(self.translations.get("no", "No"), QMessageBox.ButtonRole.NoRole)
+        confirm_box.setDefaultButton(btn_no)
+        confirm_box.exec()
+        if confirm_box.clickedButton() is btn_no:
+            return
+        if confirm_box.clickedButton() is btn_CSV:
+            self.export_csv_all()
+
+        # Deleting the file
+        try:
+            os.remove(path)
+        except Exception as e:
+            err_box = QMessageBox(self)
+            err_box.setIcon(QMessageBox.Icon.Critical)
+            err_box.setWindowTitle(self.translations.get("error", "Error"))
+            err_box.setText(
+                self.translations.get(
+                    "delete_stats_file_failed",
+                    "Cannot delete file: {error}"
+                ).format(error=e)
+            )
+            btn_close3 = err_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
+            err_box.setDefaultButton(btn_close3)
+            err_box.exec()
+            return
+
+        # Reset UI
+        self.raw_data = b""
+        self.data_rows = []
+        self.headers = []
+        self.table.clear()
+        self.table.setRowCount(0)
+        self.table.setColumnCount(0)
+        if hasattr(self, "version_label"):
+            self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
+        if hasattr(self, "gamename_label"):
+            self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
+        self.set_modified(False)
+
+
+        ok_box = QMessageBox(self)
+        ok_box.setIcon(QMessageBox.Icon.Information)
+        ok_box.setWindowTitle(self.translations.get("success", "Success"))
+        ok_box.setText(done_msg)
+        btn_close4 = ok_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.AcceptRole)
+        ok_box.setDefaultButton(btn_close4)
+        ok_box.exec()
+
 
 def main():
     global window
