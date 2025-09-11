@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euxo pipefail
           rm -rf dist build *.build || true
-          nuitka SteamAchievementLocalizer.py \
+          python -m nuitka SteamAchievementLocalizer.py \
             --onefile \
             --remove-output \
             --output-dir=dist \
