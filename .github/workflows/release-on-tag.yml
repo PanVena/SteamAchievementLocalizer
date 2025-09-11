@@ -1,0 +1,71 @@
+name: Build & Release on Tag
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka
+
+      - name: Build (Nuitka onefile)
+        run: |
+          nuitka SteamAchievementLocalizer.py --onefile --windows-console-mode=disable --plugin-enable=pyqt6 --windows-icon-from-ico=assets/icon.ico ^
+            --include-data-files=assets/icon.ico=assets/icon.ico ^
+            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json ^
+            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json ^
+            --include-data-files=assets/locales/lang_pl.json=assets/locales/lang_pl.json
+
+      - name: Locate artifact
+        id: artifact
+        shell: bash
+        run: |
+          CANDIDATES=$(ls -1 *.exe 2>/dev/null || ls -1 dist/*.exe 2>/dev/null || true)
+          if [ -z "$CANDIDATES" ]; then
+            echo "No exe built"
+            exit 1
+          fi
+            FILE=$(echo "$CANDIDATES" | head -n1)
+            echo "file=$FILE" >> $GITHUB_OUTPUT
+            echo "Using artifact: $FILE"
+
+      - name: Upload artifact (CI record)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteamAchievementLocalizer-${{ github.ref_name }}-win64
+          path: ${{ steps.artifact.outputs.file }}
+
+      - name: Extract version from source
+        id: ver
+        shell: bash
+        run: |
+          ver=$(grep -Eo 'APP_VERSION *= *"[0-9]+\.[0-9]+\.[0-9]+"' SteamAchievementLocalizer.py | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "app_version=$ver" >> $GITHUB_OUTPUT
+          echo "Detected version $ver"
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" "${{ steps.artifact.outputs.file }}" \
+            --title "SteamAchievementLocalizer $TAG" \
+            --generate-notes
