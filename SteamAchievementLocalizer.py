@@ -10,7 +10,7 @@ from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMenu, QMenuBar, QInputDialog, QWidgetAction, QCheckBox, QMainWindow
+    QInputDialog, QMenu, QMenuBar, QWidgetAction, QCheckBox, QMainWindow
 )
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
@@ -75,7 +75,7 @@ def extract_key_and_data(chunk: bytes):
         return None
 
     return key_match.group(1).decode(errors='ignore')
-    return None
+
 def extract_words(chunk: bytes):
     pattern = re.compile(b'\x01(.*?)\x00', re.DOTALL)
     matches = pattern.findall(chunk)
@@ -1165,7 +1165,10 @@ class BinParserGUI(QMainWindow):
         name = data[start:end].decode("utf-8", errors="ignore").strip()
 
         if hasattr(self, "gamename_label"):
-            self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else {self.translations.get('unknown')}}")
+            if name:
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{name}")
+            else:
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
 
 
         return name
@@ -1441,8 +1444,8 @@ class BinParserGUI(QMainWindow):
 
             save_dialog = QMessageBox(self)
             save_dialog.setWindowTitle(self.translations.get("save_where_title"))
-            context_lang = self.context_lang_combo.currentText()
-            msg4 = self.translations.get("save_where_msg").format(context=context_lang)
+
+            msg4 = self.translations.get("save_where_msg")
             save_dialog.setText(msg4)
             btn_self = save_dialog.addButton(self.translations.get("save_for_self"), QMessageBox.ButtonRole.AcceptRole)
             btn_steam = save_dialog.addButton(self.translations.get("save_to_steam"), QMessageBox.ButtonRole.AcceptRole)
@@ -1472,14 +1475,12 @@ class BinParserGUI(QMainWindow):
             event.ignore()
 
     def sync_table_to_data_rows(self):
-    # Sync changes from table widget back to data_rows
-        for row_i in range(self.table.rowCount()):
-            if row_i >= len(self.data_rows):
-                continue
+        # Sync changes from table widget back to data_rows
+        rows = min(self.table.rowCount(), len(self.data_rows))
+        for row_i in range(rows):
             for col_i, header in enumerate(self.headers):
                 item = self.table.item(row_i, col_i)
-                value = item.text() if item else ''
-                self.data_rows[row_i][header] = value
+                self.data_rows[row_i][header] = item.text() if item else ''
 
     def current_game_id(self):
         # Return game ID based on current mode (manual or steam path)

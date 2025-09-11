@@ -33,7 +33,7 @@
     "save_changes_title": "Save Changes?",
     "save_changes_msg": "Do you want to save your changes before exiting?",
     "save_where_title": "Where to save?",
-    "save_where_msg": "Where do you want to save your changes?<br><br>Selected language for replacement: <b>{context}</b>",
+    "save_where_msg": "Where do you want to save your changes?<br>",
     "save_for_self": "For yourself",
     "save_to_steam": "To Steam folder",
     "about": "About",

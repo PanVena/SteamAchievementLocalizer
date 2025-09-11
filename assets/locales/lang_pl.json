@@ -33,7 +33,7 @@
 	"save_changes_title": "Zapisać zmiany?",
 	"save_changes_msg": "Czy chcesz zapisać zmiany przed wyjściem?",
 	"save_where_title": "Gdzie zapisać?",
-	"save_where_msg": "Gdzie chcesz zapisać zmiany?<br><br>Wybrany język do zamiany: <b>{context}</b>",
+	"save_where_msg": "Gdzie chcesz zapisać zmiany?<br>",
 	"save_for_self": "Dla siebie",
 	"save_to_steam": "Do folderu Steam",
 	"about": "O programie",

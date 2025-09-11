@@ -33,7 +33,7 @@
     "save_changes_title": "Зберегти зміни?",
     "save_changes_msg": "Бажаєте зберегти зміни перед виходом?",
     "save_where_title": "Куди зберегти?",
-    "save_where_msg": "Куди бажаєте зберегти зміни?<br><br>Вибрана мова для заміни: <b>{context}</b>",
+    "save_where_msg": "Куди бажаєте зберегти зміни?<br>",
     "save_for_self": "Для себе",
     "save_to_steam": "У теку Стім",
     "about": "Про додаток",
