@@ -119,6 +119,7 @@ class UserGameStatsListDialog(QDialog):
         self.select_btn.setEnabled(True)
 
     def select_game(self):
+        self.force_manual_path = False 
         if self.selected_row is None:
             return
         item_id = self.table.item(self.selected_row, 3)
