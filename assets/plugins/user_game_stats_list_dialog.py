@@ -147,3 +147,56 @@ class UserGameStatsListDialog(QDialog):
             return version, game_id
         except Exception:
             return "?", "?"
+
+    @staticmethod
+    def get_version_from_file(file_path):
+        """Get version directly from specified file"""
+        try:
+            with open(file_path, "rb") as f:
+                data = f.read()
+        except Exception:
+            return None
+
+        marker = b"\x01version\x00"
+        pos = data.find(marker)
+
+        if pos == -1:
+            return None
+
+        start = pos + len(marker)
+        end = data.find(b"\x00", start)
+        if end == -1:
+            return None
+
+        # Fetch version string
+        ver_str = data[start:end].decode("utf-8", errors="ignore").strip()
+        try:
+            version_number = int(ver_str)
+        except ValueError:
+            version_number = None
+
+        return version_number
+
+    @staticmethod
+    def get_gamename_from_file(file_path):
+        """Get gamename directly from specified file"""
+        try:
+            with open(file_path, "rb") as f:
+                data = f.read()
+        except Exception:
+            return None
+
+        marker = b"\x01gamename\x00"
+        pos = data.find(marker)
+
+        if pos == -1:
+            return None
+
+        # Fetch game name string
+        start = pos + len(marker)
+        end = data.find(b"\x00", start)
+        if end == -1:
+            return None
+
+        name = data[start:end].decode("utf-8", errors="ignore").strip()
+        return name
