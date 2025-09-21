@@ -6,7 +6,7 @@ import subprocess
 import json
 import shutil
 from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
+from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument,  QPalette, QColor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
@@ -75,7 +75,7 @@ def extract_key_and_data(chunk: bytes):
         return None
 
     return key_match.group(1).decode(errors='ignore')
-    return None
+
 def extract_words(chunk: bytes):
     pattern = re.compile(b'\x01(.*?)\x00', re.DOTALL)
     matches = pattern.findall(chunk)
@@ -1326,7 +1326,6 @@ class BinParserGUI(QMainWindow):
         dlg.exec()
 
     def show_user_game_stats_list(self):
-        import re
         stats_dir = os.path.join(self.steam_folder, "appcache", "stats")
         if not os.path.isdir(stats_dir):
             QMessageBox.warning(self, "Error", f"Stats directory not found:\n{stats_dir}")
@@ -1361,6 +1360,8 @@ class BinParserGUI(QMainWindow):
         # Restore original values
         self.game_id_edit.setText(orig_game_id)
         self.steam_folder = orig_steam_folder
+        self.version()
+        self.gamename()
         # Show dialog
         dlg = UserGameStatsListDialog(self, stats_list)
         dlg.exec()
@@ -1488,7 +1489,6 @@ class BinParserGUI(QMainWindow):
         # Return game ID based on current mode (manual or steam path)
         if self.force_manual_path:
             manual_path = self.stats_bin_path_path.text().strip()
-            import re
             m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', manual_path)
             if m:
                 return m.group(1)
@@ -1577,6 +1577,7 @@ class BinParserGUI(QMainWindow):
 def main():
     global window
     app = QApplication(sys.argv)
+    # Set Fusion style
     app.setStyle('Fusion')
     language = choose_language()
 
