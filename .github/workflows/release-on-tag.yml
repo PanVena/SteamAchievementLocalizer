@@ -184,6 +184,7 @@ jobs:
 
   build_linux:
     runs-on: ubuntu-latest
+    needs: build_windows  # Wait for Windows job to complete
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -340,9 +341,10 @@ jobs:
         run: |
           TAG="${{ steps.picktag.outputs.tag }}"
           
-          # Wait for Windows job to create release if needed
-          sleep 30
+          echo "Uploading Linux files to existing release $TAG"
           
-          # Upload both files
+          # Upload both files to the release created by Windows job
           gh release upload "$TAG" "${{ steps.artifact.outputs.portable_archive }}" --clobber
           gh release upload "$TAG" "${{ steps.artifact.outputs.binary_file }}" --clobber
+          
+          echo "Linux files uploaded successfully!"
