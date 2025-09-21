@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  build_and_release:
+  build_windows:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -130,6 +130,34 @@ jobs:
           "file=$fullPath"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "artifact_name=$newName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Generate release notes
+        id: notes
+        shell: powershell
+        run: |
+          $version = "${{ steps.ver.outputs.app_version }}"
+          $notesContent = @"
+          ## Steam Achievement Localizer v$version
+
+          ### Downloads
+          - **Windows**: SteamAchievementLocalizer-v$version-win64.exe
+          - **Linux (Portable)**: SteamAchievementLocalizer-v$version-linux64.tar.gz  
+          - **Linux (Binary)**: SteamAchievementLocalizer-v$version-linux64
+
+          ### Installation
+          **Windows**: Download and run the .exe file
+
+          **Linux**: 
+          - For portable version: Extract tar.gz and run `./run.sh`
+          - For binary: Download, make executable with `chmod +x`, and run
+
+          ### Requirements
+          - **Windows**: Windows 10 or later
+          - **Linux**: Modern Linux distribution with Qt6 support
+          "@
+
+          $notesContent | Out-File -FilePath "release-notes.md" -Encoding UTF8
+          "notes_file=release-notes.md" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
 
       - name: Upload artifact (CI record)
         uses: actions/upload-artifact@v4
@@ -153,3 +181,150 @@ jobs:
           else
             gh release create "$TAG" "$ASSET" --title "$TITLE" --notes-file "$NOTES_FILE"
           fi
+
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag (push or manual)
+        id: picktag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git fetch --tags --force
+            if [ -n "${{ github.event.inputs.tag }}" ]; then
+              TAG="${{ github.event.inputs.tag }}"
+            else
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "Using tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git checkout "$TAG"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-glx \
+            libxkbcommon-x11-0 \
+            libxcb-xinerama0 \
+            libxcb-cursor0 \
+            libqt6-dev \
+            qt6-base-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install --upgrade nuitka ordered-set zstandard
+
+      - name: Verify version matches tag
+        id: ver
+        run: |
+          tag="${{ steps.picktag.outputs.tag }}"      
+          tagNoV=${tag#v}
+
+          srcVersion=$(grep -oP 'APP_VERSION *= *"\K[0-9]+\.[0-9]+\.[0-9]+' SteamAchievementLocalizer.py)
+          echo "Source version: $srcVersion | Tag version: $tagNoV"
+
+          if [ "$srcVersion" != "$tagNoV" ]; then
+            echo "ERROR: APP_VERSION ($srcVersion) != tag ($tagNoV)"
+            exit 1
+          fi
+
+          echo "app_version=$srcVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Build Nuitka binary
+        run: |
+          # Clean previous artifacts
+          rm -rf dist build *.build
+
+          python -m nuitka SteamAchievementLocalizer.py --onefile \
+            --remove-output \
+            --output-dir=dist \
+            --plugin-enable=pyqt6 \
+            --include-data-files=assets/icon.ico=assets/icon.ico \
+            --include-data-files=assets/locales/lang_en.json=assets/locales/lang_en.json \
+            --include-data-files=assets/locales/lang_ua.json=assets/locales/lang_ua.json \
+            --include-data-files=assets/locales/lang_pl.json=assets/locales/lang_pl.json \
+            --assume-yes-for-downloads \
+            --show-progress
+
+          echo "Listing dist/:"
+          ls -la dist/
+
+      - name: Create portable archive and tar.gz
+        id: artifact
+        run: |
+          version="${{ steps.ver.outputs.app_version }}"
+          
+          # Find the binary
+          binary=$(find dist -name "SteamAchievementLocalizer*" -executable -type f | head -n1)
+          if [ -z "$binary" ]; then
+            echo "No binary found"
+            exit 1
+          fi
+          
+          # Create portable directory
+          portable_dir="SteamAchievementLocalizer-v${version}-linux64-portable"
+          mkdir -p "$portable_dir"
+          
+          # Copy binary and assets
+          cp "$binary" "$portable_dir/SteamAchievementLocalizer"
+          chmod +x "$portable_dir/SteamAchievementLocalizer"
+          cp -r assets "$portable_dir/"
+          cp README.md "$portable_dir/" 2>/dev/null || true
+          cp LICENSE "$portable_dir/" 2>/dev/null || true
+          
+          # Create run script
+          cat > "$portable_dir/run.sh" << 'EOF'
+          #!/bin/bash
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+          cd "$DIR"
+          ./SteamAchievementLocalizer "$@"
+          EOF
+          chmod +x "$portable_dir/run.sh"
+          
+          # Create tar.gz
+          tar_name="SteamAchievementLocalizer-v${version}-linux64.tar.gz"
+          tar -czf "$tar_name" "$portable_dir"
+          
+          # Rename binary for direct download
+          binary_name="SteamAchievementLocalizer-v${version}-linux64"
+          cp "$binary" "$binary_name"
+          
+          echo "portable_archive=$tar_name" >> "$GITHUB_OUTPUT"
+          echo "binary_file=$binary_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds-v${{ steps.ver.outputs.app_version }}
+          path: |
+            ${{ steps.artifact.outputs.portable_archive }}
+            ${{ steps.artifact.outputs.binary_file }}
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.picktag.outputs.tag }}"
+          
+          # Wait for Windows job to create release if needed
+          sleep 30
+          
+          # Upload both files
+          gh release upload "$TAG" "${{ steps.artifact.outputs.portable_archive }}" --clobber
+          gh release upload "$TAG" "${{ steps.artifact.outputs.binary_file }}" --clobber

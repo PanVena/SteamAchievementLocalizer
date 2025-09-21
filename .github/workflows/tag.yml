@@ -59,3 +59,21 @@ jobs:
           fi
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
+
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.bump.outputs.new }}"
+          echo "Triggering release workflow for tag: $TAG"
+          
+          # Wait a moment for the tag to be available
+          sleep 5
+          
+          # Trigger the release workflow
+          gh workflow run "release-on-tag.yml" \
+            --field tag="$TAG" \
+            --repo "${{ github.repository }}"
+          
+          echo "Release workflow triggered successfully!"
+          echo "Check the Actions tab to monitor the build progress."
