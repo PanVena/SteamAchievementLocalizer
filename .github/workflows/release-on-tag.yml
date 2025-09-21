@@ -216,27 +216,21 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+          # Install essential packages, continue on failure for optional ones
           sudo apt-get install -y \
-            libegl1-mesa \
+            xvfb \
             libgl1-mesa-dev \
             libglib2.0-0 \
-            libxkbcommon-x11-0 \
-            libxcb-xinerama0 \
-            libxcb-cursor0 \
-            libxcb-randr0 \
-            libxcb-xtest0 \
-            libxcb-xfixes0 \
-            libxcb-shape0 \
-            libxcb-glx0 \
-            libxcb-icccm4 \
-            libxcb-image0 \
-            libxcb-keysyms1 \
-            libxcb-render-util0 \
-            libxcb-util1 \
-            libxkbcommon0 \
-            libasound2 \
             libfontconfig1 \
-            xvfb
+            libx11-6 \
+            libxext6 \
+            libxrender1 \
+            libxkbcommon0 \
+            libxkbcommon-x11-0
+            
+          # Try different versions of packages that might have different names
+          sudo apt-get install -y libegl1 || sudo apt-get install -y libegl1-mesa || true
+          sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2 || true
 
       - name: Install Python dependencies
         run: |
@@ -246,6 +240,8 @@ jobs:
           python -m pip install --upgrade nuitka ordered-set zstandard
           # Verify PyQt6 installation
           python -c "import PyQt6; print('PyQt6 successfully imported')"
+          # List installed Qt libraries for debugging
+          python -c "from PyQt6 import QtCore; print(f'Qt version: {QtCore.QT_VERSION_STR}')"
 
       - name: Verify version matches tag
         id: ver
