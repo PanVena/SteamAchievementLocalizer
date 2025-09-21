@@ -37,7 +37,7 @@ def main():
         )
         path.write_text(new_text, encoding="utf-8")
 
-    # Виводимо завжди — workflow зчитає це як нову версію
+    # Always print - workflow will read this as the new version
     print(new_version)
 
 if __name__ == "__main__":

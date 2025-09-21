@@ -1046,21 +1046,24 @@ class BinParserGUI(QMainWindow):
     def detect_steam_path(self):
         home = os.path.expanduser("~")
         possible_paths = [
-            # Стандартні Linux/Mac шляхи
+            # Standard Linux/Mac paths
             os.path.join(home, ".steam", "steam"),
             os.path.join(home, ".steam", "Steam"),
             os.path.join(home, ".local", "share", "Steam"),
             os.path.join(home, ".local", "share", "steam"),
             os.path.join(home, ".steam", "root"),
             os.path.join(home, ".steam", "Root"),
-            # Snap версія Steam
+            # Flatpak Steam version
+            os.path.join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+            # Snap Steam version
             os.path.join(home, "snap", "steam", "common", ".local", "share", "Steam"),
             os.path.join(home, "snap", "steam", "common", ".steam", "steam"),
             os.path.join(home, "snap", "steam", "common", ".steam", "Steam"),
             os.path.join(home, "snap", "steam", "common", ".steam", "root"),
             os.path.join(home, "snap", "steam", "common", ".steam", "Root"),
+            
         ]
-        # Windows detection (як раніше)
+        # Windows detection
         if sys.platform == "win32":
             try:
                 import winreg
