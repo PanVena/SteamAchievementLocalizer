@@ -217,18 +217,35 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgl1-mesa-glx \
+            libegl1-mesa \
+            libgl1-mesa-dev \
+            libglib2.0-0 \
             libxkbcommon-x11-0 \
             libxcb-xinerama0 \
             libxcb-cursor0 \
-            libqt6-dev \
-            qt6-base-dev
+            libxcb-randr0 \
+            libxcb-xtest0 \
+            libxcb-xfixes0 \
+            libxcb-shape0 \
+            libxcb-glx0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render-util0 \
+            libxcb-util1 \
+            libxkbcommon0 \
+            libasound2 \
+            libfontconfig1 \
+            xvfb
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install PyQt6 and other dependencies
           python -m pip install -r requirements.txt
           python -m pip install --upgrade nuitka ordered-set zstandard
+          # Verify PyQt6 installation
+          python -c "import PyQt6; print('PyQt6 successfully imported')"
 
       - name: Verify version matches tag
         id: ver
@@ -250,6 +267,11 @@ jobs:
         run: |
           # Clean previous artifacts
           rm -rf dist build *.build
+
+          # Start virtual display for GUI applications
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
 
           python -m nuitka SteamAchievementLocalizer.py --onefile \
             --remove-output \
