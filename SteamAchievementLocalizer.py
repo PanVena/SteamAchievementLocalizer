@@ -75,7 +75,7 @@ def extract_key_and_data(chunk: bytes):
         return None
 
     return key_match.group(1).decode(errors='ignore')
-    return None
+
 def extract_words(chunk: bytes):
     pattern = re.compile(b'\x01(.*?)\x00', re.DOTALL)
     matches = pattern.findall(chunk)
@@ -787,7 +787,8 @@ class BinParserGUI(QMainWindow):
             with open(fname, 'r', encoding='utf-8') as csvfile:
                 rows = list(csv.reader(csvfile))
                 if not rows:
-                    raise Exception(self.translations.get("error_empty"))
+                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_empty"))
+
                 header = rows[0]
                 key_idx = header.index('key')
                 translation_idx = header.index('translation')
@@ -1326,7 +1327,6 @@ class BinParserGUI(QMainWindow):
         dlg.exec()
 
     def show_user_game_stats_list(self):
-        import re
         stats_dir = os.path.join(self.steam_folder, "appcache", "stats")
         if not os.path.isdir(stats_dir):
             QMessageBox.warning(self, "Error", f"Stats directory not found:\n{stats_dir}")
@@ -1354,9 +1354,8 @@ class BinParserGUI(QMainWindow):
             version = UserGameStatsListDialog.get_version_from_file(file_path)
             gamename = UserGameStatsListDialog.get_gamename_from_file(file_path)
             stats_list.append((
-                fname,
-                str(version) if version is not None else "?",
-                gamename if gamename else "?",
+                gamename if gamename else self.translations.get("unknown"),
+                str(version) if version is not None else self.translations.get("unknown"),
                 game_id,
                 str(achievement_count)
             ))
@@ -1375,10 +1374,7 @@ class BinParserGUI(QMainWindow):
 
         for row in range(self.table.rowCount()):
             self.table.setRowHidden(row, False)
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                
-                    
+                               
 
         if not search_text:
             self.highlight_delegate.set_highlight("")
@@ -1582,16 +1578,15 @@ def main():
     global window
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    language = choose_language()
-
-    # Load translations for warning (default to English if not set yet)
     settings = QSettings("Vena", "Steam Achievement Localizer")
-    language = settings.value("language", "English")
+    language = settings.value("language", None)
+    if language is None:
+        language = choose_language()
+        settings.setValue("language", language)
+        settings.sync()
     translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
 
-
     last_version = settings.value("last_version", "")
-
 
     # Use the selected language for the warning dialog
     warning_title = translations.get("warning_title_achtung", "Achtung")

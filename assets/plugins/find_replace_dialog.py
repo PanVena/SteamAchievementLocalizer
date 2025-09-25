@@ -115,8 +115,6 @@ class FindReplaceDialog(QDialog):
         return pattern.sub(lambda m: f"<span style='background: orange;'>{html_escape(m.group(0))}</span>", text)
 
     def replace_all(self):
-        find_text = self.find_edit.text()
-        replace_text = self.replace_edit.text()
         col = self.column_combo.currentText()
         find_text = self.find_edit.text()
         replace_text = self.replace_edit.text()

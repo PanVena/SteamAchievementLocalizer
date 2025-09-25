@@ -23,11 +23,10 @@ class UserGameStatsListDialog(QDialog):
         layout.addLayout(search_layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels([
-            translations.get("file_name"),
-            translations.get("version"),
             translations.get("gamename_list"),
+            translations.get("version"),
             translations.get("game_id"),
             translations.get("achievements_count")
         ])
@@ -67,22 +66,21 @@ class UserGameStatsListDialog(QDialog):
 
     def fill_table(self, stats_list):
         self.table.setRowCount(len(stats_list))
-        for row, (fname, version, gamename, game_id, achievement_count) in enumerate(stats_list):
-            self.table.setItem(row, 0, QTableWidgetItem(str(fname)))
+        for row, (gamename, version, game_id, achievement_count) in enumerate(stats_list):
 
             item_version = QTableWidgetItem(str(version))
             item_version.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, item_version)
 
-            self.table.setItem(row, 2, QTableWidgetItem(str(gamename)))
+            self.table.setItem(row, 0, QTableWidgetItem(str(gamename)))
 
             item_id = QTableWidgetItem(str(game_id))
             item_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 3, item_id)
+            self.table.setItem(row, 2, item_id)
 
             item_ach = QTableWidgetItem(str(achievement_count))
             item_ach.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 4, item_ach)
+            self.table.setItem(row, 3, item_ach)
         self.stretch_columns()
 
     def filter_table(self, text):
@@ -104,16 +102,19 @@ class UserGameStatsListDialog(QDialog):
     def stretch_columns(self):
         header = self.table.horizontalHeader()
         for i in range(self.table.columnCount()):
-            if i in (1,3, 4):
+            if i in (2, 3):
                 header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Interactive)
-                self.table.setColumnWidth(i, 80)
+                self.table.setColumnWidth(i, 100)
+            elif i == 1:
+                header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Interactive)
+                self.table.setColumnWidth(i, 130)
             else:
                 header.setSectionResizeMode(i, self.table.horizontalHeader().ResizeMode.Stretch)
         self.table.viewport().update()
      
     def on_table_cell_clicked(self, row, col):
         self.table.selectRow(row)
-        gamename = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
+        gamename = self.table.item(row, 0).text() if self.table.item(row, 0) else ""
         self.selected_gamename_label.setText(gamename)
         self.selected_row = row
         self.select_btn.setEnabled(True)
@@ -122,7 +123,7 @@ class UserGameStatsListDialog(QDialog):
         self.force_manual_path = False 
         if self.selected_row is None:
             return
-        item_id = self.table.item(self.selected_row, 3)
+        item_id = self.table.item(self.selected_row, 2)
         if not item_id:
             return
         game_id = item_id.text()
