@@ -20,7 +20,7 @@ from assets.plugins.context_lang_dialog import ContextLangDialog
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "7.8.1" 
+APP_VERSION = "7.8.2" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
