@@ -504,8 +504,13 @@ class BinParserGUI(QMainWindow):
         theme_group.setExclusive(True)
         self.theme_actions = {}
         current_theme = self.settings.value("theme", "System")
-        for theme in ["System", "Light", "Dark"]:
-            action = QAction(self.translations.get(f"theme_{theme.lower()}", theme), self, checkable=True)
+        for theme in ["System", "Light", "Dark", "Femboy"]:
+            if theme == "Femboy":
+                display_name = "💖 Femboy Edition"
+            else:
+                display_name = self.translations.get(f"theme_{theme.lower()}", theme)
+                
+            action = QAction(display_name, self, checkable=True)
             action.setChecked(theme == current_theme)
             action.triggered.connect(self._make_theme_callback(theme))
             theme_group.addAction(action)
@@ -534,14 +539,11 @@ class BinParserGUI(QMainWindow):
         font_sizes = [
             (6, self.translations.get("font_xsmall")),
             (8, self.translations.get("font_small")),
-            (10, self.translations.get("font_standard")),
-            (12, self.translations.get("font_medium")),
-            (14, self.translations.get("font_large")),
-            (16, self.translations.get("font_xlarge")),
-            (18, self.translations.get("font_xxlarge")),
-            (20, self.translations.get("font_huge")),
+            (9, self.translations.get("font_standard")),
+            (10, self.translations.get("font_medium")),
+            (12, self.translations.get("font_large")),
         ]
-        current_size = int(self.settings.value("font_size", 12))
+        current_size = int(self.settings.value("font_size", 9))
         for size, label in font_sizes:
             action = QAction(label, self, checkable=True)
             action.setChecked(size == current_size)
@@ -572,26 +574,127 @@ class BinParserGUI(QMainWindow):
 
     def apply_dark_palette(self, app):
         dark_palette = QPalette()
-        dark_palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+        # Dark theme colors with higher contrast
+        dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))  # Darker background
         dark_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.Base, QColor(35, 35, 35))
-        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.Base, QColor(20, 20, 20))  # Darker for input fields
+        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(35, 35, 35))
         dark_palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
         dark_palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ColorRole.Button, QColor(40, 40, 40))  # Darker buttons
         dark_palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
         dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
         dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
         dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+        dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)  # White text on highlight
         app.setPalette(dark_palette)
 
     def is_system_dark(self):
+        """Verify if the system theme is dark"""
+
+        # Check GTK theme
         gtk_theme = os.environ.get("GTK_THEME", "").lower()
         if "dark" in gtk_theme:
             return True
+
+        # Check KDE theme via kreadconfig5/kreadconfig6
+        kde_commands = ["kreadconfig6", "kreadconfig5"]
+        for cmd in kde_commands:
+            if shutil.which(cmd):
+                try:
+                    # Check global KDE theme
+                    result = subprocess.run([cmd, "--group", "KDE", "--key", "ColorScheme"], 
+                                          capture_output=True, text=True, timeout=2)
+                    if result.returncode == 0:
+                        color_scheme = result.stdout.strip().lower()
+                        if any(dark_word in color_scheme for dark_word in ["dark", "breeze dark", "adwaita-dark", "oxygen-dark"]):
+                            return True
+
+                    # Alternative check via kdeglobals
+                    result = subprocess.run([cmd, "--file", "kdeglobals", "--group", "General", "--key", "ColorScheme"], 
+                                          capture_output=True, text=True, timeout=2)
+                    if result.returncode == 0:
+                        color_scheme = result.stdout.strip().lower()
+                        if any(dark_word in color_scheme for dark_word in ["dark", "breeze dark", "adwaita-dark", "oxygen-dark"]):
+                            return True
+                            
+                except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+                    continue
+
+        # Check via gsettings for GNOME/GTK
+        if shutil.which("gsettings"):
+            try:
+                result = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"], 
+                                      capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    theme_name = result.stdout.strip().lower().replace("'", "").replace('"', '')
+                    if "dark" in theme_name:
+                        return True
+
+                # Check color-scheme for newer GNOME versions
+                result = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                                      capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    color_scheme = result.stdout.strip().lower().replace("'", "").replace('"', '')
+                    if "dark" in color_scheme or "prefer-dark" in color_scheme:
+                        return True
+                        
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+                pass
+
+        # Check via Qt palette as fallback
+        try:
+            app = QApplication.instance()
+            if app:
+                palette = app.palette()
+                window_color = palette.color(QPalette.ColorRole.Window)
+                # If the background color is dark (brightness < 128)
+                brightness = (window_color.red() + window_color.green() + window_color.blue()) / 3
+                if brightness < 128:
+                    return True
+        except:
+            pass
+            
         return False
+
+    def apply_light_palette(self, app):
+        """Applies a light palette with increased contrast"""
+        light_palette = QPalette()
+        # Pure white background for better distinction from system theme
+        light_palette.setColor(QPalette.ColorRole.Window, QColor(245, 245, 245))  # Light gray background
+        light_palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
+        light_palette.setColor(QPalette.ColorRole.Base, QColor(250, 250, 250))  # Light gray for fields
+        light_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
+        light_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
+        light_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(0, 0, 0))
+        light_palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))
+        light_palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
+        light_palette.setColor(QPalette.ColorRole.ButtonText, QColor(0, 0, 0))
+        light_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+        light_palette.setColor(QPalette.ColorRole.Link, QColor(0, 0, 255))
+        light_palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
+        light_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
+        app.setPalette(light_palette)
+
+    def apply_femboy_palette(self, app):
+        """Applies a pink-blue Femboy-edition palette with pastel colors"""
+        femboy_palette = QPalette()
+        # Soft pastel pink-blue colors
+        femboy_palette.setColor(QPalette.ColorRole.Window, QColor(255, 240, 248))  # Soft pink background
+        femboy_palette.setColor(QPalette.ColorRole.WindowText, QColor(75, 0, 130))  # Dark purple text
+        femboy_palette.setColor(QPalette.ColorRole.Base, QColor(255, 228, 248))  # Light pink for fields
+        femboy_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(240, 248, 255))  # Light blue
+        femboy_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 192, 203))  # Pink tooltip
+        femboy_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(75, 0, 130))
+        femboy_palette.setColor(QPalette.ColorRole.Text, QColor(75, 0, 130))  # Dark purple
+        femboy_palette.setColor(QPalette.ColorRole.Button, QColor(255, 182, 193))  # Light pink buttons
+        femboy_palette.setColor(QPalette.ColorRole.ButtonText, QColor(75, 0, 130))
+        femboy_palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 20, 147))  # Bright pink
+        femboy_palette.setColor(QPalette.ColorRole.Link, QColor(138, 43, 226))  # Purple links
+        femboy_palette.setColor(QPalette.ColorRole.Highlight, QColor(255, 105, 180))  # Pink highlight
+        femboy_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
+        app.setPalette(femboy_palette)
 
     def set_theme(self, theme):
         self.settings.setValue("theme", theme)
@@ -599,36 +702,80 @@ class BinParserGUI(QMainWindow):
         for t, action in self.theme_actions.items():
             action.setChecked(t == theme)
         app = QApplication.instance()
+        
+        # First, clear all custom styles
+        for widget in self.findChildren(QLabel):
+            widget.setStyleSheet("")
+        for widget in self.findChildren(QLineEdit):
+            widget.setStyleSheet("")
+        for widget in self.findChildren(QGroupBox):
+            widget.setStyleSheet("")
+        for widget in self.findChildren(QPushButton):
+            widget.setStyleSheet("")
+        
         if theme == "Dark":
             app.setStyle('Fusion')
             self.apply_dark_palette(app)
-            
+            # Additional styles for dark theme
             for widget in self.findChildren(QLabel):
                 widget.setStyleSheet("color: white;")
-       
             for widget in self.findChildren(QLineEdit):
-                widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555;")
+                widget.setStyleSheet("color: white; background-color: #141414; border: 1px solid #555; padding: 2px;")
+            for widget in self.findChildren(QGroupBox):
+                widget.setStyleSheet("QGroupBox { font-weight: bold; }")
+            for widget in self.findChildren(QPushButton):
+                widget.setStyleSheet("QPushButton { font-weight: bold;}")
+                
         elif theme == "Light":
-            app.setStyle(QApplication.style().objectName())
-            app.setPalette(QPalette())
+            app.setStyle('Fusion')  # Using Fusion for better customization
+            self.apply_light_palette(app)
+            # Additional styles for light theme
             for widget in self.findChildren(QLabel):
-                widget.setStyleSheet("")
+                widget.setStyleSheet("color: black;")
             for widget in self.findChildren(QLineEdit):
-                widget.setStyleSheet("")
+                widget.setStyleSheet("color: black; background-color: #fafafa; border: 1px solid #ccc; padding: 2px;")
+            for widget in self.findChildren(QGroupBox):
+                widget.setStyleSheet("QGroupBox { font-weight: bold; }")
+            for widget in self.findChildren(QPushButton):
+                widget.setStyleSheet("QPushButton { font-weight: bold;}")
+                
+        elif theme == "Femboy":
+            app.setStyle('Fusion')
+            self.apply_femboy_palette(app)
+            # Special styles for Femboy theme
+            for widget in self.findChildren(QLabel):
+                widget.setStyleSheet("color: #4B0082; font-weight: normal;")  # Dark purple
+            for widget in self.findChildren(QLineEdit):
+                widget.setStyleSheet("color: #4B0082; background-color: #FFE4F8; border: 2px solid #FFB6C1; border-radius: 6px; padding: 4px;")
+            # Special styles for group boxes
+            for widget in self.findChildren(QGroupBox):
+                widget.setStyleSheet("QGroupBox { color: #4B0082; font-weight: bold; }")
+            # Special styles for buttons
+            for widget in self.findChildren(QPushButton):
+                widget.setStyleSheet("QPushButton { background-color: #FFB6C1; color: #4B0082; border: 2px solid #FF69B4; border-radius: 8px; padding: 6px; font-weight: bold; } QPushButton:hover { background-color: #FF69B4; } QPushButton:pressed { background-color: #FF1493; }")
+                
         else:  # System
-            app.setStyle(QApplication.style().objectName())
-            app.setPalette(QPalette())
+            # Using native system style
+            app.setStyle(app.style().objectName() if hasattr(app.style(), 'objectName') else 'Fusion')
+            
             if self.is_system_dark():
                 self.apply_dark_palette(app)
                 for widget in self.findChildren(QLabel):
                     widget.setStyleSheet("color: white;")
                 for widget in self.findChildren(QLineEdit):
-                    widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555;")
+                    widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555; padding: 2px;")
             else:
+                # Using system palette for light system theme
+                app.setPalette(app.style().standardPalette())
                 for widget in self.findChildren(QLabel):
                     widget.setStyleSheet("")
                 for widget in self.findChildren(QLineEdit):
                     widget.setStyleSheet("")
+                for widget in self.findChildren(QPushButton):
+                    widget.setStyleSheet("")
+                for widget in self.findChildren(QGroupBox):
+                    widget.setStyleSheet("")
+                    
         self.refresh_ui_texts(update_menubar=False)
 
     def set_font_weight(self, weight):
