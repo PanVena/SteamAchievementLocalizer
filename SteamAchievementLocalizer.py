@@ -20,7 +20,7 @@ from assets.plugins.context_lang_dialog import ContextLangDialog
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "7.8.3" 
+APP_VERSION = "7.8.2" 
 
 EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
@@ -376,6 +376,9 @@ class BinParserGUI(QMainWindow):
 
         # Create menubar
         self.create_menubar()
+        
+        # Apply initial font settings
+        self.apply_font_to_widgets()
       
     
             
@@ -778,26 +781,58 @@ class BinParserGUI(QMainWindow):
                     
         self.refresh_ui_texts(update_menubar=False)
 
+    def apply_font_to_widgets(self):
+        """Apply current font settings to all widgets"""
+        font_weight = self.settings.value("font_weight", "Normal")
+        font_size = int(self.settings.value("font_size", 9))
+        
+        font = QFont()
+        font.setPointSize(font_size)
+        font.setWeight(QFont.Weight.Bold if font_weight == "Bold" else QFont.Weight.Normal)
+        
+        # Apply font to application
+        QApplication.setFont(font)
+        
+        # Force update font on all child widgets
+        self.setFont(font)
+        
+        # Explicitly update fonts for key widgets
+        for widget in self.findChildren(QLabel):
+            widget.setFont(font)
+        for widget in self.findChildren(QPushButton):
+            widget.setFont(font)
+        for widget in self.findChildren(QLineEdit):
+            widget.setFont(font)
+        for widget in self.findChildren(QGroupBox):
+            widget.setFont(font)
+        for widget in self.findChildren(QComboBox):
+            widget.setFont(font)
+        for widget in self.findChildren(QCheckBox):
+            widget.setFont(font)
+        
+        # Update table font
+        if hasattr(self, 'table'):
+            self.table.setFont(font)
+            # Update table headers
+            self.table.horizontalHeader().setFont(font)
+            self.table.verticalHeader().setFont(font)
+        
+        # Force repaint
+        self.update()
+
     def set_font_weight(self, weight):
         self.settings.setValue("font_weight", weight)
         self.settings.sync()
         for w, action in self.font_actions.items():
             action.setChecked(w == weight)
-        font = QApplication.font()
-        font.setWeight(QFont.Weight.Bold if weight == "Bold" else QFont.Weight.Normal)
-        QApplication.setFont(font)
-        self.refresh_ui_texts()
+        self.apply_font_to_widgets()
 
     def set_font_size(self, size):
         self.settings.setValue("font_size", size)
         self.settings.sync()
         for s, action in self.font_size_actions.items():
             action.setChecked(s == size)
-        font = QApplication.font()
-        font.setPointSize(int(size))
-        font.setWeight(QFont.Weight.Bold if self.settings.value("font_weight", "Normal") == "Bold" else QFont.Weight.Normal)
-        QApplication.setFont(font)
-        self.refresh_ui_texts()
+        self.apply_font_to_widgets()
 
     def _make_theme_callback(self, theme):
         return lambda checked=False, t=theme: self.set_theme(t)
@@ -839,12 +874,8 @@ class BinParserGUI(QMainWindow):
             action.setChecked(not self.table.isColumnHidden(col))
         self.version()
         self.gamename()
-        font_weight = self.settings.value("font_weight", "Normal")
-        font_size = int(self.settings.value("font_size", 12))
-        font = QApplication.font()
-        font.setWeight(QFont.Weight.Bold if font_weight == "Bold" else QFont.Weight.Normal)
-        font.setPointSize(font_size)
-        QApplication.setFont(font)
+        # Apply fonts to all widgets
+        self.apply_font_to_widgets()
         if update_menubar:
             self.create_menubar()
 
