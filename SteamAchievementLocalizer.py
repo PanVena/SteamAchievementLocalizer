@@ -1165,8 +1165,7 @@ class BinParserGUI(QMainWindow):
         try:
             with open(save_path, "wb") as f:
                 f.write(datas)
-            msg5 = self.translations.get("save_where_msg").format(save_path=save_path)
-            QMessageBox.information(self, self.translations.get("success"), msg5)
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("file_saved").format(save_path=save_path))
         except Exception as e:
             QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
 

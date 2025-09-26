@@ -68,7 +68,7 @@
 	"error_no_data_to_save": "Najpierw załaduj plik osiągnięć",
 	"in_steam_folder_saved": "Plik zapisano w folderze Steam.<br>Nie zapomnij go zrestartować, aby zmiany odniosły skutek.",
 	"file_saving_file_dialog": "Zapisz zmodyfikowany plik",
-	"file_saved": "Plik pomyślnie zapisano w: {save_path}<br>Nie zapomnij zrestartować Steama, kiedy wsadzisz ten plik do folderu Steam.",
+	"file_saved": "Plik pomyślnie zapisano w: {save_path}<br><br>Nie zapomnij zrestartować Steama, kiedy wsadzisz ten plik do folderu Steam.",
 	"folder_not_found_auto": "Nie udało się automatycznie znaleźć folderu Steam",
 	"man_select_file_file_dialog": "Otwórz plik UserGameStatsSchema",
 	"cannot_decode_json": "Nie udało się zdekodować pliku JSON:<br>",
