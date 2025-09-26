@@ -9,6 +9,8 @@ on:
       tag:
         description: "Існуючий тег (vX.Y.Z). Порожньо => візьме останній."
         required: false
+  repository_dispatch:
+    types: [release-trigger]
 
 permissions:
   contents: write
@@ -31,6 +33,12 @@ jobs:
             if [ -n "${{ github.event.inputs.tag }}" ]; then
               TAG="${{ github.event.inputs.tag }}"
             else
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Get tag from repository dispatch payload
+            TAG="${{ github.event.client_payload.tag }}"
+            if [ -z "$TAG" ]; then
               TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
             fi
           else
@@ -200,6 +208,12 @@ jobs:
             if [ -n "${{ github.event.inputs.tag }}" ]; then
               TAG="${{ github.event.inputs.tag }}"
             else
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Get tag from repository dispatch payload  
+            TAG="${{ github.event.client_payload.tag }}"
+            if [ -z "$TAG" ]; then
               TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
             fi
           else

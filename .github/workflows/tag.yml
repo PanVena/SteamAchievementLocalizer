@@ -62,7 +62,8 @@ jobs:
 
       - name: Trigger release workflow
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT for workflow triggering (GITHUB_TOKEN doesn't have workflow:write permission)
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.ACTIONS_PAT || secrets.GITHUB_TOKEN }}
         run: |
           TAG="v${{ steps.bump.outputs.new }}"
           echo "Triggering release workflow for tag: $TAG"
@@ -70,10 +71,28 @@ jobs:
           # Wait a moment for the tag to be available
           sleep 5
           
-          # Trigger the release workflow
-          gh workflow run "release-on-tag.yml" \
-            --field tag="$TAG" \
-            --repo "${{ github.repository }}"
-          
-          echo "Release workflow triggered successfully!"
-          echo "Check the Actions tab to monitor the build progress."
+          # Try to trigger the release workflow directly
+          if gh workflow run "release-on-tag.yml" --field tag="$TAG" --repo "${{ github.repository }}" 2>/dev/null; then
+            echo "✅ Release workflow triggered successfully via workflow_dispatch!"
+            echo "Check the Actions tab to monitor the build progress."
+          else
+            echo "⚠️  Direct workflow trigger failed, trying repository dispatch..."
+            
+            # Fallback: use repository dispatch
+            if gh api repos/${{ github.repository }}/dispatches \
+              --method POST \
+              --field event_type='release-trigger' \
+              --field client_payload='{"tag":"'$TAG'"}' 2>/dev/null; then
+              echo "✅ Release workflow triggered successfully via repository dispatch!"
+              echo "Check the Actions tab to monitor the build progress."
+            else
+              echo "❌ Failed to auto-trigger release workflow."
+              echo "Please manually run the 'Build & Release on Tag' workflow with tag: $TAG"
+              echo "Go to: https://github.com/${{ github.repository }}/actions/workflows/release-on-tag.yml"
+              echo ""
+              echo "Or create a Personal Access Token with 'repo' and 'workflow' scopes:"
+              echo "1. Go to GitHub Settings → Developer settings → Personal access tokens"
+              echo "2. Generate token with 'repo' and 'workflow' scopes"
+              echo "3. Add it as repository secret named 'PAT_TOKEN'"
+            fi
+          fi
