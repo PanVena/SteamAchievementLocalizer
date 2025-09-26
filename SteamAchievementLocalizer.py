@@ -6,7 +6,7 @@ import subprocess
 import json
 import shutil
 from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument
+from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QActionGroup, QFont, QPalette, QColor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
@@ -495,6 +495,66 @@ class BinParserGUI(QMainWindow):
             language_menu.addAction(action)
         menubar.addMenu(language_menu) 
 
+        # --- Menu Appearance ---
+        appearance_menu = QMenu(self.translations.get("appearance"), self)
+
+        # Theme submenu
+        theme_menu = QMenu(self.translations.get("theme"), self)
+        theme_group = QActionGroup(self)
+        theme_group.setExclusive(True)
+        self.theme_actions = {}
+        current_theme = self.settings.value("theme", "System")
+        for theme in ["System", "Light", "Dark"]:
+            action = QAction(self.translations.get(f"theme_{theme.lower()}", theme), self, checkable=True)
+            action.setChecked(theme == current_theme)
+            action.triggered.connect(self._make_theme_callback(theme))
+            theme_group.addAction(action)
+            theme_menu.addAction(action)
+            self.theme_actions[theme] = action
+
+        # Font weight submenu
+        font_weight_menu = QMenu(self.translations.get("font_weight"), self)
+        font_group = QActionGroup(self)
+        font_group.setExclusive(True)
+        self.font_actions = {}
+        current_weight = self.settings.value("font_weight", "Normal")
+        for weight, label in [("Normal", self.translations.get("font_normal")), ("Bold", self.translations.get("font_bold"))]:
+            action = QAction(label, self, checkable=True)
+            action.setChecked(weight == current_weight)
+            action.triggered.connect(lambda checked, w=weight: self.set_font_weight(w))
+            font_group.addAction(action)
+            font_weight_menu.addAction(action)
+            self.font_actions[weight] = action
+
+        # Font size submenu (більше розмірів)
+        font_size_menu = QMenu(self.translations.get("font_size"), self)
+        font_size_group = QActionGroup(self)
+        font_size_group.setExclusive(True)
+        self.font_size_actions = {}
+        font_sizes = [
+            (6, self.translations.get("font_xsmall")),
+            (8, self.translations.get("font_small")),
+            (10, self.translations.get("font_standard")),
+            (12, self.translations.get("font_medium")),
+            (14, self.translations.get("font_large")),
+            (16, self.translations.get("font_xlarge")),
+            (18, self.translations.get("font_xxlarge")),
+            (20, self.translations.get("font_huge")),
+        ]
+        current_size = int(self.settings.value("font_size", 12))
+        for size, label in font_sizes:
+            action = QAction(label, self, checkable=True)
+            action.setChecked(size == current_size)
+            action.triggered.connect(lambda checked, s=size: self.set_font_size(s))
+            font_size_group.addAction(action)
+            font_size_menu.addAction(action)
+            self.font_size_actions[size] = action
+
+        appearance_menu.addMenu(theme_menu)
+        appearance_menu.addMenu(font_weight_menu)
+        appearance_menu.addMenu(font_size_menu)
+        menubar.addMenu(appearance_menu)
+
         # --- About Button ---
         about_action = QAction(self.translations.get("about", "About"), self)
         about_action.triggered.connect(
@@ -510,6 +570,90 @@ class BinParserGUI(QMainWindow):
         self.setMenuWidget(menubar)
 
 
+    def apply_dark_palette(self, app):
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.Base, QColor(35, 35, 35))
+        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+        dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+        dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+        app.setPalette(dark_palette)
+
+    def is_system_dark(self):
+        gtk_theme = os.environ.get("GTK_THEME", "").lower()
+        if "dark" in gtk_theme:
+            return True
+        return False
+
+    def set_theme(self, theme):
+        self.settings.setValue("theme", theme)
+        self.settings.sync()
+        for t, action in self.theme_actions.items():
+            action.setChecked(t == theme)
+        app = QApplication.instance()
+        if theme == "Dark":
+            app.setStyle('Fusion')
+            self.apply_dark_palette(app)
+            
+            for widget in self.findChildren(QLabel):
+                widget.setStyleSheet("color: white;")
+       
+            for widget in self.findChildren(QLineEdit):
+                widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555;")
+        elif theme == "Light":
+            app.setStyle(QApplication.style().objectName())
+            app.setPalette(QPalette())
+            for widget in self.findChildren(QLabel):
+                widget.setStyleSheet("")
+            for widget in self.findChildren(QLineEdit):
+                widget.setStyleSheet("")
+        else:  # System
+            app.setStyle(QApplication.style().objectName())
+            app.setPalette(QPalette())
+            if self.is_system_dark():
+                self.apply_dark_palette(app)
+                for widget in self.findChildren(QLabel):
+                    widget.setStyleSheet("color: white;")
+                for widget in self.findChildren(QLineEdit):
+                    widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555;")
+            else:
+                for widget in self.findChildren(QLabel):
+                    widget.setStyleSheet("")
+                for widget in self.findChildren(QLineEdit):
+                    widget.setStyleSheet("")
+        self.refresh_ui_texts(update_menubar=False)
+
+    def set_font_weight(self, weight):
+        self.settings.setValue("font_weight", weight)
+        self.settings.sync()
+        for w, action in self.font_actions.items():
+            action.setChecked(w == weight)
+        font = QApplication.font()
+        font.setWeight(QFont.Weight.Bold if weight == "Bold" else QFont.Weight.Normal)
+        QApplication.setFont(font)
+        self.refresh_ui_texts()
+
+    def set_font_size(self, size):
+        self.settings.setValue("font_size", size)
+        self.settings.sync()
+        for s, action in self.font_size_actions.items():
+            action.setChecked(s == size)
+        font = QApplication.font()
+        font.setPointSize(int(size))
+        font.setWeight(QFont.Weight.Bold if self.settings.value("font_weight", "Normal") == "Bold" else QFont.Weight.Normal)
+        QApplication.setFont(font)
+        self.refresh_ui_texts()
+
+    def _make_theme_callback(self, theme):
+        return lambda checked=False, t=theme: self.set_theme(t)
 
     def change_language(self, lang):
         self.settings.setValue("language", lang)
@@ -518,7 +662,7 @@ class BinParserGUI(QMainWindow):
         self.translations = self.load_language(lang)
         self.refresh_ui_texts()
 
-    def refresh_ui_texts(self):
+    def refresh_ui_texts(self, update_menubar=True):
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.stats_bin_path_path.setPlaceholderText(self.translations.get("man_select_file_label"))
         self.stats_bin_path_btn.setText(self.translations.get("man_select_file"))
@@ -548,6 +692,14 @@ class BinParserGUI(QMainWindow):
             action.setChecked(not self.table.isColumnHidden(col))
         self.version()
         self.gamename()
+        font_weight = self.settings.value("font_weight", "Normal")
+        font_size = int(self.settings.value("font_size", 12))
+        font = QApplication.font()
+        font.setWeight(QFont.Weight.Bold if font_weight == "Bold" else QFont.Weight.Normal)
+        font.setPointSize(font_size)
+        QApplication.setFont(font)
+        if update_menubar:
+            self.create_menubar()
 
     def load_language(self, language):
         path = resource_path(LANG_FILES[language])
@@ -1602,8 +1754,9 @@ def main():
         settings.sync()
 
     window = BinParserGUI(language)
+    theme = settings.value("theme", "System")
+    window.set_theme(theme)
     window.show()
-
     sys.exit(app.exec())
 
 

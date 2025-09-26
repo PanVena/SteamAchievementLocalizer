@@ -108,5 +108,22 @@
     "delete_stats_file": "Видалити бінарник(в разі проблем)",
     "CSV": "Зберегти CSV",
     "delete_stats_file_done": "Бінарник із назвами досягнень гри <b>{gamename}</b> видалено.",
-    "delete_stats_file_failed": "Не вдалося видалити бінарник: {error}"
+    "delete_stats_file_failed": "Не вдалося видалити бінарник: {error}",
+    "appearance": "Вигляд",
+    "theme": "Тема",
+    "theme_light": "Світла",
+    "theme_dark": "Темна",
+    "theme_system": "Системна",
+    "font_size": "Розмір шрифту",
+    "font_xsmall": "Дуже малий",
+    "font_small": "Малий",
+    "font_standard": "Трохи менший",
+    "font_medium": "Стандартний",
+    "font_large": "Трохи більший",
+    "font_xlarge": "Великий",
+    "font_xxlarge": "Дуже великий",
+    "font_huge": "Максимальний",
+    "font_weight": "Товщина шрифту",
+    "font_normal": "Звичайний",
+    "font_bold": "Жирний"
 }

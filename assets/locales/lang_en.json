@@ -108,5 +108,22 @@
     "delete_stats_file": "Delete bin file(if there is a problem)",
     "CSV": "Want to save CSV",
     "delete_stats_file_done": "Bin file with <b>{gamename}</b> achievements names deleted.",
-    "delete_stats_file_failed": "Cannot delete bin file: {error}"
+    "delete_stats_file_failed": "Cannot delete bin file: {error}",
+    "appearance": "Appearance",
+    "font_size": "Font size",
+    "font_xsmall": "Very Small",
+    "font_small": "Small",
+    "font_standard": "Slightly Smaller",
+    "font_medium": "Standard",
+    "font_large": "Slightly Larger",
+    "font_xlarge": "Large",
+    "font_xxlarge": "Very Large",
+    "font_huge": "Maximum",
+    "theme": "Theme",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "font_weight": "Font weight",
+    "font_normal": "Normal",
+    "font_bold": "Bold"
 }
