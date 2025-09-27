@@ -289,8 +289,6 @@ class BinParserGUI(QMainWindow):
         self.lang_layout.addWidget(self.version_label)
 
 
-
-
         # --- Frame ---
         box = QGroupBox("")
         box.setFlat(False)
@@ -526,7 +524,8 @@ class BinParserGUI(QMainWindow):
                 from assets.plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name, get_system_language
                 
                 self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
-                self.lang_layout.addWidget(self.translation_lang_label)
+                # Insert at position 0 (beginning)
+                self.lang_layout.insertWidget(0, self.translation_lang_label)
                 
                 self.translation_lang_combo = QComboBox()
                 available_languages = get_available_languages_for_selection()
@@ -546,7 +545,8 @@ class BinParserGUI(QMainWindow):
                 self.translation_lang_combo.setCurrentIndex(default_index)
                 
                 self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
-                self.lang_layout.addWidget(self.translation_lang_combo)
+                # Insert at position 1 (after label)
+                self.lang_layout.insertWidget(1, self.translation_lang_combo)
             else:
                 # Show existing controls
                 self.translation_lang_label.setVisible(True)
@@ -581,7 +581,7 @@ class BinParserGUI(QMainWindow):
         
         # Update translation language label if exists and visible
         if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
-            self.translation_lang_label.setText(self.translations.get("translation_lang", "Translation:"))
+            self.translation_lang_label.setText(self.translations.get("translation_lang"))
         
         self.copy_action.setText(self.translations.get("copy", "Copy"))
         self.paste_action.setText(self.translations.get("paste", "Paste"))
