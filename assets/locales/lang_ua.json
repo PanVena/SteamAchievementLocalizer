@@ -106,7 +106,7 @@
     "choose_import": "Оберіть колонку для заміни:",
     "delete_stats_file_confirm": "Ви впевнені, що хочете видалити вибраний бінарник?<br>{path}<br>Бажаєте зберегти резервну копію у CSV і потім видалити його?",
     "delete_stats_file": "Видалити бінарник(в разі проблем)",
-    "CSV": "Зберегти CSV",
+    "CSV": "Не зберігати CSV",
     "delete_stats_file_done": "Бінарник із назвами досягнень гри <b>{gamename}</b> видалено.",
     "delete_stats_file_failed": "Не вдалося видалити бінарник: {error}",
     "appearance": "Вигляд",
@@ -122,5 +122,9 @@
     "font_large": "Великий",
     "font_weight": "Товщина шрифту",
     "font_normal": "Звичайний",
-    "font_bold": "Жирний"
+    "font_bold": "Жирний",
+    "button_ok": "Гаразд",
+    "button_yes": "Так",
+    "button_no": "Ні",
+    "button_cancel": "Скасувати"
 }

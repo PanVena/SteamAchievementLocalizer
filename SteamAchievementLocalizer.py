@@ -17,13 +17,20 @@ from assets.plugins.find_replace_dialog import FindReplaceDialog
 from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
 from assets.plugins.context_lang_dialog import ContextLangDialog
 from assets.plugins.theme_manager import ThemeManager
+from assets.plugins.binary_parser import BinaryParser
+from assets.plugins.steam_integration import SteamIntegration
+from assets.plugins.csv_handler import CSVHandler
+from assets.plugins.file_manager import FileManager
+from assets.plugins.ui_builder import UIBuilder
+from assets.plugins.steam_lang_codes import (
+    get_display_name, get_system_language, get_available_languages_for_selection,
+    get_code_from_display_name
+)
 
 if sys.platform == "win32":
     import winreg
 
 APP_VERSION = "7.8.3" 
-
-EXCLUDE_WORDS = {b'max', b'maxchange', b'min', b'token', b'name', b'icon', b'hidden', b'icon_gray', b'Hidden',b'', b'russian',b'Default',b'gamename',b'id',b'incrementonly',b'max_val',b'min_val',b'operand1',b'operation',b'type',b'version'}
 
 LANG_FILES = {
     "English": "assets/locales/lang_en.json",
@@ -39,73 +46,37 @@ def choose_language():
     if current_language:
         return current_language  # Already saved language
 
-    # Ask user to choose language
+    # Ask user to choose language with language-specific names
+    lang_options = {
+        "English": "English",
+        "Українська": "Українська (Ukrainian)", 
+        "Polski": "Polski (Polish)"
+    }
+    
     lang, ok = QInputDialog.getItem(
         None,
         "Select Language",
         "Choose your language:",
-        list(LANG_FILES.keys()),
+        list(lang_options.values()),
         0,
         False
     )
+    
     if ok and lang:
-        settings.setValue("language", lang)
-        return lang
+        # Find the key for selected display name
+        selected_key = None
+        for key, display_name in lang_options.items():
+            if display_name == lang:
+                selected_key = key
+                break
+        
+        if selected_key:
+            settings.setValue("language", selected_key)
+            settings.sync()
+            return selected_key
 
     return "English"  # Default language
 
-def split_chunks(data: bytes):
-    pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
-    positions = [m.start() for m in pattern.finditer(data)]
-    chunks = []
-    for i in range(len(positions)):
-        start = positions[i]
-        end = positions[i + 1] if i + 1 < len(positions) else len(data)
-        chunks.append(data[start:end])
-    return chunks
-
-
-def extract_key_and_data(chunk: bytes):
-    key_pattern = re.compile(b'\x00\x01name\x00(.*?)\x00', re.DOTALL)
-    key_match = key_pattern.search(chunk)
-    if not key_match:
-        return None
-
-    # Skip any chunks without an english field.
-    if b'\x01english\x00' not in chunk:
-        return None
-
-    return key_match.group(1).decode(errors='ignore')
-
-def extract_words(chunk: bytes):
-    pattern = re.compile(b'\x01(.*?)\x00', re.DOTALL)
-    matches = pattern.findall(chunk)
-    words = []
-    for w in matches:
-        if w in EXCLUDE_WORDS:
-            continue
-        words.append(w.decode(errors='ignore'))
-    return words
-def extract_values(chunk: bytes, words: list):
-    values = []
-    pos = 0
-    for word in words:
-        search_pattern = b'\x01' + word.encode() + b'\x00'
-        idx = chunk.find(search_pattern, pos)
-        if idx == -1:
-            values.append('')
-            continue
-        idx += len(search_pattern)
-        end_idx = chunk.find(b'\x00', idx)
-        if end_idx == -1:
-            values.append('')
-            pos = idx
-            continue
-        val = chunk[idx:end_idx].decode(errors='ignore')
-        values.append(val)
-        pos = end_idx + 1
-    return values
-    
 def resource_path(relative_path: str) -> str:
     """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
     if getattr(sys, 'frozen', False):
@@ -131,11 +102,24 @@ def load_json_with_fallback(path):
     
 class BinParserGUI(QMainWindow):
 
+    # =================================================================
+    # INITIALIZATION AND UI SETUP
+    # =================================================================
+    
     def __init__(self, language="English"):
         self.modified = False
         super().__init__(parent=None)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.language = language
+        
+        # Initialize plugins first
+        self.binary_parser = BinaryParser()
+        self.steam_integration = SteamIntegration()
+        self.csv_handler = CSVHandler()
+        self.file_manager = FileManager()
+        # Store LANG_FILES for ui_builder access
+        self.LANG_FILES = LANG_FILES
+        
         self.translations = self.load_language(language)
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
@@ -150,8 +134,6 @@ class BinParserGUI(QMainWindow):
 
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
         self.default_steam_path = self.detect_steam_path()
-        
-        
         
         self.force_manual_path = False  
 
@@ -249,29 +231,68 @@ class BinParserGUI(QMainWindow):
        
         
         # --- Language selection and info ---
-        lang_layout = QHBoxLayout()
+        self.lang_layout = QHBoxLayout()
+
+        # 1. Translation language selection (only for non-Ukrainian/Polish UI)
+        self.translation_lang_label = None
+        self.translation_lang_combo = None
+        
+        if self.language not in ['Українська', 'Polski']:
+            self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
+            self.lang_layout.addWidget(self.translation_lang_label)
+            
+            self.translation_lang_combo = QComboBox()
+            available_languages = get_available_languages_for_selection()
+            system_lang = get_system_language()
+            
+            # Add languages to combo box with display names
+            for lang_code in available_languages:
+                display_name = get_display_name(lang_code)
+                self.translation_lang_combo.addItem(display_name, lang_code)
+            
+            # Set system language as default
+            default_index = 0
+            for i in range(self.translation_lang_combo.count()):
+                if self.translation_lang_combo.itemData(i) == system_lang:
+                    default_index = i
+                    break
+            self.translation_lang_combo.setCurrentIndex(default_index)
+            
+            self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
+            self.lang_layout.addWidget(self.translation_lang_combo)
+        else:
+            # Hide separator for Ukrainian/Polish UI
+            self.translation_separator.setVisible(False)
+
+        # Vertical separator
+        self.translation_separator = QFrame()
+        self.translation_separator.setFrameShape(QFrame.Shape.VLine)
+        self.translation_separator.setFrameShadow(QFrame.Shadow.Sunken)
+        self.lang_layout.addWidget(self.translation_separator)
+
 
         # 2. Game name
         self.gamename_label = QLabel(
             f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
-        lang_layout.addWidget(self.gamename_label)
+        self.lang_layout.addWidget(self.gamename_label)
 
         # Vertical separator
         line2 = QFrame()
         line2.setFrameShape(QFrame.Shape.VLine)
         line2.setFrameShadow(QFrame.Shadow.Sunken)
-        lang_layout.addWidget(line2)
+        self.lang_layout.addWidget(line2)
 
         # 3. File version
         self.version_label = QLabel(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-        lang_layout.addWidget(self.version_label)
+        self.lang_layout.addWidget(self.version_label)
+
 
 
 
         # --- Frame ---
-        box = QGroupBox("")  
+        box = QGroupBox("")
         box.setFlat(False)
-        box.setLayout(lang_layout)
+        box.setLayout(self.lang_layout)
         self.layout.addWidget(box)
 
 
@@ -383,210 +404,162 @@ class BinParserGUI(QMainWindow):
         
         # Apply initial font settings
         self.theme_manager.apply_font_to_widgets()
-      
-    
-            
-    def create_menubar(self):
-        menubar = QMenuBar(self)
-
-        # --- Menu File ---
-        file_menu = QMenu(self.translations.get("file", "File"), self)
-
-        export_bin_action = QAction(self.translations.get("export_bin", "Open bin file in explorer"), self)
-        export_bin_action.triggered.connect(self.export_bin)
-
-        delete_file_action = QAction(self.translations.get("delete_stats_file", "Delete stats file"), self)
-        delete_file_action.triggered.connect(self.delete_current_stats_file)
-
-
-        exit_action = QAction(self.translations.get("exit", "Exit"), self)
-        exit_action.triggered.connect(self._on_exit_action)
-
-        file_menu.addAction(export_bin_action)
-        file_menu.addAction(delete_file_action)
-        file_menu.addSeparator() 
-        file_menu.addAction(exit_action)
-        menubar.addMenu(file_menu)
-
-    
-
-        # --- Menu Edit ---
-        edit_menu = QMenu(self.translations.get("edit", "Edit"), self)
-        # Global search line
-        if not hasattr(self, 'global_search_line'):
-            self.global_search_line = QLineEdit()
-            self.global_search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder", ))
-            self.global_search_line.setFixedWidth(200)
-            self.global_search_line.textChanged.connect(self.global_search_in_table)
-        search_widget = QWidget(self)
-        search_layout = QHBoxLayout(search_widget)
-        search_layout.setContentsMargins(8, 2, 8, 2)
-        search_layout.addWidget(QLabel(self.translations.get("in_column_search"), self))
-        search_layout.addWidget(self.global_search_line)
-        search_action = QWidgetAction(self)
-        search_action.setDefaultWidget(search_widget)
-        edit_menu.addSeparator()
-        edit_menu.addAction(search_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(self.replace_in_column_action)
-        edit_menu.addSeparator() 
-        edit_menu.addAction(self.undo_action)
-        edit_menu.addAction(self.redo_action)
-        edit_menu.addSeparator() 
-        edit_menu.addAction(self.copy_action)
-        edit_menu.addAction(self.paste_action)
-        edit_menu.addAction(self.cut_action)
-        edit_menu.addAction(self.delete_action)
-        edit_menu.addSeparator()
-        # Columns submenu
-        self.columns_menu = QMenu(self.translations.get("columns", "Columns"), self)
-        self.column_actions = {}
-
-        for i, header in enumerate(self.headers):
-            checkbox = QCheckBox(header)
-            checkbox.setChecked(True)
-            if header in ["key", "ukrainian"]:
-                checkbox.setEnabled(False)
-            else:
-                checkbox.toggled.connect(lambda state, h=header: self.set_column_visible(h, state))
-                checkbox.toggled.connect(self.stretch_columns)
-            action = QWidgetAction(self)
-            action.setDefaultWidget(checkbox)
-            self.columns_menu.addAction(action)
-            self.column_actions[header] = checkbox
-            
-
-        edit_menu.addMenu(self.columns_menu)
-        menubar.addMenu(edit_menu)
-
-        # --- Menu Export/Import ---
-        export_import_menu = QMenu(self.translations.get("export_import", "Export/Import"), self)
-        export_all_action = QAction(self.translations.get("export_all", "Export to CSV (all languages)"), self)
-        export_all_action.triggered.connect(self.export_csv_all)
-        export_for_translate_action = QAction(self.translations.get("export_for_translate", "Export to CSV for translation"), self)
-        export_for_translate_action.triggered.connect(self.export_csv_for_translate)
-        import_action = QAction(self.translations.get(
-            "import_csv", "Import from CSV"), self)
-        import_action.triggered.connect(self.import_csv)
-        export_import_menu.addAction(export_all_action)
-        export_import_menu.addAction(export_for_translate_action)
-        export_import_menu.addSeparator() 
-        export_import_menu.addAction(import_action)
-        menubar.addMenu(export_import_menu)
-
-
-
-        # --- Menu Save ---
-        save_menu = QMenu(self.translations.get("save", "Save"), self)
-        save_known_action = QAction(self.translations.get(
-            "save_bin_known", "Save bin file for yourself"), self)
-        save_known_action.triggered.connect(self.save_bin_know)
-        save_unknown_action = QAction(self.translations.get(
-            "save_bin_unknown", "Save bin file to Steam folder"), self)
-        save_unknown_action.triggered.connect(self.save_bin_unknow)
-        save_menu.addAction(save_known_action)
-        save_menu.addAction(save_unknown_action)
-        menubar.addMenu(save_menu)
-
-        # --- File stats list ---
-        show_stats_action = QAction(self.translations.get("show_user_game_stats"), self)
-        show_stats_action.triggered.connect(self.show_user_game_stats_list)
-        menubar.addAction(show_stats_action)
- 
-
-        # --- Menu Language ---
-        language_menu = QMenu(self.translations.get("language"), self)
-        for lang in LANG_FILES.keys():
-            action = QAction(lang, self)
-            action.triggered.connect(lambda checked, l=lang: self.change_language(l))
-            language_menu.addAction(action)
-        menubar.addMenu(language_menu) 
-
-        # --- Menu Appearance ---
-        appearance_menu = QMenu(self.translations.get("appearance"), self)
-
-        # Theme submenu
-        theme_menu = QMenu(self.translations.get("theme"), self)
-        theme_group = QActionGroup(self)
-        theme_group.setExclusive(True)
-        self.theme_actions = {}
-        current_theme = self.theme_manager.get_current_theme()
         
-        # Get available themes from theme manager
-        available_themes = self.theme_manager.get_available_theme_names()
-        for theme in available_themes:
-            if theme == "Femboy":
-                display_name = "💖 Femboy Edition"
-            else:
-                display_name = self.translations.get(f"theme_{theme.lower()}", theme)
-                
-            action = QAction(display_name, self, checkable=True)
-            action.setChecked(theme == current_theme)
-            action.triggered.connect(lambda checked, t=theme: self.theme_manager.set_theme(t))
-            theme_group.addAction(action)
-            theme_menu.addAction(action)
-            self.theme_actions[theme] = action
+        # Ensure UI texts are properly set with selected language
+        # This is important for first run when language is selected
+        if hasattr(self, 'translations') and self.translations:
+            self.refresh_ui_texts(update_menubar=False)  # Menu already created above
 
-        # Font weight submenu
-        font_weight_menu = QMenu(self.translations.get("font_weight"), self)
-        font_group = QActionGroup(self)
-        font_group.setExclusive(True)
-        self.font_actions = {}
-        current_weight = self.theme_manager.get_current_font_weight()
-        for weight, label in [("Normal", self.translations.get("font_normal")), ("Bold", self.translations.get("font_bold"))]:
-            action = QAction(label, self, checkable=True)
-            action.setChecked(weight == current_weight)
-            action.triggered.connect(lambda checked, w=weight: self.theme_manager.set_font_weight(w))
-            font_group.addAction(action)
-            font_weight_menu.addAction(action)
-            self.font_actions[weight] = action
-
-        # Font size submenu (more sizes)
-        font_size_menu = QMenu(self.translations.get("font_size"), self)
-        font_size_group = QActionGroup(self)
-        font_size_group.setExclusive(True)
-        self.font_size_actions = {}
-        font_sizes = [
-            (6, self.translations.get("font_xsmall")),
-            (8, self.translations.get("font_small")),
-            (9, self.translations.get("font_standard")),
-            (10, self.translations.get("font_medium")),
-            (12, self.translations.get("font_large")),
-        ]
-        current_size = self.theme_manager.get_current_font_size()
-        for size, label in font_sizes:
-            action = QAction(label, self, checkable=True)
-            action.setChecked(size == current_size)
-            action.triggered.connect(lambda checked, s=size: self.theme_manager.set_font_size(s))
-            font_size_group.addAction(action)
-            font_size_menu.addAction(action)
-            self.font_size_actions[size] = action
-
-        appearance_menu.addMenu(theme_menu)
-        appearance_menu.addMenu(font_weight_menu)
-        appearance_menu.addMenu(font_size_menu)
-        menubar.addMenu(appearance_menu)
-
-        # --- About Button ---
-        about_action = QAction(self.translations.get("about", "About"), self)
-        about_action.triggered.connect(
-            lambda: QMessageBox.information(
-                self,
-                self.translations.get("about_app", "About App"),
-                self.translations.get("about_message", "About message text")
-            )
-        )
-        menubar.addAction(about_action)
-
+    def create_menubar(self):
+        """Create menubar using ui_builder plugin"""
+        # Initialize ui_builder with current translations
+        self.ui_builder = UIBuilder(self, self.translations)
+        menubar = self.ui_builder.create_menubar()
+        
         # Adding menubar to the layout
         self.setMenuWidget(menubar)
+
+    def set_window_size(self):
+        screen = QApplication.primaryScreen()
+        geometry = screen.availableGeometry()
+        screen_width = geometry.width()
+        screen_height = geometry.height()
+
+        width = int(screen_width * 0.7)
+        height = int(screen_height * 0.8)
+
+        width = max(width, self.minimumWidth())
+        height = max(height, self.minimumHeight())
+
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        self.setGeometry(x, y, width, height)
+
+    def stretch_columns(self, min_width: int = 120):
+        # Stretch columns to fit the table width or set to min_width with scrollbar
+        if self.table.columnCount() == 0:
+            return
+
+        available_width = self.table.viewport().width()
+        total_min_width = self.table.columnCount() * min_width
+
+        if total_min_width <= available_width:
+            # If all columns fit — stretch them evenly
+            for i in range(self.table.columnCount()):
+                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+        else:
+            # If not — set to min_width and enable horizontal scrollbar
+            for i in range(self.table.columnCount()):
+                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+                self.table.setColumnWidth(i, min_width)
+
+    def set_steam_folder_path(self, force=False):
+        path = self.settings.value("UserSteamPath", "") or ""
+        if force or not path.strip():
+            detected = self.detect_steam_path()
+            if detected:
+                path = detected
+            else:
+                if sys.platform == "win32":
+                    fallback = "C:\\Program Files (x86)\\Steam"
+                    if os.path.exists(fallback):
+                        path = fallback
+                    else:
+                        QMessageBox.warning(self, self.translations.get("attention"), self.translations.get("folder_not_found_auto"))
+                        path = ""
+                else:
+                    path = ""
+            self.settings.setValue("UserSteamPath", path)
+            self.settings.sync()
+
+        self.steam_folder_path.setText(path)
+
+    def on_steam_path_changed(self, text):
+        # Update steam folder path when text changes
+        self.steam_folder = text.strip()
+        self.settings.setValue("UserSteamPath", self.steam_folder)
+        self.settings.sync()
+
+    def set_column_visible(self, header, visible):
+        try:
+            col = self.headers.index(header)
+            self.table.setColumnHidden(col, not visible)        
+        except ValueError:
+            pass
+
+    # =================================================================
+    # LANGUAGE AND LOCALIZATION
+    # =================================================================
 
     def change_language(self, lang):
         self.settings.setValue("language", lang)
         self.settings.sync()
         self.language = lang
         self.translations = self.load_language(lang)
+        # Reinitialize ui_builder with new translations
+        if hasattr(self, 'ui_builder'):
+            self.ui_builder = UIBuilder(self, self.translations)
+        
+        # Update visibility of translation controls based on new language
+        self.update_translation_controls_visibility()
+        
         self.refresh_ui_texts()
+        
+        # Refresh the table if it exists and we have data
+        if hasattr(self, 'parse_and_fill_table') and hasattr(self, 'raw_data') and self.raw_data:
+            self.parse_and_fill_table()
+    
+    def update_translation_controls_visibility(self):
+        """Update visibility of translation language controls based on current UI language"""
+        show_translation_controls = self.language not in ['Українська', 'Polski']
+        
+        # Update separator visibility
+        if hasattr(self, 'translation_separator'):
+            self.translation_separator.setVisible(show_translation_controls)
+        
+        if show_translation_controls:
+            # Create translation controls if they don't exist
+            if not hasattr(self, 'translation_lang_label') or not self.translation_lang_label:
+                from assets.plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name, get_system_language
+                
+                self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
+                self.lang_layout.addWidget(self.translation_lang_label)
+                
+                self.translation_lang_combo = QComboBox()
+                available_languages = get_available_languages_for_selection()
+                system_lang = get_system_language()
+                
+                # Add languages to combo box with display names
+                for lang_code in available_languages:
+                    display_name = get_display_name(lang_code)
+                    self.translation_lang_combo.addItem(display_name, lang_code)
+                
+                # Set system language as default
+                default_index = 0
+                for i in range(self.translation_lang_combo.count()):
+                    if self.translation_lang_combo.itemData(i) == system_lang:
+                        default_index = i
+                        break
+                self.translation_lang_combo.setCurrentIndex(default_index)
+                
+                self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
+                self.lang_layout.addWidget(self.translation_lang_combo)
+            else:
+                # Show existing controls
+                self.translation_lang_label.setVisible(True)
+                self.translation_lang_combo.setVisible(True)
+        else:
+            # Hide controls for Ukrainian/Polish UI
+            if hasattr(self, 'translation_lang_label') and self.translation_lang_label:
+                self.translation_lang_label.setVisible(False)
+            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
+                self.translation_lang_combo.setVisible(False)
+
+    def load_language(self, language):
+        """Load language file using file_manager plugin"""
+        path = resource_path(LANG_FILES[language])
+        return self.file_manager.load_json_with_fallback(path)
 
     def refresh_ui_texts(self, update_menubar=True):
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
@@ -603,6 +576,11 @@ class BinParserGUI(QMainWindow):
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
+        
+        # Update translation language label if exists and visible
+        if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
+            self.translation_lang_label.setText(self.translations.get("translation_lang", "Translation:"))
+        
         self.copy_action.setText(self.translations.get("copy", "Copy"))
         self.paste_action.setText(self.translations.get("paste", "Paste"))
         self.cut_action.setText(self.translations.get("cut", "Cut"))
@@ -639,76 +617,16 @@ class BinParserGUI(QMainWindow):
         if update_menubar:
             self.create_menubar()
 
-    def load_language(self, language):
-        path = resource_path(LANG_FILES[language])
-        return load_json_with_fallback(path)
 
-    def set_column_visible(self, header, visible):
-        try:
-            col = self.headers.index(header)
-            self.table.setColumnHidden(col, not visible)        
-        except ValueError:
-            pass
+    # =================================================================
+    # FILE OPERATIONS AND STEAM INTEGRATION
+    # =================================================================
 
-
-
-    def stretch_columns(self, min_width: int = 120):
-        # Stretch columns to fit the table width or set to min_width with scrollbar
-        if self.table.columnCount() == 0:
-            return
-
-        available_width = self.table.viewport().width()
-        total_min_width = self.table.columnCount() * min_width
-
-        if total_min_width <= available_width:
-            # If all columns fit — stretch them evenly
-            for i in range(self.table.columnCount()):
-                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-        else:
-            # If not — set to min_width and enable horizontal scrollbar
-            for i in range(self.table.columnCount()):
-                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
-                self.table.setColumnWidth(i, min_width)
-
-
-
-    def on_steam_path_changed(self, text):
-        # Update steam folder path when text changes
-        self.steam_folder = text.strip()
-        self.settings.setValue("UserSteamPath", self.steam_folder)
-        self.settings.sync()
-
-    def set_window_size(self):
-        screen = QApplication.primaryScreen()
-        geometry = screen.availableGeometry()
-        screen_width = geometry.width()
-        screen_height = geometry.height()
-
-        width = int(screen_width * 0.7)
-        height = int(screen_height * 0.8)
-
-        width = max(width, self.minimumWidth())
-        height = max(height, self.minimumHeight())
-
-        x = (screen_width - width) // 2
-        y = (screen_height - height) // 2
-
-        self.setGeometry(x, y, width, height)
-        
     def game_id(self):
+        """Parse game ID using steam integration plugin"""
         text = self.game_id_edit.text().strip()
+        return self.steam_integration.parse_game_id(text)
 
-        # Collect ID from URL if full link is provided
-        match = re.search(r'/app/(\d+)', text)
-        if match:
-            return match.group(1)
-
-        # If only digits are provided, return as is
-        if text.isdigit():
-            return text
-
-        return None
-                
     def select_steam_folder(self):
         folder = QFileDialog.getExistingDirectory(
             self, self.translations.get("select_steam_folder"), self.steam_folder
@@ -744,69 +662,44 @@ class BinParserGUI(QMainWindow):
         self.gamename()
 
     def parse_and_fill_table(self):
-        chunks = split_chunks(self.raw_data)
-        self.chunks = chunks
-        all_rows = []
-        all_columns = set()
-        for chunk in chunks:
-            key = extract_key_and_data(chunk)
-            if not key:
-                continue
-            words = extract_words(chunk)
-            values = extract_values(chunk, words)
-            word_counts = {}
-            unique_row = {'key': key}
-            description_row = {'key': f'{key}_opis'}
-            for w, val in zip(words, values):
-                count = word_counts.get(w, 0)
-                if count == 0:
-                    unique_row[w] = val
-                else:
-                    if w in description_row:
-                        description_row[w] += '; ' + val
-                    else:
-                        description_row[w] = val
-                word_counts[w] = count + 1
-            all_rows.append(unique_row)
-            if len(description_row) > 1:
-                all_rows.append(description_row)
-            for r in [unique_row, description_row]:
-                for col in r.keys():
-                    if col != 'key':
-                        all_columns.add(col)
-        # If 'ukrainian' column is missing, add it with empty values
-        for row in all_rows:
-            if 'ukrainian' not in row:
-                row['ukrainian'] = ''
-
-        # Fill 'english' column if missing
-        for row in all_rows:
-            if 'english' not in row:
-                row['english'] = ''
-
-        # Define headers: key, ukrainian, english, then others alphabetically
-        all_columns = set()
-        for row in all_rows:
-            for col in row:
-                if col != 'key':
-                    all_columns.add(col)
-        headers = ['key', 'ukrainian', 'english'] + sorted(all_columns - {'ukrainian', 'english'})
-
-        self.headers = self.prioritize_headers(headers)
-
+        # Check if we have data to parse
+        if not hasattr(self, 'raw_data') or not self.raw_data:
+            return
+        
+        # Use binary parser plugin
+        all_rows, headers = self.binary_parser.parse_binary_data(self.raw_data)
+        self.chunks = self.binary_parser.chunks
+        self.headers = self.prioritize_headers(headers)  # Prioritize headers
+        
         self.data_rows = all_rows
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
-        self.table.setHorizontalHeaderLabels(self.headers)
+        
+        # Create header labels with Steam language display names
+        header_labels = []
+        for header in self.headers:
+            if header == 'key':
+                header_labels.append(header.upper())
+            else:
+                # Use Steam language display name if available
+                display_name = get_display_name(header)
+                header_labels.append(display_name)
+        
+        self.table.setHorizontalHeaderLabels(header_labels)
         self.table.setRowCount(len(all_rows))
-        for row_i, row in enumerate(all_rows):
+        
+        # Ensure all rows have columns for our headers
+        for row in self.data_rows:
+            for header in self.headers:
+                if header not in row:
+                    row[header] = ''
+        
+        # Fill table with data
+        for row_i, row in enumerate(self.data_rows):
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
                 self.table.setItem(row_i, col_i, QTableWidgetItem(value))
-        if 'ukrainian' not in self.headers:
-            self.headers.append('ukrainian')
-            for row in self.data_rows:
-                row['ukrainian'] = ''
+        
         self.stretch_columns()
         self.update_row_heights()
         self.create_menubar()
@@ -814,249 +707,52 @@ class BinParserGUI(QMainWindow):
         self.gamename()
         msg = self.translations.get("records_loaded").format(count=len(all_rows))
         QMessageBox.information(self, self.translations.get("success"), msg)
-       
 
-
-    def export_csv_all(self):
-        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), '', 'CSV Files (*.csv)')
-        if not fname:
-            return
-        try:
-            with open(fname, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=self.headers)
-                writer.writeheader()
-                for row in self.data_rows:
-                    writer.writerow(row)
-            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
-        except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
-
-
-    def export_csv_for_translate(self):
-        if 'english' not in self.headers:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_english"))
-            return
-        info_text = self.translations.get("export_csv_for_translate_info", "")
-        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='export', parent=self)
-        if not dlg.exec():
-            return
-        params = dlg.get_selected()
-        context_col = params["context_col"]
-
-        fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), "", "CSV Files (*.csv)")
-        if not fname:
-            return
-        try:
-            with open(fname, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(['key', 'english', 'translation', context_col])
-                for row in self.data_rows:
-                    writer.writerow([
-                        row.get('key', ''),
-                        row.get('english', ''),
-                        row.get('ukrainian', ''),  
-                        row.get(context_col, ''),
-                    ])
-            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
-        except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), str(e))
-
-    def import_csv(self):
-        info_text = self.translations.get("import_csv_info", "")
-        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='import', parent=self)
-        if not dlg.exec():
-            return
-        params = dlg.get_selected()
-        import_col = params["context_col"]
-
-        fname, _ = QFileDialog.getOpenFileName(self, self.translations.get("import_csv_file_dialog"), "", "CSV Files (*.csv)")
-        if not fname:
-            return
-
-        try:
-            with open(fname, 'r', encoding='utf-8') as csvfile:
-                rows = list(csv.reader(csvfile))
-                if not rows:
-                    QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_empty"))
-
-                header = rows[0]
-                key_idx = header.index('key')
-                translation_idx = header.index('translation')
-                key_to_row = {row['key']: row for row in self.data_rows}
-                for csv_row in rows[1:]:
-                    if len(csv_row) <= max(key_idx, translation_idx):
-                        continue
-                    key = csv_row[key_idx]
-                    val = csv_row[translation_idx].strip()
-                    if key and key in key_to_row and val:
-                        key_to_row[key][import_col] = val
-            self.refresh_table()
-            QMessageBox.information(self, self.translations.get("success"), self.translations.get("import_success"))
-        except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), str(e))
-
-
-    def refresh_table(self):
-
-        self.table.clear()
-        self.table.setColumnCount(len(self.headers))
-        self.table.setHorizontalHeaderLabels(self.headers)
-        self.table.setRowCount(len(self.data_rows))
-        for row_i, row_data in enumerate(self.data_rows):
-            for col_i, header in enumerate(self.headers):
-                value = row_data.get(header, '')
-                item = QTableWidgetItem(value)
-                self.table.setItem(row_i, col_i, item)
-        self.update_row_heights()
-
-
-
-           
-    def on_table_item_changed(self, item):
-        if self.is_undoing or self.is_redoing:
-            return
-
-        row = item.row()
-        col = item.column()
-        header = self.headers[col]
-        new_value = item.text()
-        if 0 <= row < len(self.data_rows):
-            old_value = self.data_rows[row].get(header, '')
-            self.undo_stack.append((row, col, header, old_value, new_value))
-            self.redo_stack.clear() 
-            self.data_rows[row][header] = new_value
-        self.set_modified(True)
-       
-            
-            
     def replace_lang_in_bin(self):
-        lang_columns = [col for col in self.data_rows[0].keys() if col != "key"]
+        """Replace language data in binary using file_manager plugin"""
         file_path = self.get_stats_bin_path()
         try:
-            with open(file_path, "rb") as f:
-                data = f.read()
-        except FileNotFoundError:
-            return
-
-        cleaned = bytearray(data)
-        for selected_column in lang_columns:
-            values = [row.get(selected_column, '') for row in self.data_rows]
-            if selected_column == "english":
-                english_marker = b'\x01english\x00'
-                output = bytearray()
-                i = 0
-                v_idx = 0
-                while i < len(cleaned):
-                    idx = cleaned.find(english_marker, i)
-                    if idx == -1:
-                        output.extend(cleaned[i:])
-                        break
-                    output.extend(cleaned[i:idx + len(english_marker)])
-                    i = idx + len(english_marker)
-                    end = cleaned.find(b'\x00', i)
-                    if end == -1:
-                        break
-                    if v_idx < len(values):
-                        val = values[v_idx]
-                        output.extend(val.encode("utf-8"))
-                    output.extend(b'\x00')
-                    i = end + 1
-                    v_idx += 1
-                cleaned = output
-            else:
-                # Delete old markers of this language
-                marker = b'\x01' + selected_column.encode("utf-8") + b'\x00'
-                new_cleaned = bytearray()
-                i = 0
-                while i < len(cleaned):
-                    idx = cleaned.find(marker, i)
-                    if idx == -1:
-                        new_cleaned.extend(cleaned[i:])
-                        break
-                    new_cleaned.extend(cleaned[i:idx])
-                    i = idx + len(marker)
-                    end = cleaned.find(b'\x00', i)
-                    if end == -1:
-                        break
-                    i = end + 1
-                cleaned = new_cleaned
-
-                # Insert new markers and values
-                english_marker = b'\x01english\x00'
-                output = bytearray()
-                i = 0
-                v_idx = 0
-                while i < len(cleaned):
-                    idx = cleaned.find(english_marker, i)
-                    if idx == -1:
-                        output.extend(cleaned[i:])
-                        break
-                    output.extend(cleaned[i:idx])
-                    # Insert new marker if there is a value
-                    if v_idx < len(values):
-                        val = values[v_idx]
-                        if val:
-                            output.extend(b'\x01' + selected_column.encode("utf-8") + b'\x00' + val.encode("utf-8") + b'\x00')
-                    output.extend(english_marker)
-                    i = idx + len(english_marker)
-                    end = cleaned.find(b'\x00', i)
-                    if end == -1:
-                        break
-                    output.extend(cleaned[i:end+1])
-                    i = end + 1
-                    v_idx += 1
-                cleaned = output
-        return cleaned
-
-        
+            data = self.file_manager.load_binary_file(file_path)
+            return self.file_manager.replace_language_in_binary(data, self.data_rows)
+        except Exception as e:
+            # If direct file loading fails, use raw_data if available
+            if hasattr(self, 'raw_data') and self.raw_data:
+                return self.file_manager.replace_language_in_binary(self.raw_data, self.data_rows)
+            return None
 
     def export_bin(self):
+        """Open file in explorer using steam integration plugin"""
         filepath = os.path.abspath(self.get_stats_bin_path())
         if not os.path.isfile(filepath):
             QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_no_file')}{filepath}")
             return
-        folder = os.path.dirname(filepath)
-        if sys.platform == "win32":
-            subprocess.run(f'explorer /select,"{filepath}"')
-        elif sys.platform == "darwin":
-            subprocess.run(["open", "-R", filepath])
-        else:
-            candidates = [
-                ["nautilus", "--select", filepath],
-                ["dolphin", "--select", filepath],
-                ["thunar", "--select", filepath],
-                ["nemo", "--browser", "--select", filepath]
-            ]
-            for cmd in candidates:
-                if shutil.which(cmd[0]):
-                    try:
-                        subprocess.run(cmd, check=True)
-                        return
-                    except Exception:
-                        continue
-            try:
-                subprocess.run(["xdg-open", folder])
-            except Exception as e:
-                QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
         
-        
-  
+        if not self.steam_integration.open_file_in_explorer(filepath):
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}")
 
     def save_bin_unknow(self):
         # Save to Steam folder
         self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
         if datas is None:
-            QMessageBox.warning(self,
-                                self.translations.get("error"),
-                                self.translations.get("error_no_data_to_save"))
+            # Create custom warning message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(self.translations.get("error_no_data_to_save"))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
             return
 
         game_id = self.current_game_id()
         if not game_id:
-            QMessageBox.warning(self,
-                                self.translations.get("error"),
-                                self.translations.get("error_no_id"))
+            # Create custom warning message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(self.translations.get("error_no_id"))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
             return
 
         save_path = os.path.join(
@@ -1070,20 +766,25 @@ class BinParserGUI(QMainWindow):
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             with open(save_path, "wb") as f:
                 f.write(datas)
-            QMessageBox.information(
-                self,
-                self.translations.get("success"),
-                self.translations.get("in_steam_folder_saved")
-            )
+            
+            # Create custom message box with proper button text
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setWindowTitle(self.translations.get("success"))
+            msg_box.setText(self.translations.get("in_steam_folder_saved"))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
+            
             self.set_modified(False)
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                self.translations.get("error"),
-                f"{self.translations.get('error_cannot_save')}{e}"
-            )
-            
-  
+            # Create custom error message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Critical)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(f"{self.translations.get('error_cannot_save')}{e}")
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
+
     def save_bin_know(self):
         save_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -1097,173 +798,38 @@ class BinParserGUI(QMainWindow):
         self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
         if datas is None:
-            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_data_to_save"))
+            # Create custom warning message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(self.translations.get("error_no_data_to_save"))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
             return
 
         try:
             with open(save_path, "wb") as f:
                 f.write(datas)
-            QMessageBox.information(self, self.translations.get("success"), self.translations.get("file_saved").format(save_path=save_path))
+            
+            # Create custom success message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setWindowTitle(self.translations.get("success"))
+            msg_box.setText(self.translations.get("file_saved").format(save_path=save_path))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
         except Exception as e:
-            QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
-
-
-        
-
-    def set_steam_folder_path(self, force=False):
-        path = self.settings.value("UserSteamPath", "") or ""
-        if force or not path.strip():
-            detected = self.detect_steam_path()
-            if detected:
-                path = detected
-            else:
-                if sys.platform == "win32":
-                    fallback = "C:\\Program Files (x86)\\Steam"
-                    if os.path.exists(fallback):
-                        path = fallback
-                    else:
-                        QMessageBox.warning(self, self.translations.get("attention"), self.translations.get("folder_not_found_auto"))
-                        path = ""
-                else:
-                    path = ""
-            self.settings.setValue("UserSteamPath", path)
-            self.settings.sync()
-
-        self.steam_folder_path.setText(path)
-
-
+            # Create custom error message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Critical)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(f"{self.translations.get('error_cannot_save')}{e}")
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
 
     def detect_steam_path(self):
-        home = os.path.expanduser("~")
-        possible_paths = [
-            # Standard Linux/Mac paths
-            os.path.join(home, ".steam", "steam"),
-            os.path.join(home, ".steam", "Steam"),
-            os.path.join(home, ".local", "share", "Steam"),
-            os.path.join(home, ".local", "share", "steam"),
-            os.path.join(home, ".steam", "root"),
-            os.path.join(home, ".steam", "Root"),
-            # Flatpak Steam version
-            os.path.join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
-            # Snap Steam version
-            os.path.join(home, "snap", "steam", "common", ".local", "share", "Steam"),
-            os.path.join(home, "snap", "steam", "common", ".steam", "steam"),
-            os.path.join(home, "snap", "steam", "common", ".steam", "Steam"),
-            os.path.join(home, "snap", "steam", "common", ".steam", "root"),
-            os.path.join(home, "snap", "steam", "common", ".steam", "Root"),
-            
-        ]
-        # Windows detection
-        if sys.platform == "win32":
-            try:
-                import winreg
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam") as key:
-                    steam_path = winreg.QueryValueEx(key, "SteamPath")[0]
-                    steam_path = os.path.realpath(steam_path)
-                    if os.path.exists(steam_path):
-                        return steam_path
-            except Exception:
-                fallback = "C:\\Program Files (x86)\\Steam"
-                if os.path.exists(fallback):
-                    return fallback
-                return ""
-        else:
-            for path in possible_paths:
-                if os.path.exists(path):
-                    return path
-            return ""
-
-    def prioritize_headers(self, headers):
-        headers = [h for h in headers if h != 'key']
-        prioritized = ['key']
-        if 'ukrainian' in headers:
-            prioritized.append('ukrainian')
-            headers.remove('ukrainian')
-        if 'english' in headers:
-            prioritized.append('english')
-            headers.remove('english')
-        return prioritized + headers
-         
-    def version(self):
-        path = self.get_stats_bin_path()
-
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except Exception as e:
-            if hasattr(self, "version_label"):
-                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-            return None
-
-        marker = b"\x01version\x00"
-        pos = data.find(marker)
-
-        if pos == -1:
-            if hasattr(self, "version_label"):
-                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-            return None
-
-        start = pos + len(marker)
-        end = data.find(b"\x00", start)
-        if end == -1:
-            if hasattr(self, "version_label"):
-                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-            return None
-
-        # Fetch version string
-        ver_str = data[start:end].decode("utf-8", errors="ignore").strip()
-        try:
-            version_number = int(ver_str)
-        except ValueError:
-            version_number = None
-
-        if hasattr(self, "version_label"):
-            if version_number is not None:
-                self.version_label.setText(f"{self.translations.get('file_version')}{version_number}")
-            else:
-                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-
-        return version_number
-
-        
-        
-        
-    def gamename(self):
-        path = self.get_stats_bin_path()
-
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except Exception as e:
-            if hasattr(self, "gamename_label"):
-                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
-            return None
-
-        marker = b"\x01gamename\x00"
-        pos = data.find(marker)
-
-        if pos == -1:
-            if hasattr(self, "gamename_label"):
-                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
-            return None
-
-        # Fetch game name string
-        start = pos + len(marker)
-        end = data.find(b"\x00", start)
-        if end == -1:
-            if hasattr(self, "gamename_label"):
-                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
-            return None
-
-        name = data[start:end].decode("utf-8", errors="ignore").strip()
-
-        if hasattr(self, "gamename_label"):
-            self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else {self.translations.get('unknown')}}")
-
-
-        return name
-
-
+        """Auto-detect Steam path using steam integration plugin"""
+        return self.steam_integration.detect_steam_path()
 
     def get_stats_bin_path(self):
        # Determine path to UserGameStatsSchema_{game_id}.bin
@@ -1288,7 +854,6 @@ class BinParserGUI(QMainWindow):
         if file:  # if user selected a file
             self.stats_bin_path_path.setText(file)
         self.select_stats_bin_path()
-
 
     def select_stats_bin_path(self):
         path = self.stats_bin_path_path.text().strip()
@@ -1315,7 +880,6 @@ class BinParserGUI(QMainWindow):
         self.version()
         self.gamename()
 
-
     def use_manual_path(self):
         self.force_manual_path = True
 
@@ -1323,6 +887,229 @@ class BinParserGUI(QMainWindow):
         self.force_manual_path = False
         self.set_steam_folder_path(force=True)
 
+    def delete_current_stats_file(self):
+        # Check if file exists
+        path = self.get_stats_bin_path()
+        if not os.path.isfile(path):
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setWindowTitle(self.translations.get("error", "Error"))
+            box.setText(f"{self.translations.get('error_no_file')}{path}")
+            btn_close = box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
+            box.setDefaultButton(btn_close)
+            box.exec()
+            return
+
+        confirm_text = self.translations.get(
+            "delete_stats_file_confirm"
+        ).format(path=path)
+        
+        done_msg = self.translations.get(
+            "delete_stats_file_done"
+        ).format(gamename=self.gamename())
+
+        # Confirmation dialog
+        confirm_box = QMessageBox(self)
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setWindowTitle(self.translations.get("delete_stats_file"))
+        confirm_box.setText(confirm_text)
+        btn_CSV = confirm_box.addButton(self.translations.get(
+            "CSV", "Want to save CSV"), QMessageBox.ButtonRole.ActionRole)
+        btn_yes = confirm_box.addButton(self.translations.get("yes", "Yes"), QMessageBox.ButtonRole.YesRole)
+        btn_no = confirm_box.addButton(self.translations.get("no", "No"), QMessageBox.ButtonRole.NoRole)
+        confirm_box.setDefaultButton(btn_no)
+        confirm_box.exec()
+        if confirm_box.clickedButton() is btn_no:
+            return
+        if confirm_box.clickedButton() is btn_yes:
+            self.export_csv_all()
+
+        # Deleting the file
+        try:
+            os.remove(path)
+        except Exception as e:
+            err_box = QMessageBox(self)
+            err_box.setIcon(QMessageBox.Icon.Critical)
+            err_box.setWindowTitle(self.translations.get("error", "Error"))
+            err_box.setText(
+                self.translations.get(
+                    "delete_stats_file_failed",
+                    "Cannot delete file: {error}"
+                ).format(error=e)
+            )
+            btn_close3 = err_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
+            err_box.setDefaultButton(btn_close3)
+            err_box.exec()
+            return
+
+        # Reset UI
+        self.raw_data = b""
+        self.data_rows = []
+        self.headers = []
+        self.table.clear()
+        self.table.setRowCount(0)
+        self.table.setColumnCount(0)
+        if hasattr(self, "version_label"):
+            self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
+        if hasattr(self, "gamename_label"):
+            self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
+        self.set_modified(False)
+
+        ok_box = QMessageBox(self)
+        ok_box.setIcon(QMessageBox.Icon.Information)
+        ok_box.setWindowTitle(self.translations.get("success", "Success"))
+        ok_box.setText(done_msg)
+        btn_close4 = ok_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.AcceptRole)
+        ok_box.setDefaultButton(btn_close4)
+        ok_box.exec()
+
+    # =================================================================
+    # CSV OPERATIONS
+    # =================================================================
+
+    def export_csv_all(self):
+        """Export all data to CSV using csv_handler plugin"""
+        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), '', 'CSV Files (*.csv)')
+        if not fname:
+            return
+        
+        try:
+            self.csv_handler.export_all_data(self.data_rows, self.headers, fname)
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
+        except Exception as e:
+            QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_save')}{e}")
+
+    def export_csv_for_translate(self):
+        """Export data for translation using csv_handler plugin"""
+        if 'english' not in self.headers:
+            QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_english"))
+            return
+            
+        info_text = self.translations.get("export_csv_for_translate_info", "")
+        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='export', parent=self)
+        if not dlg.exec():
+            return
+            
+        params = dlg.get_selected()
+        context_col = params["context_col"]
+
+        fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), "", "CSV Files (*.csv)")
+        if not fname:
+            return
+        
+        try:
+            self.csv_handler.export_for_translation(self.data_rows, context_col, fname)
+            QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
+        except Exception as e:
+            QMessageBox.warning(self, self.translations.get("error"), str(e))
+
+    def import_csv(self):
+        """Import translations using csv_handler plugin"""
+        info_text = self.translations.get("import_csv_info", "")
+        dlg = ContextLangDialog(self.headers, info_text=info_text, mode='import', parent=self)
+        if not dlg.exec():
+            return
+            
+        params = dlg.get_selected()
+        import_col = params["context_col"]
+
+        fname, _ = QFileDialog.getOpenFileName(self, self.translations.get("import_csv_file_dialog"), "", "CSV Files (*.csv)")
+        if not fname:
+            return
+
+        try:
+            success, imported_count = self.csv_handler.import_translations(fname, self.data_rows, import_col)
+            if success:
+                self.refresh_table()
+                QMessageBox.information(self, self.translations.get("success"), 
+                                      self.translations.get("import_success") + f" ({imported_count} items)")
+            else:
+                QMessageBox.warning(self, self.translations.get("error"), "Import failed")
+        except Exception as e:
+            QMessageBox.warning(self, self.translations.get("error"), str(e))
+
+    # =================================================================
+    # TABLE OPERATIONS AND DATA MANAGEMENT
+    # =================================================================
+
+    def refresh_table(self):
+        self.table.clear()
+        self.table.setColumnCount(len(self.headers))
+        self.table.setHorizontalHeaderLabels(self.headers)
+        self.table.setRowCount(len(self.data_rows))
+        for row_i, row_data in enumerate(self.data_rows):
+            for col_i, header in enumerate(self.headers):
+                value = row_data.get(header, '')
+                item = QTableWidgetItem(value)
+                self.table.setItem(row_i, col_i, item)
+        self.update_row_heights()
+
+    def on_table_item_changed(self, item):
+        if self.is_undoing or self.is_redoing:
+            return
+
+        row = item.row()
+        col = item.column()
+        header = self.headers[col]
+        new_value = item.text()
+        if 0 <= row < len(self.data_rows):
+            old_value = self.data_rows[row].get(header, '')
+            self.undo_stack.append((row, col, header, old_value, new_value))
+            self.redo_stack.clear() 
+            self.data_rows[row][header] = new_value
+        self.set_modified(True)
+
+    def sync_table_to_data_rows(self):
+        # Sync changes from table widget back to data_rows
+        for row_i in range(self.table.rowCount()):
+            if row_i >= len(self.data_rows):
+                continue
+            for col_i, header in enumerate(self.headers):
+                item = self.table.item(row_i, col_i)
+                value = item.text() if item else ''
+                self.data_rows[row_i][header] = value
+
+    def global_search_in_table(self, text):
+        search_text = text.strip().lower()
+
+        for row in range(self.table.rowCount()):
+            self.table.setRowHidden(row, False)
+                               
+        if not search_text:
+            self.highlight_delegate.set_highlight("")
+            self.highlight_delegate.highlight_column = -1
+            self.table.viewport().update()
+            return
+
+        self.highlight_delegate.set_highlight(search_text)
+        self.highlight_delegate.highlight_column = -1 
+        self.table.viewport().update()
+
+        for row in range(self.table.rowCount()):
+            row_has_match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    row_has_match = True
+            self.table.setRowHidden(row, not row_has_match)
+
+    def update_row_heights(self):
+        for row in range(self.table.rowCount()):
+            max_height = self.table.verticalHeader().defaultSectionSize()
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and item.text():
+                    doc = QTextDocument()
+                    doc.setHtml(item.text())
+                    doc.setTextWidth(self.table.columnWidth(col))
+                    height = doc.size().height() + 8
+                    if height > max_height:
+                        max_height = height
+            self.table.setRowHeight(row, int(max_height))
+
+    # =================================================================
+    # EDITING OPERATIONS (UNDO/REDO/COPY/PASTE)
+    # =================================================================
 
     def copy_selection_to_clipboard(self):
         selection = self.table.selectedRanges()
@@ -1353,6 +1140,25 @@ class BinParserGUI(QMainWindow):
                 col_idx = col + c
                 if row_idx < self.table.rowCount() and col_idx < self.table.columnCount():
                     self.table.setItem(row_idx, col_idx, QTableWidgetItem(text))
+
+    def cut_selection_to_clipboard(self):
+        self.copy_selection_to_clipboard()
+        self.clear_selection()
+
+    def clear_selection(self):
+        selected_ranges = self.table.selectedRanges()
+        for rng in selected_ranges:
+            for row in range(rng.topRow(), rng.bottomRow() + 1):
+                for col in range(rng.leftColumn(), rng.rightColumn() + 1):
+                    item = self.table.item(row, col)
+                    if item:
+                        item.setText("")  
+                    else:
+                        self.table.setItem(row, col, QTableWidgetItem(""))
+
+                    if 0 <= row < len(self.data_rows) and 0 <= col < len(self.headers):
+                        header = self.headers[col]
+                        self.data_rows[row][header] = ""
 
     def undo(self):
         if not self.undo_stack:
@@ -1391,25 +1197,222 @@ class BinParserGUI(QMainWindow):
         else:
             super().keyPressEvent(event)
 
-    def cut_selection_to_clipboard(self):
-        self.copy_selection_to_clipboard()
-        self.clear_selection()
+    # =================================================================
+    # UTILITY FUNCTIONS
+    # =================================================================
 
-    def clear_selection(self):
-        selected_ranges = self.table.selectedRanges()
-        for rng in selected_ranges:
-            for row in range(rng.topRow(), rng.bottomRow() + 1):
-                for col in range(rng.leftColumn(), rng.rightColumn() + 1):
-                    item = self.table.item(row, col)
-                    if item:
-                        item.setText("")  
-                    else:
-                        self.table.setItem(row, col, QTableWidgetItem(""))
+    def prioritize_headers(self, headers):
+        """
+        Prioritize headers with translation column after key:
+        - Ukrainian UI: key > ukrainian > english > others
+        - Polish UI: key > polish > english > others  
+        - Other UI: key > selected translation language > english > others
+        The translation column will use existing data if available.
+        """
+        headers = [h for h in headers if h != 'key']
+        prioritized = ['key']
+        
+        # Determine translation language based on UI or user selection
+        if self.language == 'Українська':
+            translation_lang = 'ukrainian'
+        elif self.language == 'Polski':
+            translation_lang = 'polish'
+        else:
+            # For English UI, get selected language from combo box
+            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
+                translation_lang = self.translation_lang_combo.currentData()
+            else:
+                translation_lang = get_system_language()
+        
+        # Add translation column (prefer existing data column)
+        if translation_lang and translation_lang != 'english':
+            if translation_lang in headers:
+                # Use existing column with this code
+                prioritized.append(translation_lang)
+                headers.remove(translation_lang)
+            else:
+                # Check if there's a related existing column
+                # Common mappings for similar languages
+                related_mappings = {
+                    'spanish': 'latam',  # If user selects spanish, use latam if available
+                    'latam': 'spanish',  # If user selects latam, use spanish if available
+                }
+                
+                related_lang = related_mappings.get(translation_lang)
+                if related_lang and related_lang in headers:
+                    prioritized.append(related_lang)
+                    headers.remove(related_lang)
+                else:
+                    # Use selected language even if no existing data
+                    prioritized.append(translation_lang)
+                
+        # Always add english after translation
+        if 'english' in headers:
+            prioritized.append('english')
+            headers.remove('english')
+        
+        # Sort remaining headers alphabetically
+        return prioritized + sorted(headers)
+    
+    def on_translation_language_changed(self):
+        """Handle translation language change"""
+        if not hasattr(self, 'data_rows') or not self.data_rows:
+            return
+            
+        # Remove empty columns before creating new ones
+        self.remove_empty_columns()
+            
+        # Re-prioritize headers and refresh table
+        if hasattr(self, 'headers') and self.headers:
+            old_headers = self.headers.copy()
+            
+            # Get all original headers from binary data
+            all_headers = set()
+            for row in self.data_rows:
+                for col in row.keys():
+                    all_headers.add(col)
+            
+            # Re-prioritize with new selection
+            self.headers = self.prioritize_headers(list(all_headers))
+            
+            # Refresh table display
+            self.refresh_table_with_new_headers()
 
-                    if 0 <= row < len(self.data_rows) and 0 <= col < len(self.headers):
-                        header = self.headers[col]
-                        self.data_rows[row][header] = ""
+    def refresh_table_with_new_headers(self):
+        """Refresh table when headers change"""
+        if not hasattr(self, 'data_rows') or not self.data_rows:
+            return
+            
+        self.table.clear()
+        self.table.setColumnCount(len(self.headers))
+        
+        # Create header labels with Steam language display names
+        header_labels = []
+        for header in self.headers:
+            if header == 'key':
+                header_labels.append(header.upper())
+            else:
+                display_name = get_display_name(header)
+                header_labels.append(display_name)
+        
+        self.table.setHorizontalHeaderLabels(header_labels)
+        self.table.setRowCount(len(self.data_rows))
+        
+        # Ensure all rows have columns for our headers
+        for row in self.data_rows:
+            for header in self.headers:
+                if header not in row:
+                    row[header] = ''
+        
+        # Fill table with data
+        for row_i, row in enumerate(self.data_rows):
+            for col_i, col_name in enumerate(self.headers):
+                value = row.get(col_name, '')
+                self.table.setItem(row_i, col_i, QTableWidgetItem(value))
+        
+        self.stretch_columns()
+        self.update_row_heights()
 
+    def remove_empty_columns(self):
+        """Remove columns that are completely empty (except for key column)"""
+        if not hasattr(self, 'data_rows') or not self.data_rows:
+            return
+        
+        # Find columns to remove
+        columns_to_remove = []
+        
+        # Get all column names from the data
+        all_columns = set()
+        for row in self.data_rows:
+            all_columns.update(row.keys())
+        
+        for col_name in all_columns:
+            # Never remove key column
+            if col_name == 'key':
+                continue
+                
+            # Check if column is completely empty
+            is_empty = True
+            for row in self.data_rows:
+                value = row.get(col_name, '').strip()
+                if value:  # If any non-empty value found
+                    is_empty = False
+                    break
+            
+            if is_empty:
+                columns_to_remove.append(col_name)
+        
+        # Remove empty columns from data
+        for col_name in columns_to_remove:
+            for row in self.data_rows:
+                if col_name in row:
+                    del row[col_name]
+        
+        # Update headers list if it exists
+        if hasattr(self, 'headers') and self.headers:
+            self.headers = [h for h in self.headers if h not in columns_to_remove]
+
+    def version(self):
+        path = self.get_stats_bin_path()
+
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            if hasattr(self, "version_label"):
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
+            return None
+
+        # Use binary parser plugin
+        version_number = self.binary_parser.get_version(data)
+
+        if hasattr(self, "version_label"):
+            if version_number is not None:
+                self.version_label.setText(f"{self.translations.get('file_version')}{version_number}")
+            else:
+                self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
+
+        return version_number
+
+    def gamename(self):
+        path = self.get_stats_bin_path()
+
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            if hasattr(self, "gamename_label"):
+                self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
+            return None
+
+        # Use binary parser plugin
+        name = self.binary_parser.get_gamename(data)
+
+        if hasattr(self, "gamename_label"):
+            self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else self.translations.get('unknown')}")
+
+        return name
+
+    def current_game_id(self):
+        # Return game ID based on current mode (manual or steam path)
+        if self.force_manual_path:
+            manual_path = self.stats_bin_path_path.text().strip()
+            import re
+            m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', manual_path)
+            if m:
+                return m.group(1)
+        return self.game_id()
+
+    def handle_game_id_action(self):
+        game_id = self.game_id()
+        if game_id:
+            self.load_steam_game_stats()
+        else:
+            self.game_id_edit.clear()
+
+    # =================================================================
+    # DIALOGS AND EVENT HANDLERS
+    # =================================================================
 
     def show_find_replace_dialog(self):   
         dlg = FindReplaceDialog(self, self.headers)
@@ -1431,7 +1434,7 @@ class BinParserGUI(QMainWindow):
             try:
                 with open(file_path, "rb") as f:
                     file_data = f.read()
-                chunks = split_chunks(file_data)
+                chunks = self.binary_parser.split_chunks(file_data)
                 achievement_count = sum(1 for chunk in chunks if chunk.count(b'\x01english\x00') >= 2)
             except Exception:
                 achievement_count = "?"
@@ -1458,61 +1461,14 @@ class BinParserGUI(QMainWindow):
         dlg = UserGameStatsListDialog(self, stats_list)
         dlg.exec()
 
-    def global_search_in_table(self, text):
-        search_text = text.strip().lower()
-
-        for row in range(self.table.rowCount()):
-            self.table.setRowHidden(row, False)
-                               
-
-        if not search_text:
-            self.highlight_delegate.set_highlight("")
-            self.highlight_delegate.highlight_column = -1
-            self.table.viewport().update()
-            return
-
-        self.highlight_delegate.set_highlight(search_text)
-        self.highlight_delegate.highlight_column = -1 
-        self.table.viewport().update()
-
-        for row in range(self.table.rowCount()):
-            row_has_match = False
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                if item and search_text in item.text().lower():
-
-                    row_has_match = True
-            self.table.setRowHidden(row, not row_has_match)
-
-
-    def update_row_heights(self):
-        for row in range(self.table.rowCount()):
-            max_height = self.table.verticalHeader().defaultSectionSize()
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                if item and item.text():
-                    doc = QTextDocument()
-                    doc.setHtml(item.text())
-                    doc.setTextWidth(self.table.columnWidth(col))
-                    height = doc.size().height() + 8
-                    if height > max_height:
-                        max_height = height
-            self.table.setRowHeight(row, int(max_height))
-
-    def handle_game_id_action(self):
-        game_id = self.game_id()
-        if game_id:
-            self.load_steam_game_stats()
-        else:
-            self.game_id_edit.clear()
-
     def _on_exit_action(self):
-            # Called when user selects Exit from menu
-            if self.maybe_save_before_exit():
-                self.close()
+        # Called when user selects Exit from menu
+        if self.maybe_save_before_exit():
+            self.close()
 
     def set_modified(self, value=True):
         self.modified = value
+
     def is_modified(self):
         return getattr(self, 'modified', False)
 
@@ -1562,105 +1518,6 @@ class BinParserGUI(QMainWindow):
             event.accept()
         else:
             event.ignore()
-
-    def sync_table_to_data_rows(self):
-    # Sync changes from table widget back to data_rows
-        for row_i in range(self.table.rowCount()):
-            if row_i >= len(self.data_rows):
-                continue
-            for col_i, header in enumerate(self.headers):
-                item = self.table.item(row_i, col_i)
-                value = item.text() if item else ''
-                self.data_rows[row_i][header] = value
-
-    def current_game_id(self):
-        # Return game ID based on current mode (manual or steam path)
-        if self.force_manual_path:
-            manual_path = self.stats_bin_path_path.text().strip()
-            import re
-            m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', manual_path)
-            if m:
-                return m.group(1)
-        return self.game_id()
-    
-
-
-    def delete_current_stats_file(self):
-        # Check if file exists
-        path = self.get_stats_bin_path()
-        if not os.path.isfile(path):
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Icon.Warning)
-            box.setWindowTitle(self.translations.get("error", "Error"))
-            box.setText(f"{self.translations.get('error_no_file')}{path}")
-            btn_close = box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
-            box.setDefaultButton(btn_close)
-            box.exec()
-            return
-
-        confirm_text = self.translations.get(
-            "delete_stats_file_confirm"
-        ).format(path=path)
-        
-        done_msg = self.translations.get(
-            "delete_stats_file_done"
-        ).format(gamename=self.gamename())
-
-        # Confirmation dialog
-        confirm_box = QMessageBox(self)
-        confirm_box.setIcon(QMessageBox.Icon.Question)
-        confirm_box.setWindowTitle(self.translations.get("delete_stats_file"))
-        confirm_box.setText(confirm_text)
-        btn_CSV = confirm_box.addButton(self.translations.get(
-            "CSV", "Want to save CSV"), QMessageBox.ButtonRole.ActionRole)
-        btn_yes = confirm_box.addButton(self.translations.get("yes", "Yes"), QMessageBox.ButtonRole.YesRole)
-        btn_no = confirm_box.addButton(self.translations.get("no", "No"), QMessageBox.ButtonRole.NoRole)
-        confirm_box.setDefaultButton(btn_no)
-        confirm_box.exec()
-        if confirm_box.clickedButton() is btn_no:
-            return
-        if confirm_box.clickedButton() is btn_CSV:
-            self.export_csv_all()
-
-        # Deleting the file
-        try:
-            os.remove(path)
-        except Exception as e:
-            err_box = QMessageBox(self)
-            err_box.setIcon(QMessageBox.Icon.Critical)
-            err_box.setWindowTitle(self.translations.get("error", "Error"))
-            err_box.setText(
-                self.translations.get(
-                    "delete_stats_file_failed",
-                    "Cannot delete file: {error}"
-                ).format(error=e)
-            )
-            btn_close3 = err_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.RejectRole)
-            err_box.setDefaultButton(btn_close3)
-            err_box.exec()
-            return
-
-        # Reset UI
-        self.raw_data = b""
-        self.data_rows = []
-        self.headers = []
-        self.table.clear()
-        self.table.setRowCount(0)
-        self.table.setColumnCount(0)
-        if hasattr(self, "version_label"):
-            self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
-        if hasattr(self, "gamename_label"):
-            self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
-        self.set_modified(False)
-
-
-        ok_box = QMessageBox(self)
-        ok_box.setIcon(QMessageBox.Icon.Information)
-        ok_box.setWindowTitle(self.translations.get("success", "Success"))
-        ok_box.setText(done_msg)
-        btn_close4 = ok_box.addButton(self.translations.get("close", "Close"), QMessageBox.ButtonRole.AcceptRole)
-        ok_box.setDefaultButton(btn_close4)
-        ok_box.exec()
 
 
 def main():

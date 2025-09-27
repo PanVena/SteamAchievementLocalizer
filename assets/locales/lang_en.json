@@ -15,6 +15,7 @@
     "gamename": "Game name or its codename: ",
     "file_version": "Achievement file version: ",
     "unknown": "UNKNOWN",
+    "translation_lang": "Translate to:",
     "lang_sel": "Language selection:",
     "lang_sel_dia": "Language selection",
     "in_column_search": "Search:",
@@ -68,7 +69,7 @@
     "error_no_data_to_save": "First load the achievements file",
     "in_steam_folder_saved": "File saved in Steam folder. Restart Steam to see changes.",
     "file_saving_file_dialog": "Save modified file",
-    "file_saved": "File saved successfully in: {save_path}<br><br>Don't forget to restart Steam when you`ll put this file back to Steam folder.",
+    "file_saved": "File saved successfully in:<br>{save_path}<br><br>Don't forget to restart Steam when you`ll put this file back to Steam folder.",
     "attention": "Attention",
     "folder_not_found_auto": "Could not find Steam folder automatically",
     "man_select_file_file_dialog": "Select UserGameStatsSchema file",
@@ -106,7 +107,7 @@
     "choose_import": "Choose language to replace:",
     "delete_stats_file_confirm": "Are you sure you want to delete this bin file?<br>{path}<br>Do you want to save a CSV backup and then delete it?",
     "delete_stats_file": "Delete bin file(if there is a problem)",
-    "CSV": "Want to save CSV",
+    "CSV": "Don't save CSV",
     "delete_stats_file_done": "Bin file with <b>{gamename}</b> achievements names deleted.",
     "delete_stats_file_failed": "Cannot delete bin file: {error}",
     "appearance": "Appearance",
@@ -122,5 +123,9 @@
     "theme_dark": "Dark",
     "font_weight": "Font weight",
     "font_normal": "Normal",
-    "font_bold": "Bold"
+    "font_bold": "Bold",
+    "button_ok": "OK",
+    "button_yes": "Yes",
+    "button_no": "No",
+    "button_cancel": "Cancel"
 }

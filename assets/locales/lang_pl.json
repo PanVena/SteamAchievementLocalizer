@@ -105,7 +105,7 @@
     "choose_import": "Wybierz kolumnę do zamiany przy imporcie:",
     "delete_stats_file_confirm": "Czy na pewno chcesz usunąć tę binarkę?<br>{path}<br>Czy chcesz zapisać kopię w CSV, a następnie go usunąć?",
     "delete_stats_file": "Usuń binarkę(w prypadku błędów)",
-    "CSV": "Zapisać CSV",
+    "CSV": "Nie zapisuj CSV",
     "delete_stats_file_done": "Binarka z nazwami osiągnięć gry <b>{gamename}</b> została usunięta.",
     "delete_stats_file_failed": "Nie można usunąć binarki: {error}",
     "theme": "Motyw",
@@ -116,11 +116,15 @@
     "font_size": "Rozmiar czcionki",
     "font_xsmall": "Mały",
     "font_small": "Trochę mniejszy",
-    "font_standard": "Standard",
+    "font_standard": "Standardowy",
     "font_medium": "Nieco większy",
     "font_large": "Duży",
     "font_normal": "Zwykły",
     "font_bold": "Pogrubiony",
     "font_weight": "Grubość czcionki",
-    "attention": "Uwaga"
+    "attention": "Uwaga",
+    "button_ok": "OK",
+    "button_yes": "Tak",
+    "button_no": "Nie",
+    "button_cancel": "Anuluj"
 }

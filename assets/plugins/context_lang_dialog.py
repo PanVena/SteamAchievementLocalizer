@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QPushButton
+from .steam_lang_codes import get_display_name
 
 class ContextLangDialog(QDialog):
     def __init__(self, headers, info_text="", mode='export', parent=None):
@@ -15,11 +16,21 @@ class ContextLangDialog(QDialog):
 
         self.combo = QComboBox()
         header_items = [h for h in headers if h != "key"]
+        
+        # Store mapping between display names and original headers
+        self.header_mapping = {}
+        
         if mode == 'export':
             layout.addWidget(QLabel(translations.get("choose_export")))
         else:
             layout.addWidget(QLabel(translations.get("choose_import")))
-        self.combo.addItems(header_items)
+        
+        # Add items with display names but keep original headers as data
+        for header in header_items:
+            display_name = get_display_name(header)
+            self.combo.addItem(display_name, header)  # Store original header as data
+            self.header_mapping[display_name] = header
+            
         layout.addWidget(self.combo)
 
         btn_ok = QPushButton("OK")
@@ -29,6 +40,8 @@ class ContextLangDialog(QDialog):
         self.setLayout(layout)
 
     def get_selected(self):
+        # Return the original header name, not the display name
+        current_data = self.combo.currentData()
         return {
-            "context_col": self.combo.currentText()
+            "context_col": current_data if current_data else self.combo.currentText()
         }

@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
 
 from PyQt6.QtGui import QColor, QBrush, QTextCharFormat
 from PyQt6.QtCore import Qt
+from .steam_lang_codes import get_display_name
 
 import re
 
@@ -30,7 +31,13 @@ class FindReplaceDialog(QDialog):
 
         col_layout = QHBoxLayout()
         self.column_combo = QComboBox()
-        self.column_combo.addItems([h for h in headers if h != 'key'])
+        
+        # Add headers with display names, excluding 'key'
+        non_key_headers = [h for h in headers if h != 'key']
+        for header in non_key_headers:
+            display_name = get_display_name(header)
+            self.column_combo.addItem(display_name, header)  # Store original header as data
+            
         col_layout.addWidget(QLabel(parent.translations.get("column")))
         col_layout.addWidget(self.column_combo)
         layout.addLayout(col_layout)
@@ -58,7 +65,8 @@ class FindReplaceDialog(QDialog):
     def update_matches(self):
         translations = getattr(self.parent(), "translations", {})
         find_text = self.find_edit.text()
-        col = self.column_combo.currentText()
+        # Get the actual column header from combo box data
+        col = self.column_combo.currentData() or self.column_combo.currentText()
         self.matches = []
 
         col_idx = self.parent().headers.index(col) if col in self.parent().headers else -1
@@ -115,7 +123,8 @@ class FindReplaceDialog(QDialog):
         return pattern.sub(lambda m: f"<span style='background: orange;'>{html_escape(m.group(0))}</span>", text)
 
     def replace_all(self):
-        col = self.column_combo.currentText()
+        # Get the actual column header from combo box data
+        col = self.column_combo.currentData() or self.column_combo.currentText()
         find_text = self.find_edit.text()
         replace_text = self.replace_edit.text()
         col_idx = self.parent().headers.index(col)
