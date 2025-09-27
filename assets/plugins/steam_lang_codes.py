@@ -6,7 +6,7 @@ Simple display names for Steam language codes in table headers
 import locale
 import os
 
-# Steam's standard language codes with display names (excluding Russian and Chinese)
+# Steam's standard language codes with display names
 STEAM_LANGUAGE_CODES = {
     'arabic': 'Arabic (العربية)',
     'bulgarian': 'Bulgarian (български)',
@@ -37,7 +37,7 @@ STEAM_LANGUAGE_CODES = {
     'vietnamese': 'Vietnamese (Tiếng Việt)'
 }
 
-# Mapping system locale codes to Steam language codes (excluding Russian and Chinese)
+# Mapping from locale codes to Steam language codes
 LOCALE_TO_STEAM = {
     'uk': 'ukrainian',
     'uk_UA': 'ukrainian', 
