@@ -1,5 +1,7 @@
 # Locale Addition Instructions
 
+**🇺🇦 [Українська версія / Ukrainian version](LOCALES_UA.md)**
+
 ## How to add new languages
 
 ### Step 1: Create locale JSON file
