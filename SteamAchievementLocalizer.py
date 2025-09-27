@@ -242,7 +242,7 @@ class BinParserGUI(QMainWindow):
         self.translation_separator.setFrameShape(QFrame.Shape.VLine)
         self.translation_separator.setFrameShadow(QFrame.Shadow.Sunken)
 
-        if self.language not in ['Українська', 'Polski']:
+        if self.language == 'English':
             self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
             self.lang_layout.addWidget(self.translation_lang_label)
             
@@ -266,7 +266,7 @@ class BinParserGUI(QMainWindow):
             self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
             self.lang_layout.addWidget(self.translation_lang_combo)
         else:
-            # Hide separator for Ukrainian/Polish UI
+            # Hide separator for non-English UI languages
             self.translation_separator.setVisible(False)
 
         # Vertical separator
@@ -512,7 +512,8 @@ class BinParserGUI(QMainWindow):
     
     def update_translation_controls_visibility(self):
         """Update visibility of translation language controls based on current UI language"""
-        show_translation_controls = self.language not in ['Українська', 'Polski']
+        # Show translation controls only for English UI language
+        show_translation_controls = self.language == 'English'
         
         # Update separator visibility
         if hasattr(self, 'translation_separator'):
@@ -552,7 +553,7 @@ class BinParserGUI(QMainWindow):
                 self.translation_lang_label.setVisible(True)
                 self.translation_lang_combo.setVisible(True)
         else:
-            # Hide controls for Ukrainian/Polish UI
+            # Hide controls for non-English UI languages
             if hasattr(self, 'translation_lang_label') and self.translation_lang_label:
                 self.translation_lang_label.setVisible(False)
             if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
@@ -1215,12 +1216,16 @@ class BinParserGUI(QMainWindow):
         prioritized = ['key']
         
         # Determine translation language based on UI or user selection
-        if self.language == 'Українська':
-            translation_lang = 'ukrainian'
-        elif self.language == 'Polski':
-            translation_lang = 'polish'
+        # Create mapping from UI language to Steam language code
+        ui_to_steam_lang = {
+            'Українська': 'ukrainian',
+            'Polski': 'polish'
+        }
+        
+        if self.language in ui_to_steam_lang:
+            translation_lang = ui_to_steam_lang[self.language]
         else:
-            # For English UI, get selected language from combo box
+            # For English and other UI languages, get selected language from combo box
             if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
                 translation_lang = self.translation_lang_combo.currentData()
             else:
