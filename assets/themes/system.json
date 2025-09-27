@@ -1,0 +1,18 @@
+{
+  "name": "System",
+  "display_name": "system",
+  "style": "system",
+  "palette": "system",
+  "styles": {
+    "dark": {
+      "QLabel": "color: white;",
+      "QLineEdit": "color: white; background-color: #232323; border: 1px solid #555; padding: 2px;"
+    },
+    "light": {
+      "QLabel": "",
+      "QLineEdit": "",
+      "QPushButton": "",
+      "QGroupBox": ""
+    }
+  }
+}

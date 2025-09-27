@@ -1,0 +1,26 @@
+{
+  "name": "Femboy",
+  "display_name": "femboy",
+  "style": "Fusion",
+  "palette": {
+    "window": [255, 240, 248],
+    "window_text": [75, 0, 130],
+    "base": [255, 228, 248],
+    "alternate_base": [240, 248, 255],
+    "tooltip_base": [255, 192, 203],
+    "tooltip_text": [75, 0, 130],
+    "text": [75, 0, 130],
+    "button": [255, 182, 193],
+    "button_text": [75, 0, 130],
+    "bright_text": [255, 20, 147],
+    "link": [138, 43, 226],
+    "highlight": [255, 105, 180],
+    "highlighted_text": "white"
+  },
+  "styles": {
+    "QLabel": "color: #4B0082; font-weight: normal;",
+    "QLineEdit": "color: #4B0082; background-color: #FFE4F8; border: 2px solid #FFB6C1; border-radius: 6px; padding: 4px;",
+    "QGroupBox": "QGroupBox { color: #4B0082; font-weight: bold; }",
+    "QPushButton": "QPushButton { background-color: #FFB6C1; color: #4B0082; border: 2px solid #FF69B4; border-radius: 8px; padding: 6px; font-weight: bold; } QPushButton:hover { background-color: #FF69B4; } QPushButton:pressed { background-color: #FF1493; }"
+  }
+}

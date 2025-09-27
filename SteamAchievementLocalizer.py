@@ -16,6 +16,7 @@ from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
 from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
 from assets.plugins.context_lang_dialog import ContextLangDialog
+from assets.plugins.theme_manager import ThemeManager
 
 if sys.platform == "win32":
     import winreg
@@ -36,7 +37,7 @@ def choose_language():
     current_language = settings.value("language", None)
 
     if current_language:
-        return current_language  # already saved language
+        return current_language  # Already saved language
 
     # Ask user to choose language
     lang, ok = QInputDialog.getItem(
@@ -51,7 +52,7 @@ def choose_language():
         settings.setValue("language", lang)
         return lang
 
-    return "English"  # default language
+    return "English"  # Default language
 
 def split_chunks(data: bytes):
     pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
@@ -108,10 +109,10 @@ def extract_values(chunk: bytes, words: list):
 def resource_path(relative_path: str) -> str:
     """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
     if getattr(sys, 'frozen', False):
-        # when we are runnimg as a bundled exe
+        # When running as a bundled exe
         base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
     else:
-        # when we are running as a normal .py file
+        # When running as a normal .py file
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
 
@@ -374,11 +375,14 @@ class BinParserGUI(QMainWindow):
         self.highlight_delegate = HighlightDelegate(self.table)
         self.table.setItemDelegate(self.highlight_delegate)
 
+        # Initialize theme manager
+        self.theme_manager = ThemeManager(self)
+
         # Create menubar
         self.create_menubar()
         
         # Apply initial font settings
-        self.apply_font_to_widgets()
+        self.theme_manager.apply_font_to_widgets()
       
     
             
@@ -506,8 +510,11 @@ class BinParserGUI(QMainWindow):
         theme_group = QActionGroup(self)
         theme_group.setExclusive(True)
         self.theme_actions = {}
-        current_theme = self.settings.value("theme", "System")
-        for theme in ["System", "Light", "Dark", "Femboy"]:
+        current_theme = self.theme_manager.get_current_theme()
+        
+        # Get available themes from theme manager
+        available_themes = self.theme_manager.get_available_theme_names()
+        for theme in available_themes:
             if theme == "Femboy":
                 display_name = "💖 Femboy Edition"
             else:
@@ -515,7 +522,7 @@ class BinParserGUI(QMainWindow):
                 
             action = QAction(display_name, self, checkable=True)
             action.setChecked(theme == current_theme)
-            action.triggered.connect(self._make_theme_callback(theme))
+            action.triggered.connect(lambda checked, t=theme: self.theme_manager.set_theme(t))
             theme_group.addAction(action)
             theme_menu.addAction(action)
             self.theme_actions[theme] = action
@@ -525,16 +532,16 @@ class BinParserGUI(QMainWindow):
         font_group = QActionGroup(self)
         font_group.setExclusive(True)
         self.font_actions = {}
-        current_weight = self.settings.value("font_weight", "Normal")
+        current_weight = self.theme_manager.get_current_font_weight()
         for weight, label in [("Normal", self.translations.get("font_normal")), ("Bold", self.translations.get("font_bold"))]:
             action = QAction(label, self, checkable=True)
             action.setChecked(weight == current_weight)
-            action.triggered.connect(lambda checked, w=weight: self.set_font_weight(w))
+            action.triggered.connect(lambda checked, w=weight: self.theme_manager.set_font_weight(w))
             font_group.addAction(action)
             font_weight_menu.addAction(action)
             self.font_actions[weight] = action
 
-        # Font size submenu (більше розмірів)
+        # Font size submenu (more sizes)
         font_size_menu = QMenu(self.translations.get("font_size"), self)
         font_size_group = QActionGroup(self)
         font_size_group.setExclusive(True)
@@ -546,11 +553,11 @@ class BinParserGUI(QMainWindow):
             (10, self.translations.get("font_medium")),
             (12, self.translations.get("font_large")),
         ]
-        current_size = int(self.settings.value("font_size", 9))
+        current_size = self.theme_manager.get_current_font_size()
         for size, label in font_sizes:
             action = QAction(label, self, checkable=True)
             action.setChecked(size == current_size)
-            action.triggered.connect(lambda checked, s=size: self.set_font_size(s))
+            action.triggered.connect(lambda checked, s=size: self.theme_manager.set_font_size(s))
             font_size_group.addAction(action)
             font_size_menu.addAction(action)
             self.font_size_actions[size] = action
@@ -573,269 +580,6 @@ class BinParserGUI(QMainWindow):
 
         # Adding menubar to the layout
         self.setMenuWidget(menubar)
-
-
-    def apply_dark_palette(self, app):
-        dark_palette = QPalette()
-        # Dark theme colors with higher contrast
-        dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))  # Darker background
-        dark_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.Base, QColor(20, 20, 20))  # Darker for input fields
-        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
-        dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(35, 35, 35))
-        dark_palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.Button, QColor(40, 40, 40))  # Darker buttons
-        dark_palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
-        dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-        dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)  # White text on highlight
-        app.setPalette(dark_palette)
-
-    def is_system_dark(self):
-        """Verify if the system theme is dark"""
-
-        # Check GTK theme
-        gtk_theme = os.environ.get("GTK_THEME", "").lower()
-        if "dark" in gtk_theme:
-            return True
-
-        # Check KDE theme via kreadconfig5/kreadconfig6
-        kde_commands = ["kreadconfig6", "kreadconfig5"]
-        for cmd in kde_commands:
-            if shutil.which(cmd):
-                try:
-                    # Check global KDE theme
-                    result = subprocess.run([cmd, "--group", "KDE", "--key", "ColorScheme"], 
-                                          capture_output=True, text=True, timeout=2)
-                    if result.returncode == 0:
-                        color_scheme = result.stdout.strip().lower()
-                        if any(dark_word in color_scheme for dark_word in ["dark", "breeze dark", "adwaita-dark", "oxygen-dark"]):
-                            return True
-
-                    # Alternative check via kdeglobals
-                    result = subprocess.run([cmd, "--file", "kdeglobals", "--group", "General", "--key", "ColorScheme"], 
-                                          capture_output=True, text=True, timeout=2)
-                    if result.returncode == 0:
-                        color_scheme = result.stdout.strip().lower()
-                        if any(dark_word in color_scheme for dark_word in ["dark", "breeze dark", "adwaita-dark", "oxygen-dark"]):
-                            return True
-                            
-                except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-                    continue
-
-        # Check via gsettings for GNOME/GTK
-        if shutil.which("gsettings"):
-            try:
-                result = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"], 
-                                      capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    theme_name = result.stdout.strip().lower().replace("'", "").replace('"', '')
-                    if "dark" in theme_name:
-                        return True
-
-                # Check color-scheme for newer GNOME versions
-                result = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
-                                      capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    color_scheme = result.stdout.strip().lower().replace("'", "").replace('"', '')
-                    if "dark" in color_scheme or "prefer-dark" in color_scheme:
-                        return True
-                        
-            except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-                pass
-
-        # Check via Qt palette as fallback
-        try:
-            app = QApplication.instance()
-            if app:
-                palette = app.palette()
-                window_color = palette.color(QPalette.ColorRole.Window)
-                # If the background color is dark (brightness < 128)
-                brightness = (window_color.red() + window_color.green() + window_color.blue()) / 3
-                if brightness < 128:
-                    return True
-        except:
-            pass
-            
-        return False
-
-    def apply_light_palette(self, app):
-        """Applies a light palette with increased contrast"""
-        light_palette = QPalette()
-        # Pure white background for better distinction from system theme
-        light_palette.setColor(QPalette.ColorRole.Window, QColor(245, 245, 245))  # Light gray background
-        light_palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
-        light_palette.setColor(QPalette.ColorRole.Base, QColor(250, 250, 250))  # Light gray for fields
-        light_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
-        light_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
-        light_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(0, 0, 0))
-        light_palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))
-        light_palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
-        light_palette.setColor(QPalette.ColorRole.ButtonText, QColor(0, 0, 0))
-        light_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-        light_palette.setColor(QPalette.ColorRole.Link, QColor(0, 0, 255))
-        light_palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
-        light_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
-        app.setPalette(light_palette)
-
-    def apply_femboy_palette(self, app):
-        """Applies a pink-blue Femboy-edition palette with pastel colors"""
-        femboy_palette = QPalette()
-        # Soft pastel pink-blue colors
-        femboy_palette.setColor(QPalette.ColorRole.Window, QColor(255, 240, 248))  # Soft pink background
-        femboy_palette.setColor(QPalette.ColorRole.WindowText, QColor(75, 0, 130))  # Dark purple text
-        femboy_palette.setColor(QPalette.ColorRole.Base, QColor(255, 228, 248))  # Light pink for fields
-        femboy_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(240, 248, 255))  # Light blue
-        femboy_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 192, 203))  # Pink tooltip
-        femboy_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(75, 0, 130))
-        femboy_palette.setColor(QPalette.ColorRole.Text, QColor(75, 0, 130))  # Dark purple
-        femboy_palette.setColor(QPalette.ColorRole.Button, QColor(255, 182, 193))  # Light pink buttons
-        femboy_palette.setColor(QPalette.ColorRole.ButtonText, QColor(75, 0, 130))
-        femboy_palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 20, 147))  # Bright pink
-        femboy_palette.setColor(QPalette.ColorRole.Link, QColor(138, 43, 226))  # Purple links
-        femboy_palette.setColor(QPalette.ColorRole.Highlight, QColor(255, 105, 180))  # Pink highlight
-        femboy_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
-        app.setPalette(femboy_palette)
-
-    def set_theme(self, theme):
-        self.settings.setValue("theme", theme)
-        self.settings.sync()
-        for t, action in self.theme_actions.items():
-            action.setChecked(t == theme)
-        app = QApplication.instance()
-        
-        # First, clear all custom styles
-        for widget in self.findChildren(QLabel):
-            widget.setStyleSheet("")
-        for widget in self.findChildren(QLineEdit):
-            widget.setStyleSheet("")
-        for widget in self.findChildren(QGroupBox):
-            widget.setStyleSheet("")
-        for widget in self.findChildren(QPushButton):
-            widget.setStyleSheet("")
-        
-        if theme == "Dark":
-            app.setStyle('Fusion')
-            self.apply_dark_palette(app)
-            # Additional styles for dark theme
-            for widget in self.findChildren(QLabel):
-                widget.setStyleSheet("color: white;")
-            for widget in self.findChildren(QLineEdit):
-                widget.setStyleSheet("color: white; background-color: #141414; border: 1px solid #555; padding: 2px;")
-            for widget in self.findChildren(QGroupBox):
-                widget.setStyleSheet("QGroupBox { font-weight: bold; }")
-            for widget in self.findChildren(QPushButton):
-                widget.setStyleSheet("QPushButton { font-weight: bold;}")
-                
-        elif theme == "Light":
-            app.setStyle('Fusion')  # Using Fusion for better customization
-            self.apply_light_palette(app)
-            # Additional styles for light theme
-            for widget in self.findChildren(QLabel):
-                widget.setStyleSheet("color: black;")
-            for widget in self.findChildren(QLineEdit):
-                widget.setStyleSheet("color: black; background-color: #fafafa; border: 1px solid #ccc; padding: 2px;")
-            for widget in self.findChildren(QGroupBox):
-                widget.setStyleSheet("QGroupBox { font-weight: bold; }")
-            for widget in self.findChildren(QPushButton):
-                widget.setStyleSheet("QPushButton { font-weight: bold;}")
-                
-        elif theme == "Femboy":
-            app.setStyle('Fusion')
-            self.apply_femboy_palette(app)
-            # Special styles for Femboy theme
-            for widget in self.findChildren(QLabel):
-                widget.setStyleSheet("color: #4B0082; font-weight: normal;")  # Dark purple
-            for widget in self.findChildren(QLineEdit):
-                widget.setStyleSheet("color: #4B0082; background-color: #FFE4F8; border: 2px solid #FFB6C1; border-radius: 6px; padding: 4px;")
-            # Special styles for group boxes
-            for widget in self.findChildren(QGroupBox):
-                widget.setStyleSheet("QGroupBox { color: #4B0082; font-weight: bold; }")
-            # Special styles for buttons
-            for widget in self.findChildren(QPushButton):
-                widget.setStyleSheet("QPushButton { background-color: #FFB6C1; color: #4B0082; border: 2px solid #FF69B4; border-radius: 8px; padding: 6px; font-weight: bold; } QPushButton:hover { background-color: #FF69B4; } QPushButton:pressed { background-color: #FF1493; }")
-                
-        else:  # System
-            # Using native system style
-            app.setStyle(app.style().objectName() if hasattr(app.style(), 'objectName') else 'Fusion')
-            
-            if self.is_system_dark():
-                self.apply_dark_palette(app)
-                for widget in self.findChildren(QLabel):
-                    widget.setStyleSheet("color: white;")
-                for widget in self.findChildren(QLineEdit):
-                    widget.setStyleSheet("color: white; background-color: #232323; border: 1px solid #555; padding: 2px;")
-            else:
-                # Using system palette for light system theme
-                app.setPalette(app.style().standardPalette())
-                for widget in self.findChildren(QLabel):
-                    widget.setStyleSheet("")
-                for widget in self.findChildren(QLineEdit):
-                    widget.setStyleSheet("")
-                for widget in self.findChildren(QPushButton):
-                    widget.setStyleSheet("")
-                for widget in self.findChildren(QGroupBox):
-                    widget.setStyleSheet("")
-                    
-        self.refresh_ui_texts(update_menubar=False)
-
-    def apply_font_to_widgets(self):
-        """Apply current font settings to all widgets"""
-        font_weight = self.settings.value("font_weight", "Normal")
-        font_size = int(self.settings.value("font_size", 9))
-        
-        font = QFont()
-        font.setPointSize(font_size)
-        font.setWeight(QFont.Weight.Bold if font_weight == "Bold" else QFont.Weight.Normal)
-        
-        # Apply font to application
-        QApplication.setFont(font)
-        
-        # Force update font on all child widgets
-        self.setFont(font)
-        
-        # Explicitly update fonts for key widgets
-        for widget in self.findChildren(QLabel):
-            widget.setFont(font)
-        for widget in self.findChildren(QPushButton):
-            widget.setFont(font)
-        for widget in self.findChildren(QLineEdit):
-            widget.setFont(font)
-        for widget in self.findChildren(QGroupBox):
-            widget.setFont(font)
-        for widget in self.findChildren(QComboBox):
-            widget.setFont(font)
-        for widget in self.findChildren(QCheckBox):
-            widget.setFont(font)
-        
-        # Update table font
-        if hasattr(self, 'table'):
-            self.table.setFont(font)
-            # Update table headers
-            self.table.horizontalHeader().setFont(font)
-            self.table.verticalHeader().setFont(font)
-        
-        # Force repaint
-        self.update()
-
-    def set_font_weight(self, weight):
-        self.settings.setValue("font_weight", weight)
-        self.settings.sync()
-        for w, action in self.font_actions.items():
-            action.setChecked(w == weight)
-        self.apply_font_to_widgets()
-
-    def set_font_size(self, size):
-        self.settings.setValue("font_size", size)
-        self.settings.sync()
-        for s, action in self.font_size_actions.items():
-            action.setChecked(s == size)
-        self.apply_font_to_widgets()
-
-    def _make_theme_callback(self, theme):
-        return lambda checked=False, t=theme: self.set_theme(t)
 
     def change_language(self, lang):
         self.settings.setValue("language", lang)
@@ -869,13 +613,29 @@ class BinParserGUI(QMainWindow):
         if hasattr(self, 'global_search_line') and self.global_search_line is not None:
             self.global_search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
         self.create_menubar()
+        
+        # Update theme and font checkboxes after recreating menubar
+        if hasattr(self, 'theme_manager'):
+            current_theme = self.theme_manager.get_current_theme()
+            for theme, action in getattr(self, "theme_actions", {}).items():
+                action.setChecked(theme == current_theme)
+                
+            current_weight = self.theme_manager.get_current_font_weight()
+            for weight, action in getattr(self, "font_actions", {}).items():
+                action.setChecked(weight == current_weight)
+                
+            current_size = self.theme_manager.get_current_font_size()
+            for size, action in getattr(self, "font_size_actions", {}).items():
+                action.setChecked(size == current_size)
+        
         for header, action in getattr(self, "column_actions", {}).items():
             col = self.headers.index(header)
             action.setChecked(not self.table.isColumnHidden(col))
         self.version()
         self.gamename()
         # Apply fonts to all widgets
-        self.apply_font_to_widgets()
+        if hasattr(self, 'theme_manager'):
+            self.theme_manager.apply_font_to_widgets()
         if update_menubar:
             self.create_menubar()
 
@@ -1932,7 +1692,7 @@ def main():
 
     window = BinParserGUI(language)
     theme = settings.value("theme", "System")
-    window.set_theme(theme)
+    window.theme_manager.set_theme(theme)
     window.show()
     sys.exit(app.exec())
 

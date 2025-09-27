@@ -25,6 +25,7 @@ A graphical tool (PyQt6) for viewing, editing, and localizing Steam achievement 
 - [🧠 Processing Algorithm](#-processing-algorithm)
 - [🛠 Architecture & Technical Details](#-architecture--technical-details)
 - [❓ FAQ](#-faq)
+- [🎨 Theme Development](#-theme-development)
 - [🤝 Contributing](#-contributing)
 - [🔐 License](#-license)
 - [👤 Author & Community](#-author--community)
@@ -187,6 +188,21 @@ This lets you repurpose the english column as a normalized / cleaned / community
    - no crashes when switching UI language.
 
 To propose an idea without code — open an Issue.
+
+---
+
+## 🎨 Theme Development
+
+Want to create custom themes for the application? Check out our comprehensive guides:
+
+- **📖 [Theme Creation Guide (English)](readmes/contribution/THEMES.md)** - Complete instructions for creating custom themes
+- **📖 [Посібник зі створення тем (Українська)](readmes/contribution/THEMES_UA.md)** - Повна інструкція українською мовою
+
+Learn how to:
+- Create JSON theme files with custom colors and styles
+- Configure theme ordering in the interface  
+- Add localization for theme names
+- Share your themes with the community
 
 ---
 

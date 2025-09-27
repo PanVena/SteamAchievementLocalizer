@@ -25,6 +25,7 @@ Graficzne narzędzie (PyQt6) do przeglądania, edycji i lokalizacji plików osi�
 - [🧠 Algorytm przetwarzania](#-algorytm-przetwarzania)
 - [🛠 Architektura i szczegóły techniczne](#-architektura-i-szczegóły-techniczne)
 - [❓ FAQ](#-faq)
+- [🎨 Tworzenie motywów](#-tworzenie-motywów)
 - [🤝 Kontrybucja](#-kontrybucja)
 - [🔐 Licencja](#-licencja)
 - [👤 Autor i społeczność](#-autor-i-społeczność)
@@ -187,6 +188,21 @@ Pamiętaj, że inne lokalizacje mogą polegać na pierwotnym znaczeniu angielski
    - brak crashy przy zmianie języka UI.
 
 Pomysł bez kodu? — Utwórz Issue.
+
+---
+
+## 🎨 Tworzenie motywów
+
+Chcesz stworzyć własne motywy dla aplikacji? Sprawdź nasze szczegółowe przewodniki:
+
+- **📖 [Przewodnik tworzenia motywów (Polski)](contribution/THEMES.md)** - Instrukcje w języku angielskim
+- **📖 [Посібник зі створення тем (Українська)](contribution/THEMES_UA.md)** - Pełna instrukcja po ukraińsku
+
+Dowiedz się jak:
+- Tworzyć pliki JSON motywów z własnymi kolorami i stylami
+- Konfigurować kolejność motywów w interfejsie  
+- Dodawać lokalizację dla nazw motywów
+- Dzielić się swoimi motywami ze społecznością
 
 ---
 
