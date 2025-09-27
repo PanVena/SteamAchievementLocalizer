@@ -1,4 +1,10 @@
 {
+    "_locale_info": {
+        "name": "Polski",
+        "native_name": "Polski (Polish)",
+        "code": "pl",
+        "priority": 30
+    },
     "app_title": "Lokalizator osiągnięć Steam od Veny ver ",
     "warning_title_achtung": "Uwaga",
     "warning_message": "Możliwe błędy – w razie ich wystąpienia proszę zgłaszać je na stronie GitHub lub pisać prywatnie na Telegramie: <b>@Pan_Vena</b>, Discordzie: <b>pan_vena</b><br>albo pisz na pocztę: <b>pan.vena@ukr.net</b><br>Moje inne dane kontaktowe znajdziesz w sekcji 'O programie'",

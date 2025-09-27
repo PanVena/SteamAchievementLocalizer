@@ -1,6 +1,11 @@
 {
   "name": "Light",
-  "display_name": "light",
+  "display_names": {
+    "en": "Light",
+    "ua": "Світла",
+    "pl": "Jasny"
+  },
+  "priority": 30,
   "style": "Fusion",
   "palette": {
     "window": [245, 245, 245],

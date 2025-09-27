@@ -32,6 +32,58 @@ if sys.platform == "win32":
 
 APP_VERSION = "8.0.0" 
 
+LOCALES_DIR = "assets/locales"
+
+def load_available_locales():
+    """Load available locales from the locales directory"""
+    locales = {}
+    if os.path.exists(LOCALES_DIR):
+        for filename in os.listdir(LOCALES_DIR):
+            if filename.endswith('.json'):
+                file_path = os.path.join(LOCALES_DIR, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        locale_data = json.load(f)
+                        # Check if locale has metadata
+                        if '_locale_info' in locale_data:
+                            locale_info = locale_data['_locale_info']
+                            locale_name = locale_info.get('name')
+                            if locale_name:
+                                locales[locale_name] = {
+                                    'file_path': file_path,
+                                    'native_name': locale_info.get('native_name', locale_name),
+                                    'code': locale_info.get('code', filename[5:7]),  # Extract from filename
+                                    'priority': locale_info.get('priority', 999),
+                                    'data': locale_data
+                                }
+                        else:
+                            # Fallback for locales without metadata - use filename
+                            if filename.startswith('lang_') and len(filename) >= 12:
+                                code = filename[5:7]  # Extract code like "en" from "lang_en.json"
+                                locale_name = f"Language_{code}".capitalize()
+                                locales[locale_name] = {
+                                    'file_path': file_path,
+                                    'native_name': locale_name,
+                                    'code': code,
+                                    'priority': 999,
+                                    'data': locale_data
+                                }
+                except (json.JSONDecodeError, FileNotFoundError) as e:
+                    print(f"Error loading locale from {filename}: {e}")
+    return locales
+
+def get_sorted_locale_names(locales):
+    """Get locale names sorted by priority and name"""
+    locale_list = []
+    for name, info in locales.items():
+        priority = info.get('priority', 999)
+        locale_list.append((priority, name))
+    
+    # Sort by priority (ascending), then by name (alphabetically)
+    locale_list.sort(key=lambda x: (x[0], x[1]))
+    return [name for priority, name in locale_list]
+
+# Legacy support - will be replaced by automatic loading
 LANG_FILES = {
     "English": "assets/locales/lang_en.json",
     "Українська": "assets/locales/lang_ua.json",
@@ -46,18 +98,26 @@ def choose_language():
     if current_language:
         return current_language  # Already saved language
 
-    # Ask user to choose language with language-specific names
-    lang_options = {
-        "English": "English",
-        "Українська": "Українська (Ukrainian)", 
-        "Polski": "Polski (Polish)"
-    }
+    # Load available locales dynamically
+    locales = load_available_locales()
+    
+    if not locales:
+        return "English"  # Fallback if no locales found
+    
+    # Create language options from loaded locales
+    lang_options = {}
+    for locale_name, locale_info in locales.items():
+        lang_options[locale_name] = locale_info['native_name']
+    
+    # Sort language options by priority
+    sorted_names = get_sorted_locale_names(locales)
+    sorted_options = [(name, lang_options[name]) for name in sorted_names if name in lang_options]
     
     lang, ok = QInputDialog.getItem(
         None,
         "Select Language",
         "Choose your language:",
-        list(lang_options.values()),
+        [display_name for name, display_name in sorted_options],
         0,
         False
     )
@@ -65,9 +125,9 @@ def choose_language():
     if ok and lang:
         # Find the key for selected display name
         selected_key = None
-        for key, display_name in lang_options.items():
+        for name, display_name in sorted_options:
             if display_name == lang:
-                selected_key = key
+                selected_key = name
                 break
         
         if selected_key:
@@ -75,7 +135,9 @@ def choose_language():
             settings.sync()
             return selected_key
 
-    return "English"  # Default language
+    # Default to first available locale or English
+    default_locale = sorted_names[0] if sorted_names else "English"
+    return default_locale
 
 def resource_path(relative_path: str) -> str:
     """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
@@ -97,8 +159,30 @@ def load_json_with_fallback(path):
 
     settings = QSettings("Vena", "Steam Achievement Localizer")
     language = settings.value("language", "English")
-    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
-    raise RuntimeError(f"{translations.get('cannot_decode_json')}{path}")
+    translations = load_translations_for_language(language)
+    raise RuntimeError(f"{translations.get('cannot_decode_json', 'Cannot decode JSON: ')}{path}")
+
+def load_translations_for_language(language):
+    """Load translations for a specific language using the new locale system"""
+    locales = load_available_locales()
+    
+    # Try to find the requested language
+    if language in locales:
+        locale_info = locales[language]
+        return locale_info['data']
+    
+    # Fallback to legacy system if not found in new system
+    if language in LANG_FILES:
+        return load_json_with_fallback(resource_path(LANG_FILES[language]))
+    
+    # Final fallback to English
+    if "English" in locales:
+        return locales["English"]['data']
+    elif "English" in LANG_FILES:
+        return load_json_with_fallback(resource_path(LANG_FILES["English"]))
+    
+    # Return empty dict if nothing works
+    return {}
     
 class BinParserGUI(QMainWindow):
 
@@ -117,7 +201,10 @@ class BinParserGUI(QMainWindow):
         self.steam_integration = SteamIntegration()
         self.csv_handler = CSVHandler()
         self.file_manager = FileManager()
-        # Store LANG_FILES for ui_builder access
+        
+        # Load available locales and store for ui_builder access
+        self.available_locales = load_available_locales()
+        # Keep legacy LANG_FILES for backward compatibility
         self.LANG_FILES = LANG_FILES
         
         self.translations = self.load_language(language)
@@ -560,9 +647,8 @@ class BinParserGUI(QMainWindow):
                 self.translation_lang_combo.setVisible(False)
 
     def load_language(self, language):
-        """Load language file using file_manager plugin"""
-        path = resource_path(LANG_FILES[language])
-        return self.file_manager.load_json_with_fallback(path)
+        """Load language file using new locale system"""
+        return load_translations_for_language(language)
 
     def refresh_ui_texts(self, update_menubar=True):
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
@@ -1537,7 +1623,7 @@ def main():
         language = choose_language()
         settings.setValue("language", language)
         settings.sync()
-    translations = load_json_with_fallback(resource_path(LANG_FILES.get(language, LANG_FILES["English"])))
+    translations = load_translations_for_language(language)
 
     last_version = settings.value("last_version", "")
 

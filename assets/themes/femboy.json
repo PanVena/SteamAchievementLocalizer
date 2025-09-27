@@ -1,6 +1,11 @@
 {
   "name": "Femboy",
-  "display_name": "femboy",
+  "display_names": {
+    "en": "💖 Femboy Edition",
+    "ua": "💖 Femboy Edition",
+    "pl": "💖 Femboy Edition"
+  },
+  "priority": 100,
   "style": "Fusion",
   "palette": {
     "window": [255, 240, 248],

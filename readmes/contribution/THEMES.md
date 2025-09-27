@@ -11,8 +11,13 @@ Create a new file in the `assets/themes/` folder named `theme_name.json`.
 File structure:
 ```json
 {
-  "name": "ThemeName",               // Theme name (how it will be saved in settings)
-  "display_name": "display",         // Key for localization (theme_display in lang files)
+  "name": "ThemeName",               // Theme name (internal identifier)
+  "display_names": {                 // Localized display names
+    "en": "English Name",
+    "ua": "Українська назва", 
+    "pl": "Nazwa polska"
+  },
+  "priority": 50,                    // Sort priority (lower = higher in menu)
   "style": "Fusion",                 // Qt style: "Fusion", "system" or other
   "palette": {                       // Color palette
     "window": [R, G, B],             // RGB or "white"/"red" etc
@@ -38,30 +43,23 @@ File structure:
 }
 ```
 
-### Step 2: Add theme to order (optional)
+### What is needed:
 
-If you want the theme to appear in a specific place in the menu, edit the file `assets/plugins/theme_manager.py`:
+- **name**: Internal theme identifier (must be unique)
+- **display_names**: Localized names for menu (optional, falls back to name)
+- **priority**: Menu sort order (10=System, 20=Dark, 30=Light, 100=Femboy, default=999)
+- **style**: Qt application style
+- **palette**: Color scheme
+- **styles**: Widget-specific CSS
 
-```python
-self.theme_order = [
-    "System",
-    "Dark", 
-    "Light",
-    "YourNewTheme",  # Add here
-    "Femboy",
-    "Blue"
-]
-```
+### Step 2: No code editing needed!
 
-### Step 3: Add localization (optional)
-
-In the files `assets/locales/lang_*.json` add translation:
-
-```json
-{
-  "theme_yourname": "Your Theme Name"
-}
-```
+The theme will automatically appear in the menu after program restart.
+The system will:
+- Load theme from JSON automatically
+- Sort by priority then alphabetically  
+- Use localized names from display_names
+- Fall back to English or theme name if translation missing
 
 ## Existing themes
 
@@ -83,7 +81,12 @@ In the files `assets/locales/lang_*.json` add translation:
 ```json
 {
   "name": "Green",
-  "display_name": "green", 
+  "display_names": {
+    "en": "🌿 Green Nature",
+    "ua": "🌿 Зелена Природа", 
+    "pl": "🌿 Zielona Natura"
+  },
+  "priority": 40,
   "style": "Fusion",
   "palette": {
     "window": [240, 255, 240],

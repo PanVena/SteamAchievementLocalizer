@@ -13,15 +13,6 @@ class ThemeManager:
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
         self.themes_dir = "assets/themes"
         
-        # Defined theme order (System on top, then Dark/Light)
-        self.theme_order = [
-            "System",    # System theme - on top
-            "Dark",      # Dark theme
-            "Light",     # Light theme
-            "Femboy"     # Femboy theme
-            # Add new themes here or they will be sorted alphabetically
-        ]
-        
         self.available_themes = self._load_available_themes()
     
     def _load_available_themes(self):
@@ -30,47 +21,51 @@ class ThemeManager:
         if os.path.exists(self.themes_dir):
             for filename in os.listdir(self.themes_dir):
                 if filename.endswith('.json'):
-                    theme_name = filename[:-5].capitalize()  # Remove .json and capitalize
                     theme_path = os.path.join(self.themes_dir, filename)
                     try:
                         with open(theme_path, 'r', encoding='utf-8') as f:
                             theme_data = json.load(f)
-                            themes[theme_name] = theme_data
+                            # Use the 'name' from JSON as the key
+                            theme_name = theme_data.get('name')
+                            if theme_name:
+                                themes[theme_name] = theme_data
+                            else:
+                                # Fallback to filename if no name in JSON
+                                theme_name = filename[:-5].capitalize()
+                                themes[theme_name] = theme_data
                     except (json.JSONDecodeError, FileNotFoundError) as e:
-                        print(f"Error loading theme {theme_name}: {e}")
+                        print(f"Error loading theme from {filename}: {e}")
         return themes
     
     def get_available_theme_names(self):
-        """Get list of available theme names in defined order"""
-        available_themes = list(self.available_themes.keys())
+        """Get list of available theme names sorted by priority and name"""
+        themes_list = []
         
-        # Sort themes according to defined order
-        ordered_themes = []
+        for theme_name, theme_data in self.available_themes.items():
+            priority = theme_data.get('priority', 999)  # Default priority for themes without it
+            themes_list.append((priority, theme_name))
         
-        # First add themes from defined order
-        for theme_name in self.theme_order:
-            if theme_name in available_themes:
-                ordered_themes.append(theme_name)
+        # Sort by priority (ascending), then by name (alphabetically)
+        themes_list.sort(key=lambda x: (x[0], x[1]))
         
-        # Then add all other themes alphabetically
-        remaining_themes = [theme for theme in available_themes if theme not in ordered_themes]
-        remaining_themes.sort()
-        ordered_themes.extend(remaining_themes)
-        
-        return ordered_themes
+        return [theme_name for priority, theme_name in themes_list]
     
-    def add_theme_to_order(self, theme_name, position=None):
-        """Add theme to defined order
+    def get_theme_display_name(self, theme_name, language_code='en'):
+        """Get localized display name for theme"""
+        if theme_name not in self.available_themes:
+            return theme_name
+            
+        theme_data = self.available_themes[theme_name]
         
-        Args:
-            theme_name (str): Theme name
-            position (int, optional): Position in list. If None, adds to end
-        """
-        if theme_name not in self.theme_order:
-            if position is None:
-                self.theme_order.append(theme_name)
-            else:
-                self.theme_order.insert(position, theme_name)
+        # Try to get display name in requested language
+        display_names = theme_data.get('display_names', {})
+        if display_names:
+            # Try requested language, fallback to English, then to theme name
+            return display_names.get(language_code, 
+                                    display_names.get('en', theme_name))
+        
+        # Fallback to theme name if no display_names
+        return theme_name
     
     def apply_palette_from_config(self, app, palette_config):
         """Apply palette from configuration"""

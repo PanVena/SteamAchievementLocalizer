@@ -1,6 +1,11 @@
 {
   "name": "System",
-  "display_name": "system",
+  "display_names": {
+    "en": "System",
+    "ua": "Системна",
+    "pl": "Systemowy"
+  },
+  "priority": 10,
   "style": "system",
   "palette": "system",
   "styles": {

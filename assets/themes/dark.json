@@ -1,6 +1,11 @@
 {
   "name": "Dark",
-  "display_name": "dark",
+  "display_names": {
+    "en": "Dark",
+    "ua": "Темна",
+    "pl": "Ciemny"
+  },
+  "priority": 20,
   "style": "Fusion",
   "palette": {
     "window": [30, 30, 30],

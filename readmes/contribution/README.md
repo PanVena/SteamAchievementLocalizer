@@ -7,6 +7,11 @@ This folder contains documentation for contributors and developers.
 - **[THEMES.md](THEMES.md)** - Complete theme creation guide in English
 - **[THEMES_UA.md](THEMES_UA.md)** - Повний посібник зі створення тем українською мовою
 
+## Localization
+
+- **[LOCALES.md](LOCALES.md)** - Language addition guide in English  
+- **[LOCALES_UA.md](LOCALES_UA.md)** - Посібник з додавання мов українською мовою
+
 ## Adding New Documentation
 
 When adding new contribution documentation:

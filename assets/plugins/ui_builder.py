@@ -241,23 +241,39 @@ class UIBuilder:
         """Create Language menu"""
         language_menu = QMenu(self.translations.get("language", "Language"), self.parent)
         
-        # Get available languages from parent
-        if hasattr(self.parent, 'LANG_FILES'):
-            lang_files = self.parent.LANG_FILES
+        # Get available locales from parent (new system)
+        if hasattr(self.parent, 'available_locales') and self.parent.available_locales:
+            # Use new locale system - sort locales by priority
+            locale_list = []
+            for name, info in self.parent.available_locales.items():
+                priority = info.get('priority', 999)
+                locale_list.append((priority, name, info))
+            
+            # Sort by priority (ascending), then by name (alphabetically)
+            locale_list.sort(key=lambda x: (x[0], x[1]))
+            
+            for priority, lang_name, locale_info in locale_list:
+                display_name = locale_info['native_name']
+                
+                action = QAction(display_name, self.parent)
+                action.triggered.connect(
+                    lambda checked, l=lang_name: self.parent.change_language(l)
+                )
+                language_menu.addAction(action)
         else:
-            # Fallback
-            lang_files = {
+            # Fallback to legacy system
+            lang_files = getattr(self.parent, 'LANG_FILES', {
                 "English": "assets/locales/lang_en.json",
                 "Українська": "assets/locales/lang_ua.json", 
                 "Polski": "assets/locales/lang_pl.json"
-            }
-        
-        for lang in lang_files.keys():
-            action = QAction(lang, self.parent)
-            action.triggered.connect(
-                lambda checked, l=lang: self.parent.change_language(l)
-            )
-            language_menu.addAction(action)
+            })
+            
+            for lang in lang_files.keys():
+                action = QAction(lang, self.parent)
+                action.triggered.connect(
+                    lambda checked, l=lang: self.parent.change_language(l)
+                )
+                language_menu.addAction(action)
         
         return language_menu
     
@@ -289,13 +305,12 @@ class UIBuilder:
         self.parent.theme_actions = {}
         current_theme = self.parent.theme_manager.get_current_theme()
         
+        # Get current language code for theme localization
+        language_code = self._get_language_code_for_themes()
+        
         available_themes = self.parent.theme_manager.get_available_theme_names()
         for theme in available_themes:
-            if theme == "Femboy":
-                display_name = "💖 Femboy Edition"
-            else:
-                display_name = self.translations.get(f"theme_{theme.lower()}", theme)
-            
+            display_name = self.parent.theme_manager.get_theme_display_name(theme, language_code)
             action = QAction(display_name, self.parent, checkable=True)
             action.setChecked(theme == current_theme)
             action.triggered.connect(
@@ -307,6 +322,15 @@ class UIBuilder:
             self.parent.theme_actions[theme] = action
         
         return theme_menu
+    
+    def _get_language_code_for_themes(self):
+        """Get language code for theme localization"""
+        language_map = {
+            "English": "en",
+            "Українська": "ua",
+            "Polski": "pl"
+        }
+        return language_map.get(self.parent.language, "en")
     
     def _create_font_weight_submenu(self) -> QMenu:
         """Create font weight submenu"""

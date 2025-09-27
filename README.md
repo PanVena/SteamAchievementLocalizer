@@ -26,6 +26,7 @@ A graphical tool (PyQt6) for viewing, editing, and localizing Steam achievement 
 - [🛠 Architecture & Technical Details](#-architecture--technical-details)
 - [❓ FAQ](#-faq)
 - [🎨 Theme Development](#-theme-development)
+- [🌍 Localization](#-localization)
 - [🤝 Contributing](#-contributing)
 - [🔐 License](#-license)
 - [👤 Author & Community](#-author--community)
@@ -34,30 +35,32 @@ A graphical tool (PyQt6) for viewing, editing, and localizing Steam achievement 
 ---
 
 ## ✨ Features
-- Auto-detection of Steam path (Windows Registry / Linux / Snap variants; macOS partially covered for now).
-- Two loading modes:
+- **🚀 Auto-detection of Steam path** (Windows Registry / Linux / Snap variants; macOS partially covered for now).
+- **📂 Two loading modes:**
   - manual (select a `.bin`);
   - by Game ID (you can paste a full URL like `https://store.steampowered.com/app/123456/`).
-- Achievement parsing and table build:
+- **🏆 Achievement parsing and table build:**
   - automatic creation of a separate row for descriptions (`*_opis`) if the block has duplicates;
   - automatic addition of a `ukrainian` column if missing;
   - guaranteed presence of `english` (empty if absent in the file).
-- Table editing directly inside the app.
-- Global search with highlighting + row filtering.
-- Find / Replace for a selected column (dialog-based).
-- Toggle column visibility.
-- CSV export:
+- **✏️ Table editing** directly inside the app.
+- **🔍 Global search** with highlighting + row filtering.
+- **🔄 Find / Replace** for a selected column (dialog-based).
+- **👁️ Toggle column visibility**.
+- **📤 CSV export:**
   - full (all languages in the file);
   - translation format (english + translation + context).
-- CSV import back into a chosen language column.
-- Overwrite localizations inside the binary file.
-- View and open the original binary in the file manager.
-- List of all `UserGameStatsSchema_*.bin` in Steam with:
+- **📥 CSV import** back into a chosen language column.
+- **💾 Overwrite localizations** inside the binary file.
+- **📁 View and open** the original binary in the file manager.
+- **📋 List of all `UserGameStatsSchema_*.bin`** in Steam with:
   - game name (`gamename`);
   - version (`version`);
   - approximate achievement count (heuristic via number of English entries).
-- Settings caching via `QSettings`: UI language, paths, last ID, last version (for update warning).
-- Multilingual UI (English / Українська / Polski).
+- **⚙️ Settings caching** via `QSettings`: UI language, paths, last ID, last version (for update warning).
+- **🌍 Extensible multilingual UI** - currently English / Українська / Polski.
+- **🎨 Dynamic theming system** - themes auto-load from JSON files.
+- **🔌 Plugin architecture** with modular components.
 
 ---
 
@@ -155,10 +158,12 @@ This lets you repurpose the english column as a normalized / cleaned / community
 |-----------|-------------|
 | GUI | PyQt6 (`QMainWindow`, `QTableWidget`) |
 | State persistence | `QSettings` (language, paths, version, last ID) |
-| Locale files | JSON under `assets/locales/` |
+| **Localization** | **Auto-loading JSON from `assets/locales/` with metadata support** |
+| **Theming** | **Auto-loading JSON from `assets/themes/` with priority-based sorting** |
+| **Plugin system** | **Modular components: `theme_manager`, `ui_builder`, `file_manager`, etc.** |
 | Search highlighting | Custom `HighlightDelegate` |
 | Dialogs | `FindReplaceDialog`, `ContextLangDialog`, `UserGameStatsListDialog` |
-| UI localization | Custom JSON system (not Qt Linguist) |
+| UI framework | Custom JSON localization system (not Qt Linguist) |
 | Insertion algorithm | Positional scanning + byte-wise `bytearray` assembly |
 | Row formation | Heuristic to avoid duplicates (description goes into `_opis`) |
 
@@ -173,15 +178,16 @@ This lets you repurpose the english column as a normalized / cleaned / community
 | Garbled characters | Ensure UTF-8 and proper CSV formatting |
 | No undo after import | Import rebuilds the table completely — expected |
 | How many languages are supported? | As many as exist in the `.bin` + enforced `ukrainian` |
-| Can I add another UI language? | Yes: add JSON in `assets/locales/` and update `LANG_FILES` |
+| Can I add another UI language? | Yes: add JSON in `assets/locales/` |
 
 ---
 
 ## 🤝 Contributing
 1. Fork → create a branch → make changes → Pull Request.
 2. Clearly state what the PR changes (UI / logic / localization).
-3. For languages — update the JSON under `assets/locales/` and edit `LANG_FILES` at the top of `SteamAchievementLocalizer.py`.
-4. Verify:
+3. **For themes** — simply add JSON files to `assets/themes/` (see [theme guide](readmes/contribution/THEMES.md)).
+4. **For languages** — simply add JSON files to `assets/locales/` (see [localization guide](readmes/contribution/LOCALES.md)).
+5. Verify:
    - file loading;
    - export / import;
    - saving into Steam and to a separate file;
@@ -193,16 +199,71 @@ To propose an idea without code — open an Issue.
 
 ## 🎨 Theme Development
 
-Want to create custom themes for the application? Check out our comprehensive guides:
+Want to create custom themes for the application? **No code editing required!** 
 
-- **📖 [Theme Creation Guide (English)](readmes/contribution/THEMES.md)** - Complete instructions for creating custom themes
-- **📖 [Посібник зі створення тем (Українська)](readmes/contribution/THEMES_UA.md)** - Повна інструкція українською мовою
+Simply create a JSON file in `assets/themes/` and your theme will automatically appear in the menu.
 
-Learn how to:
-- Create JSON theme files with custom colors and styles
-- Configure theme ordering in the interface  
-- Add localization for theme names
-- Share your themes with the community
+**📖 Documentation:**
+- **[Theme Creation Guide (English)](readmes/contribution/THEMES.md)** - Complete instructions for creating custom themes
+- **[Посібник зі створення тем (Українська)](readmes/contribution/THEMES_UA.md)** - Повна інструкція українською мовою
+
+**✨ Features:**
+- 🎨 **Auto-discovery**: Drop a JSON theme file → appears in menu automatically
+- 🌍 **Multi-language support**: Theme names in multiple languages
+- 📊 **Smart ordering**: Control theme position with priority values  
+- 🎯 **No coding**: Pure JSON configuration, no source code changes needed
+
+**Example theme structure:**
+```json
+{
+  "name": "MyTheme",
+  "display_names": {
+    "en": "🌙 Dark Blue",
+    "ua": "🌙 Темно-синя"
+  },
+  "priority": 50,
+  "palette": { /* colors */ },
+  "styles": { /* CSS */ }
+}
+```
+
+---
+
+## 🌍 Localization  
+
+Want to add your language to the application? **No code editing required!**
+
+Simply create a JSON file in `assets/locales/` and your language will automatically appear in the menu.
+
+**📖 Documentation:**
+- **[Language Addition Guide (English)](readmes/contribution/LOCALES.md)** - Complete instructions for adding new languages
+- **[Посібник з додавання мов (Українська)](readmes/contribution/LOCALES_UA.md)** - Повна інструкція українською мовою
+
+**✨ Features:**
+- 🌐 **Auto-discovery**: Drop a JSON locale file → appears in Language menu automatically
+- 📊 **Smart ordering**: Control language position with priority values
+- 🔄 **Fallback system**: Missing translations fall back to English
+- 🎯 **No coding**: Pure JSON configuration, no source code changes needed
+
+**Example locale structure:**
+```json
+{
+  "_locale_info": {
+    "name": "Español",
+    "native_name": "Español (Spanish)", 
+    "code": "es",
+    "priority": 40
+  },
+  "app_title": "Localizador de Logros...",
+  "language": "Idioma"
+  // ... other translations
+}
+```
+
+**Current languages:**
+- 🇬🇧 **English** (priority: 10)  
+- 🇺🇦 **Українська** (priority: 20)
+- 🇵🇱 **Polski** (priority: 30)
 
 ---
 
