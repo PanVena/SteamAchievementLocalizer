@@ -237,6 +237,11 @@ class BinParserGUI(QMainWindow):
         self.translation_lang_label = None
         self.translation_lang_combo = None
         
+        # Vertical separator сreation
+        self.translation_separator = QFrame()
+        self.translation_separator.setFrameShape(QFrame.Shape.VLine)
+        self.translation_separator.setFrameShadow(QFrame.Shadow.Sunken)
+
         if self.language not in ['Українська', 'Polski']:
             self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
             self.lang_layout.addWidget(self.translation_lang_label)
@@ -265,9 +270,6 @@ class BinParserGUI(QMainWindow):
             self.translation_separator.setVisible(False)
 
         # Vertical separator
-        self.translation_separator = QFrame()
-        self.translation_separator.setFrameShape(QFrame.Shape.VLine)
-        self.translation_separator.setFrameShadow(QFrame.Shadow.Sunken)
         self.lang_layout.addWidget(self.translation_separator)
 
 
