@@ -26,6 +26,7 @@ Graficzne narzędzie (PyQt6) do przeglądania, edycji i lokalizacji plików osi�
 - [🛠 Architektura i szczegóły techniczne](#-architektura-i-szczegóły-techniczne)
 - [❓ FAQ](#-faq)
 - [🎨 Tworzenie motywów](#-tworzenie-motywów)
+- [🌍 Lokalizacja](#-lokalizacja)
 - [🤝 Kontrybucja](#-kontrybucja)
 - [🔐 Licencja](#-licencja)
 - [👤 Autor i społeczność](#-autor-i-społeczność)
@@ -34,20 +35,32 @@ Graficzne narzędzie (PyQt6) do przeglądania, edycji i lokalizacji plików osi�
 ---
 
 ## ✨ Funkcje
-- Automatyczne wykrywanie ścieżki Steam (Rejestr Windows / Linux / warianty Snap; macOS częściowo obsługiwany).
-- Dwa sposoby ładowania:
+- **🚀 Automatyczne wykrywanie ścieżki Steam** (Rejestr Windows / Linux / warianty Snap; macOS częściowo obsługiwany).
+- **📂 Dwa sposoby ładowania:**
   - ręcznie (wybór `.bin`);
   - przez ID gry (można wkleić pełny URL `https://store.steampowered.com/app/123456/`).
-- Parsowanie osiągnięć i budowa tabeli:
+- **🏆 Parsowanie osiągnięć i budowa tabeli:**
   - automatyczne tworzenie osobnego wiersza dla opisów (`*_opis`) jeśli w bloku są duplikaty;
   - automatyczne dodanie kolumny `ukrainian`, jeśli brakuje;
   - gwarancja obecności `english` (puste jeśli nie ma w pliku).
-- Edycja tabeli bez opuszczania aplikacji.
-- Globalne wyszukiwanie z podświetleniem + filtrowanie wierszy.
-- Wyszukaj / Zamień dla wybranej kolumny (dialog).
-- Włączanie / wyłączanie widoczności kolumn.
-- Eksport CSV:
+- **✏️ Edycja tabeli** bez opuszczania aplikacji.
+- **🔍 Globalne wyszukiwanie** z podświetleniem + filtrowanie wierszy.
+- **🔄 Wyszukaj / Zamień** dla wybranej kolumny (dialog).
+- **👁️ Włączanie / wyłączanie widoczności kolumn**.
+- **📤 Eksport CSV:**
   - pełny (wszystkie języki z pliku);
+  - format tłumaczenia (english + tłumaczenie + kontekst).
+- **📥 Import CSV** z powrotem do wybranej kolumny języka.
+- **💾 Nadpisanie lokalizacji** wewnątrz pliku binarnego.
+- **📁 Podgląd i otwieranie** oryginalnego pliku binarnego w menedżerze plików.
+- **📋 Lista wszystkich `UserGameStatsSchema_*.bin`** w Steam z:
+  - nazwa gry (`gamename`);
+  - wersja (`version`);
+  - przybliżona liczba osiągnięć (heurystyka poprzez liczbę wpisów angielskich).
+- **⚙️ Cache ustawień** poprzez `QSettings`: język UI, ścieżki, ostatnie ID, ostatnia wersja (dla ostrzeżenia o aktualizacji).
+- **🌍 Rozszerzalny wielojęzyczny UI** - obecnie English / Українська / Polski.
+- **🎨 Dynamiczny system motywów** - motywy ładowane automatycznie z plików JSON.
+- **🔌 Architektura wtyczek** z modułowymi komponentami.
   - format do tłumaczenia (english + translation + kontekst).
 - Import CSV do wybranej kolumny językowej.
 - Nadpisywanie lokalizacji w pliku binarnym.
@@ -155,10 +168,12 @@ Pamiętaj, że inne lokalizacje mogą polegać na pierwotnym znaczeniu angielski
 |-----------|------|
 | GUI | PyQt6 (`QMainWindow`, `QTableWidget`) |
 | Przechowywanie stanu | `QSettings` (język, ścieżki, wersja, ostatnie ID) |
-| Pliki językowe | JSON w `assets/locales/` |
+| **Lokalizacja** | **Auto-ładowanie JSON z `assets/locales/` z obsługą metadanych** |
+| **Motywy** | **Auto-ładowanie JSON z `assets/themes/` z sortowaniem według priorytetu** |
+| **System wtyczek** | **Komponenty modułowe: `theme_manager`, `ui_builder`, `file_manager`, itp.** |
 | Podświetlenie wyszukiwania | Własny `HighlightDelegate` |
 | Dialogi | `FindReplaceDialog`, `ContextLangDialog`, `UserGameStatsListDialog` |
-| Lokalizacja interfejsu | Własny system JSON (nie Qt Linguist) |
+| Framework UI | Własny system lokalizacji JSON (nie Qt Linguist) |
 | Algorytm wstawiania | Skanowanie pozycyjne + składanie bajtów `bytearray` |
 | Budowa wierszy | Heurystyka unikania duplikatów (opis w `_opis`) |
 
@@ -173,15 +188,16 @@ Pamiętaj, że inne lokalizacje mogą polegać na pierwotnym znaczeniu angielski
 | Zniekształcone znaki | Upewnij się co do UTF-8 i poprawnego CSV |
 | Brak cofania po imporcie | Import przebudowuje tabelę całkowicie – to normalne |
 | Ile języków jest wspieranych? | Tyle, ile realnie jest w `.bin` + wymuszone `ukrainian` |
-| Mogę dodać język interfejsu? | Tak, dodaj JSON do `assets/locales/` i zaktualizuj `LANG_FILES` |
+| Mogę dodać język interfejsu? | Tak, dodaj JSON do `assets/locales/` |
 
 ---
 
 ## 🤝 Kontrybucja
 1. Fork → nowa gałąź → zmiany → Pull Request.
 2. Jasno opisz co zmienia PR (UI / logika / lokalizacja).
-3. Dla języków — zaktualizuj JSON w `assets/locales/` i edytuj `LANG_FILES` w `SteamAchievementLocalizer.py`.
-4. Sprawdź:
+3. **Dla motywów** — po prostu dodaj pliki JSON do `assets/themes/` (zobacz [przewodnik motywów](contribution/THEMES.md)).
+4. **Dla języków** — po prostu dodaj pliki JSON do `assets/locales/` (zobacz [przewodnik lokalizacji](contribution/LOCALES.md)).
+5. Sprawdź:
    - ładowanie pliku;
    - eksport / import;
    - zapis do Steam i do osobnego pliku;
@@ -193,16 +209,71 @@ Pomysł bez kodu? — Utwórz Issue.
 
 ## 🎨 Tworzenie motywów
 
-Chcesz stworzyć własne motywy dla aplikacji? Sprawdź nasze szczegółowe przewodniki:
+Chcesz stworzyć własne motywy dla aplikacji? **Edycja kodu nie jest potrzebna!**
 
-- **📖 [Przewodnik tworzenia motywów (Polski)](contribution/THEMES.md)** - Instrukcje w języku angielskim
-- **📖 [Посібник зі створення тем (Українська)](contribution/THEMES_UA.md)** - Pełna instrukcja po ukraińsku
+Po prostu utwórz plik JSON w `assets/themes/` a twój motyw automatycznie pojawi się w menu.
 
-Dowiedz się jak:
-- Tworzyć pliki JSON motywów z własnymi kolorami i stylami
-- Konfigurować kolejność motywów w interfejsie  
-- Dodawać lokalizację dla nazw motywów
-- Dzielić się swoimi motywami ze społecznością
+**📖 Dokumentacja:**
+- **[Przewodnik tworzenia motywów (English)](contribution/THEMES.md)** - Pełne instrukcje w języku angielskim
+- **[Посібник зі створення тем (Українська)](contribution/THEMES_UA.md)** - Pełna instrukcja po ukraińsku
+
+**✨ Funkcje:**
+- 🎨 **Auto-wykrywanie**: Dodaj plik JSON motywu → pojawia się w menu automatycznie
+- 🌍 **Wsparcie wielu języków**: Nazwy motywów w kilku językach
+- 📊 **Inteligentne sortowanie**: Kontroluj pozycję motywu za pomocą wartości priorytetu
+- 🎯 **Bez programowania**: Czysta konfiguracja JSON, zmiany w kodzie nie są potrzebne
+
+**Przykład struktury motywu:**
+```json
+{
+  "name": "MójMotyw",
+  "display_names": {
+    "en": "🌙 Dark Blue",
+    "pl": "🌙 Ciemnoniebieska"
+  },
+  "priority": 50,
+  "palette": { /* kolory */ },
+  "styles": { /* CSS */ }
+}
+```
+
+---
+
+## 🌍 Lokalizacja
+
+Chcesz dodać swój język do aplikacji? **Edycja kodu nie jest potrzebna!**
+
+Po prostu utwórz plik JSON w `assets/locales/` a twój język automatycznie pojawi się w menu.
+
+**📖 Dokumentacja:**
+- **[Przewodnik dodawania języków (English)](contribution/LOCALES.md)** - Pełne instrukcje w języku angielskim
+- **[Посібник з додавання мов (Українська)](contribution/LOCALES_UA.md)** - Pełna instrukcja po ukraińsku
+
+**✨ Funkcje:**
+- 🌐 **Auto-wykrywanie**: Dodaj plik JSON lokalizacji → pojawia się w menu języków automatycznie
+- 📊 **Inteligentne sortowanie**: Kontroluj pozycję języka za pomocą wartości priorytetu
+- 🔄 **System zapasowy**: Brakujące tłumaczenia są zastępowane angielskimi
+- 🎯 **Bez programowania**: Czysta konfiguracja JSON, zmiany w kodzie nie są potrzebne
+
+**Przykład struktury lokalizacji:**
+```json
+{
+  "_locale_info": {
+    "name": "Español",
+    "native_name": "Español (Spanish)",
+    "code": "es",
+    "priority": 40
+  },
+  "app_title": "Localizador de Logros...",
+  "language": "Idioma"
+  // ... inne tłumaczenia
+}
+```
+
+**Obecne języki:**
+- 🇬🇧 **English** (priorytet: 10)
+- 🇺🇦 **Українська** (priorytet: 20)
+- 🇵🇱 **Polski** (priorytet: 30)
 
 ---
 
