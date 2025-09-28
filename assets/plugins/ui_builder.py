@@ -286,6 +286,10 @@ class UIBuilder:
             theme_menu = self._create_theme_submenu()
             appearance_menu.addMenu(theme_menu)
             
+            # Accent color submenu
+            accent_color_menu = self._create_accent_color_submenu()
+            appearance_menu.addMenu(accent_color_menu)
+            
             # Font weight submenu
             font_weight_menu = self._create_font_weight_submenu()
             appearance_menu.addMenu(font_weight_menu)
@@ -332,6 +336,39 @@ class UIBuilder:
         }
         return language_map.get(self.parent.language, "en")
     
+    def _create_accent_color_submenu(self) -> QMenu:
+        """Create accent color selection submenu"""
+        accent_color_menu = QMenu(self.translations.get("accent_color", "Accent Color"), self.parent)
+        accent_group = QActionGroup(self.parent)
+        accent_group.setExclusive(True)
+        
+        self.parent.accent_color_actions = {}
+        current_mode = self.parent.theme_manager.get_current_accent_color_mode()
+        
+        # Theme default accent color option
+        theme_default_action = QAction(self.translations.get("theme_default", "Theme Default"), self.parent, checkable=True)
+        theme_default_action.setChecked(current_mode == "theme_default")
+        theme_default_action.triggered.connect(
+            lambda checked: self.parent.theme_manager.set_accent_color("theme_default")
+        )
+        
+        # Custom accent color option
+        custom_action = QAction(self.translations.get("custom", "Custom..."), self.parent, checkable=True)
+        custom_action.setChecked(current_mode == "custom")
+        custom_action.triggered.connect(
+            lambda checked: self.parent.show_accent_color_picker() if checked else None
+        )
+        
+        accent_group.addAction(theme_default_action)
+        accent_group.addAction(custom_action)
+        accent_color_menu.addAction(theme_default_action)
+        accent_color_menu.addAction(custom_action)
+        
+        self.parent.accent_color_actions["theme_default"] = theme_default_action
+        self.parent.accent_color_actions["custom"] = custom_action
+        
+        return accent_color_menu
+
     def _create_font_weight_submenu(self) -> QMenu:
         """Create font weight submenu"""
         font_weight_menu = QMenu(self.translations.get("font_weight", "Font Weight"), self.parent)

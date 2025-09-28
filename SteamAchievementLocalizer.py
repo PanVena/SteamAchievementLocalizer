@@ -10,7 +10,7 @@ from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QActionGroup
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMenu, QMenuBar, QWidgetAction, QCheckBox, QMainWindow
+    QInputDialog, QMenu, QMenuBar, QWidgetAction, QCheckBox, QMainWindow, QColorDialog
 )
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
@@ -1553,6 +1553,36 @@ class BinParserGUI(QMainWindow):
         # Show dialog
         dlg = UserGameStatsListDialog(self, stats_list)
         dlg.exec()
+
+    def show_accent_color_picker(self):
+        """Show color picker dialog for accent color selection"""
+        current_custom_color = self.theme_manager.get_custom_accent_color()
+        
+        # If no custom color is set, use current theme default color
+        initial_color = current_custom_color
+        if not initial_color:
+            theme_color = self.theme_manager.get_theme_default_accent_color()
+            initial_color = theme_color if theme_color else QColor(52, 132, 228)  # Fallback blue
+        
+        color = QColorDialog.getColor(
+            initial_color, 
+            self, 
+            self.translations.get("select_accent_color", "Select Accent Color")
+        )
+        
+        if color.isValid():
+            # Set custom accent color
+            self.theme_manager.set_accent_color("custom", color)
+            
+            # Update menu checkmarks
+            self.refresh_accent_color_menu()
+
+    def refresh_accent_color_menu(self):
+        """Refresh accent color menu checkmarks"""
+        if hasattr(self, 'accent_color_actions'):
+            current_mode = self.theme_manager.get_current_accent_color_mode()
+            for mode, action in self.accent_color_actions.items():
+                action.setChecked(mode == current_mode)
 
     def _on_exit_action(self):
         # Called when user selects Exit from menu

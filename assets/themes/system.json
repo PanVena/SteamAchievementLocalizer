@@ -10,12 +10,14 @@
   "palette": "system",
   "styles": {
     "dark": {
-      "QLabel": "color: white;",
-      "QLineEdit": "color: white; background-color: #232323; border: 1px solid #555; padding: 2px;"
+      "QLabel": "",
+      "QLineEdit": "border: 1px solid #555; padding: 2px;",
+      "QPushButton": "",
+      "QGroupBox": ""
     },
     "light": {
       "QLabel": "",
-      "QLineEdit": "",
+      "QLineEdit": "border: 1px solid #ccc; padding: 2px;",
       "QPushButton": "",
       "QGroupBox": ""
     }
