@@ -19,7 +19,7 @@
     "button_text": [0, 0, 0],
     "bright_text": "red",
     "link": [0, 0, 255],
-    "highlight": [0, 120, 215],
+    "highlight": "system",
     "highlighted_text": "white"
   },
   "styles": {

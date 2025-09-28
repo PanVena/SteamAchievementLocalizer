@@ -126,6 +126,14 @@ class ThemeManager:
         for config_key, qt_role in color_mappings.items():
             if config_key in palette_config:
                 color_value = palette_config[config_key]
+                
+                # Handle "system" value - use system color
+                if color_value == "system" and config_key in ['highlight', 'link']:
+                    if self.original_system_palette:
+                        system_color = self.original_system_palette.color(qt_role)
+                        palette.setColor(qt_role, system_color)
+                    continue
+                
                 if isinstance(color_value, list) and len(color_value) >= 3:
                     # RGB values
                     color = QColor(color_value[0], color_value[1], color_value[2])
@@ -279,6 +287,14 @@ class ThemeManager:
         # Try to get highlight color from theme palette
         if "highlight" in palette_config:
             color_value = palette_config["highlight"]
+            
+            # Handle "system" value - return original system accent color
+            if color_value == "system":
+                if self.original_system_palette:
+                    return self.original_system_palette.color(QPalette.ColorRole.Highlight)
+                else:
+                    return self.get_system_accent_color()
+                
             if isinstance(color_value, list) and len(color_value) >= 3:
                 return QColor(color_value[0], color_value[1], color_value[2])
             elif isinstance(color_value, str):
@@ -292,6 +308,14 @@ class ThemeManager:
         # Fallback to link color if highlight is not available
         if "link" in palette_config:
             color_value = palette_config["link"]
+            
+            # Handle "system" value for link as well
+            if color_value == "system":
+                if self.original_system_palette:
+                    return self.original_system_palette.color(QPalette.ColorRole.Link)
+                else:
+                    return self.get_system_accent_color()
+                
             if isinstance(color_value, list) and len(color_value) >= 3:
                 return QColor(color_value[0], color_value[1], color_value[2])
             elif isinstance(color_value, str):
