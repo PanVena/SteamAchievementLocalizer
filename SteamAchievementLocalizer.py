@@ -210,7 +210,7 @@ class BinParserGUI(QMainWindow):
         self.translations = self.load_language(language)
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
-        self.setMinimumSize(800, 800)
+        self.setMinimumSize(800, 400)
         self.set_window_size()
 
         self.central_widget = QWidget()
@@ -787,7 +787,12 @@ class BinParserGUI(QMainWindow):
         for row_i, row in enumerate(self.data_rows):
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
-                self.table.setItem(row_i, col_i, QTableWidgetItem(value))
+
+                item = QTableWidgetItem(value)
+                if col_name == 'key':
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+                self.table.setItem(row_i, col_i, item)
         
         self.stretch_columns()
         self.update_row_heights()
@@ -942,7 +947,7 @@ class BinParserGUI(QMainWindow):
         )
         if file:  # if user selected a file
             self.stats_bin_path_path.setText(file)
-        self.select_stats_bin_path()
+            self.select_stats_bin_path()
 
     def select_stats_bin_path(self):
         path = self.stats_bin_path_path.text().strip()
@@ -1401,7 +1406,11 @@ class BinParserGUI(QMainWindow):
         for row_i, row in enumerate(self.data_rows):
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
-                self.table.setItem(row_i, col_i, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                if col_name == 'key':
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+                self.table.setItem(row_i, col_i, item)
         
         self.stretch_columns()
         self.update_row_heights()
