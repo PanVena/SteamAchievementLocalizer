@@ -210,7 +210,7 @@ class BinParserGUI(QMainWindow):
         self.translations = self.load_language(language)
         self.setWindowTitle(f"{self.translations.get('app_title')}{APP_VERSION}")
         self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
-        self.setMinimumSize(800, 800)
+        self.setMinimumSize(800, 400)
         self.set_window_size()
 
         self.central_widget = QWidget()
