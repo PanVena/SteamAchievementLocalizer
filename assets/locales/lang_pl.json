@@ -137,5 +137,6 @@
     "button_ok": "OK",
     "button_yes": "Tak",
     "button_no": "Nie",
-    "button_cancel": "Anuluj"
+    "button_cancel": "Anuluj",
+    "auto":"Automatycznie"
 }

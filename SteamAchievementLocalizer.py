@@ -6,11 +6,11 @@ import subprocess
 import json
 import shutil
 from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QActionGroup, QFont, QPalette, QColor
+from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QColor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMenu, QMenuBar, QWidgetAction, QCheckBox, QMainWindow, QColorDialog
+    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QAbstractItemDelegate
 )
 from assets.plugins.highlight_delegate import HighlightDelegate
 from assets.plugins.find_replace_dialog import FindReplaceDialog
@@ -30,7 +30,7 @@ from assets.plugins.steam_lang_codes import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "8.0.1" 
+APP_VERSION = "0.8.1" 
 
 LOCALES_DIR = "assets/locales"
 
@@ -279,9 +279,12 @@ class BinParserGUI(QMainWindow):
         self.steam_folder_path = QLineEdit()
         self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
         self.steam_folder_path.textChanged.connect(self.on_steam_path_changed)
+        self.steam_auto_path_btn = QPushButton(self.translations.get("auto"))
+        self.steam_auto_path_btn.clicked.connect(self.steam_auto_forcing)
         self.select_steam_folder_btn = QPushButton(self.translations.get("select_steam_folder"))
         self.select_steam_folder_btn.clicked.connect(self.select_steam_folder)
         steam_folder_layout.addWidget(self.steam_folder_path)
+        steam_folder_layout.addWidget(self.steam_auto_path_btn)
         steam_folder_layout.addWidget(self.select_steam_folder_btn)
 
         
@@ -561,6 +564,13 @@ class BinParserGUI(QMainWindow):
             self.settings.sync()
 
         self.steam_folder_path.setText(path)
+    
+    def steam_auto_forcing(self):
+        path =  self.detect_steam_path()
+        self.settings.setValue("UserSteamPath", path)
+        self.settings.sync()
+        self.steam_folder_path.setText(path)
+
 
     def on_steam_path_changed(self, text):
         # Update steam folder path when text changes
@@ -1154,6 +1164,19 @@ class BinParserGUI(QMainWindow):
         self.set_modified(True)
 
     def sync_table_to_data_rows(self):
+
+        if self.table.state() == QAbstractItemView.State.EditingState:
+            editor = self.table.focusWidget()
+            if editor:
+
+                index = self.table.indexAt(editor.pos())
+                if index.isValid():
+
+                    self.table.model().setData(index, editor.text())
+
+                self.table.closePersistentEditor(self.table.item(index.row(), index.column()))
+
+
         # Sync changes from table widget back to data_rows
         for row_i in range(self.table.rowCount()):
             if row_i >= len(self.data_rows):
