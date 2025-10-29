@@ -1,0 +1,31 @@
+{
+  "name": "Dark Femboy (autor: ♡Cutie Patootie♡)",
+  "display_names": {
+    "en": "Dark Femboy (autor: ♡Cutie Patootie♡)",
+    "ua": "Темний Фембойчик (автор: ♡Cutie Patootie♡)",
+    "pl": "Ciemny Femboy (autor: ♡Cutie Patootie♡)"
+  },
+  "priority": 50,
+  "style": "Fusion",
+  "palette": {
+    "window": [26, 26, 34],
+    "window_text": [245, 233, 247],
+    "base": [32, 26, 40],
+    "alternate_base": [42, 36, 52],
+    "tooltip_base": [50, 42, 60],
+    "tooltip_text": [255, 186, 239],
+    "text": [245, 233, 247],
+    "button": [60, 40, 65],
+    "button_text": [255, 186, 239],
+    "bright_text": [255, 110, 199],
+    "link": [200, 160, 255],
+    "highlight": [255, 138, 212],
+    "highlighted_text": [26, 26, 34]
+  },
+  "styles": {
+    "QLabel": "color: #f5e9f7;",
+    "QLineEdit": "color: #f5e9f7; background-color: #1e1826; border: 1px solid #ff8ad4; padding: 2px;",
+    "QGroupBox": "QGroupBox { font-weight: bold; color: #caa6ff; border: 1px solid #3c2845; margin-top: 4px; padding: 4px; }",
+    "QPushButton": "QPushButton { font-weight: bold; background-color: #2a1f33; color: #ffbaef; border: 1px solid #ff8ad4; padding: 4px 8px; } QPushButton:hover { background-color: #3c2845; } QPushButton:pressed { background-color: #ff6ec7; color: #1a1a22; }"
+  }
+}

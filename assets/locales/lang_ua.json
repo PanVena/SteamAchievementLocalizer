@@ -44,11 +44,11 @@
     "save_to_steam": "У теку Стім",
     "about": "Про програму",
     "about_app": "Про програму",
-    "about_message": "Програма написана для перекладу назв стімовських досягнень.<br><br>В разі питань:<br> - Телеґрам: <b>@Pan_Vena</b><br> - Дискорд: <b>pan_vena</b><br> - ҐітХаб: <b>PanVena</b><br> - Пошта: <b>pan.vena@ukr.net</b><br><br>За бажання підтримати автора:<br><b>4441 1111 2744 4143</b><br><br>Також дяка за пул реквест: <b>Zergatul</b>, <b>Nick Defrunct</b> і <b>veydzh3r</b>",
+    "about_message": "Програма написана для перекладу назв стімовських досягнень.<br><br>В разі питань:<br> - Телеґрам: <b>@Pan_Vena</b><br> - Дискорд: <b>pan_vena</b><br> - ҐітХаб: <b>PanVena</b><br> - Пошта: <b>pan.vena@ukr.net</b><br><br>За бажання підтримати автора:<br><b>4441 1111 2744 4143</b><br><br>Також дяка за пул реквест: <b>Zergatul</b>, <b>Nick Defrunct</b>, <b>veydzh3r</b>, <b>♡Cutie Patootie♡</b> та <b>MrIkso</b>",
     "info": "Інформація",
     "error": "Помилка",
     "success": "Успіх",
-    "records_loaded": "Завантажено {count} записів",
+    "records_loaded": "Завантажено {count} записів, себто {countby2} досягнень і їх описів.",
     "error_cannot_open": "Не вдалося відкрити файл:<br>",
     "error_cannot_save": "Не вдалося зберегти файл:<br>",
     "error_UserGameStatsSchema_sel": "Спочатку оберіть файл UserGameStatsSchema",
@@ -138,5 +138,6 @@
     "button_yes": "Так",
     "button_no": "Ні",
     "button_cancel": "Скасувати",
-    "auto":"Авто"
+    "auto":"Авто",
+    "ach_number": "Досягнень: "
 }

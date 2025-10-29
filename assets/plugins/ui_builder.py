@@ -94,6 +94,7 @@ class UIBuilder:
         search_action = QWidgetAction(self.parent)
         search_action.setDefaultWidget(search_widget)
         
+        
         edit_menu.addSeparator()
         edit_menu.addAction(search_action)
         edit_menu.addSeparator()

@@ -45,11 +45,12 @@
     "save_to_steam": "To Steam folder",
     "about": "About",
     "about_app": "About App",
-    "about_message": "The app is made for translating Steam achievements names.<br><br>In case of questions:<br> - Telegram: <b>@Pan_Vena</b><br> - Discord: <b>pan_vena</b><br> - GitHub: <b>PanVena</b><br> - E-mail: <b>pan.vena@ukr.net</b><br><br>Also thanks for pull requests: <b>Zergatul</b>, <b>Nick Defrunct</b> і <b>veydzh3r</b>",
+    "about_message": "The app is made for translating Steam achievements names.<br><br>In case of questions:<br> - Telegram: <b>@Pan_Vena</b><br> - Discord: <b>pan_vena</b><br> - GitHub: <b>PanVena</b><br> - E-mail: <b>pan.vena@ukr.net</b><br><br>Also thanks for pull requests: <b>Zergatul</b>, <b>Nick Defrunct</b>, <b>veydzh3r</b>, <b>♡Cutie Patootie♡</b> and <b>MrIkso</b>",
+    "error": "Błąd",
     "info": "Info",
     "error": "Error",
     "success": "Success",
-    "records_loaded": "{count} records loaded",
+    "records_loaded": "{count} records loaded: {countby2} achievements and their descriptions.",
     "error_cannot_open": "Cannot open file:<br>",
     "error_cannot_save": "Cannot save file:<br>",
     "error_UserGameStatsSchema_sel": "First select UserGameStatsSchema file",
@@ -139,5 +140,6 @@
     "button_yes": "Yes",
     "button_no": "No",
     "button_cancel": "Cancel",
-    "auto" :"Auto"
+    "auto" :"Auto",
+    "ach_number" : "Achievements number: "
 }

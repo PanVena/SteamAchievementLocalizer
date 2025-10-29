@@ -378,6 +378,17 @@ class BinParserGUI(QMainWindow):
         self.version_label = QLabel(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
         self.lang_layout.addWidget(self.version_label)
 
+        # Vertical separator
+        line3 = QFrame()
+        line3.setFrameShape(QFrame.Shape.VLine)
+        line3.setFrameShadow(QFrame.Shadow.Sunken)
+        self.lang_layout.addWidget(line3)
+
+        # 4. Achievement number
+        self.countby2 = self.translations.get('unknown')
+        self.ach_number = QLabel(f"{self.translations.get('ach_number')}{self.countby2}")
+        self.lang_layout.addWidget(self.ach_number)
+
 
         # --- Frame ---
         box = QGroupBox("")
@@ -669,17 +680,23 @@ class BinParserGUI(QMainWindow):
         self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
         self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
         self.select_steam_folder_btn.setText(self.translations.get("select_steam_folder"))
+        self.steam_auto_path_btn.setText(self.translations.get("auto"))
         self.game_id_edit.setPlaceholderText(self.translations.get("game_id_label"))
         self.load_game_btn.setText(self.translations.get("get_ach"))
         self.clear_game_id.setText(self.translations.get("clear_and_paste"))
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
-        
         # Update translation language label if exists and visible
         if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
             self.translation_lang_label.setText(self.translations.get("translation_lang"))
         
+        if self.countby2 is int:
+            self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
+
+        else:
+            self.ach_number.setText(f"{self.translations.get('ach_number')}{self.translations.get('unknown')}")
+
         self.copy_action.setText(self.translations.get("copy", "Copy"))
         self.paste_action.setText(self.translations.get("paste", "Paste"))
         self.cut_action.setText(self.translations.get("cut", "Cut"))
@@ -809,7 +826,9 @@ class BinParserGUI(QMainWindow):
         self.create_menubar()
         self.version()
         self.gamename()
-        msg = self.translations.get("records_loaded").format(count=len(all_rows))
+        self.countby2 = len(all_rows)//2
+        self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
+        msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
         QMessageBox.information(self, self.translations.get("success"), msg)
 
     def replace_lang_in_bin(self):
@@ -1540,8 +1559,8 @@ class BinParserGUI(QMainWindow):
     # =================================================================
 
     def show_find_replace_dialog(self):   
-        dlg = FindReplaceDialog(self, self.headers)
-        dlg.exec()
+        self.dlg = FindReplaceDialog(self, self.headers)
+        self.dlg.show()
 
     def show_user_game_stats_list(self):
         stats_dir = os.path.join(self.steam_folder, "appcache", "stats")
