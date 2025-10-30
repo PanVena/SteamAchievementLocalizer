@@ -132,6 +132,7 @@ class UIBuilder:
         """Create search widget for menu"""
         if not hasattr(self.parent, 'global_search_line'):
             self.parent.global_search_line = QLineEdit()
+            self.parent.global_search_line.editingFinished.connect(self._reset_table)
             self.parent.global_search_line.setPlaceholderText(
                 self.translations.get("in_column_search_placeholder", "Search...")
             )
@@ -151,6 +152,17 @@ class UIBuilder:
         search_layout.addWidget(self.parent.global_search_line)
         
         return search_widget
+    
+    def _reset_table(self):
+
+        for row in range(self.parent.table.rowCount()):
+            self.parent.table.setRowHidden(row, False)
+
+
+        if hasattr(self.parent, 'highlight_delegate'):
+            self.parent.highlight_delegate.set_highlight("")
+            self.parent.highlight_delegate.highlight_column = -1
+            self.parent.table.viewport().update()
     
     def _create_columns_menu(self) -> QMenu:
         """Create columns visibility submenu"""

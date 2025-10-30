@@ -489,7 +489,8 @@ class BinParserGUI(QMainWindow):
                 self.settings.setValue(items["key"], items["default"])
 
         # Replace in column action
-        self.replace_in_column_action = QAction(self.translations.get("replace_in_column", "Replace"), self)
+        self.replace_in_column_action = QAction(self.translations.get("search_replace", "Search and Replace"), self)
+        self.replace_in_column_action.setShortcut("Ctrl+F")
         self.replace_in_column_action.triggered.connect(self.show_find_replace_dialog)
         self.table.addAction(self.replace_in_column_action)
 
