@@ -5,25 +5,27 @@ import os
 import subprocess
 import json
 import shutil
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QColor
+from PyQt6.QtCore import Qt, QSettings, QTimer
+from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QColor, QFontMetrics
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QAbstractItemDelegate
+    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QAbstractItemDelegate, QCheckBox
 )
-from assets.plugins.highlight_delegate import HighlightDelegate
-from assets.plugins.find_replace_dialog import FindReplaceDialog
-from assets.plugins.user_game_stats_list_dialog import UserGameStatsListDialog
-from assets.plugins.context_lang_dialog import ContextLangDialog
-from assets.plugins.theme_manager import ThemeManager
-from assets.plugins.binary_parser import BinaryParser
-from assets.plugins.steam_integration import SteamIntegration
-from assets.plugins.csv_handler import CSVHandler
-from assets.plugins.file_manager import FileManager
-from assets.plugins.ui_builder import UIBuilder
-from assets.plugins.steam_lang_codes import (
-    get_display_name, get_system_language, get_available_languages_for_selection,
+from plugins.highlight_delegate import HighlightDelegate
+from plugins.find_replace_dialog import FindReplacePanel
+from plugins.user_game_stats_list_dialog import UserGameStatsListDialog
+from plugins.context_lang_dialog import ContextLangDialog
+from plugins.theme_manager import ThemeManager
+from plugins.binary_parser import BinaryParser
+from plugins.steam_integration import SteamIntegration
+from plugins.csv_handler import CSVHandler
+from plugins.file_manager import FileManager
+from plugins.ui_builder import UIBuilder
+from plugins.steam_lang_codes import (
+    get_available_languages_for_selection,
+    get_display_name,
+    get_system_language,
     get_code_from_display_name
 )
 
@@ -202,6 +204,9 @@ class BinParserGUI(QMainWindow):
         self.csv_handler = CSVHandler()
         self.file_manager = FileManager()
         
+        # Load Steam game names database
+        self.steam_game_names = self.load_steam_game_names()
+        
         # Load available locales and store for ui_builder access
         self.available_locales = load_available_locales()
         # Keep legacy LANG_FILES for backward compatibility
@@ -327,7 +332,7 @@ class BinParserGUI(QMainWindow):
         self.translation_lang_label = None
         self.translation_lang_combo = None
         
-        # Vertical separator сreation
+        # Vertical separator creation
         self.translation_separator = QFrame()
         self.translation_separator.setFrameShape(QFrame.Shape.VLine)
         self.translation_separator.setFrameShadow(QFrame.Shadow.Sunken)
@@ -403,6 +408,7 @@ class BinParserGUI(QMainWindow):
         self.redo_stack = []
         self.is_undoing = False
         self.is_redoing = False
+        self.is_manual_resizing = False
         
 
         # --- Table ---
@@ -498,6 +504,9 @@ class BinParserGUI(QMainWindow):
         self.highlight_delegate = HighlightDelegate(self.table)
         self.table.setItemDelegate(self.highlight_delegate)
 
+        # Add find/replace panel (hidden by default)
+        self.find_replace_panel = FindReplacePanel(self, self.headers)
+        self.layout.addWidget(self.find_replace_panel)
         # Initialize theme manager
         self.theme_manager = ThemeManager(self)
 
@@ -538,23 +547,50 @@ class BinParserGUI(QMainWindow):
 
         self.setGeometry(x, y, width, height)
 
-    def stretch_columns(self, min_width: int = 120):
-        # Stretch columns to fit the table width or set to min_width with scrollbar
-        if self.table.columnCount() == 0:
+    def stretch_columns(self):
+        """Stretch columns to fill available width while respecting minimum widths"""
+        if not self.table or self.table.columnCount() == 0:
             return
 
-        available_width = self.table.viewport().width()
-        total_min_width = self.table.columnCount() * min_width
+        header = self.table.horizontalHeader()
+        total_width = self.table.viewport().width()
+        visible_columns = [col for col in range(self.table.columnCount()) if not self.table.isColumnHidden(col)]
+        
+        if not visible_columns:
+            return
 
-        if total_min_width <= available_width:
-            # If all columns fit — stretch them evenly
-            for i in range(self.table.columnCount()):
-                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+        # Calculate minimum width for each column based on header text
+        font_metrics = header.fontMetrics()
+        min_widths = []
+        for col in visible_columns:
+            header_text = self.table.horizontalHeaderItem(col).text() if self.table.horizontalHeaderItem(col) else ""
+            # Add padding (20px for margins/padding)
+            text_width = font_metrics.horizontalAdvance(header_text) + 20
+            # Use maximum of 120px or header width
+            min_widths.append(max(text_width, 120))
+
+        total_min_width = sum(min_widths)
+        
+        if total_width > total_min_width:
+            # Distribute extra space proportionally
+            extra_space = total_width - total_min_width
+            space_per_column = extra_space // len(visible_columns)
+            
+            for i, col in enumerate(visible_columns):
+                new_width = min_widths[i] + space_per_column
+                self.table.setColumnWidth(col, new_width)
         else:
-            # If not — set to min_width and enable horizontal scrollbar
-            for i in range(self.table.columnCount()):
-                self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
-                self.table.setColumnWidth(i, min_width)
+            # Just use minimum widths
+            for i, col in enumerate(visible_columns):
+                self.table.setColumnWidth(col, min_widths[i])
+        
+        # Set resize mode for all columns (visible and hidden)
+        for i in range(self.table.columnCount()):
+            self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+
+    def resizeEvent(self, event):
+        self.stretch_columns()
+        super().resizeEvent(event)
 
     def set_steam_folder_path(self, force=False):
         path = self.settings.value("UserSteamPath", "") or ""
@@ -631,7 +667,7 @@ class BinParserGUI(QMainWindow):
         if show_translation_controls:
             # Create translation controls if they don't exist
             if not hasattr(self, 'translation_lang_label') or not self.translation_lang_label:
-                from assets.plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name, get_system_language
+                from plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name, get_system_language
                 
                 self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
                 # Insert at position 0 (beginning)
@@ -707,6 +743,11 @@ class BinParserGUI(QMainWindow):
         self.replace_in_column_action.setText(self.translations.get("replace_in_column", "Replace"))
         if hasattr(self, 'global_search_line') and self.global_search_line is not None:
             self.global_search_line.setPlaceholderText(self.translations.get("in_column_search_placeholder"))
+        
+        # Update find/replace panel translations
+        if hasattr(self, 'find_replace_panel'):
+            self.find_replace_panel.update_translations(self.translations)
+        
         self.create_menubar()
         
         # Update theme and font checkboxes after recreating menubar
@@ -800,6 +841,9 @@ class BinParserGUI(QMainWindow):
             else:
                 # Use Steam language display name if available
                 display_name = get_display_name(header)
+                # Add line break before parentheses for better readability
+                if '(' in display_name:
+                    display_name = display_name.replace(' (', '\n(')
                 header_labels.append(display_name)
         
         self.table.setHorizontalHeaderLabels(header_labels)
@@ -812,6 +856,7 @@ class BinParserGUI(QMainWindow):
                     row[header] = ''
         
         # Fill table with data
+        self.table.blockSignals(True)
         for row_i, row in enumerate(self.data_rows):
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
@@ -821,6 +866,7 @@ class BinParserGUI(QMainWindow):
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
                 self.table.setItem(row_i, col_i, item)
+        self.table.blockSignals(False)
         
         self.stretch_columns()
         self.update_row_heights()
@@ -856,6 +902,19 @@ class BinParserGUI(QMainWindow):
 
     def save_bin_unknow(self):
         # Save to Steam folder
+        # First, check if game_id is available
+        game_id = self.current_game_id()
+        if not game_id:
+            # Create custom warning message box
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle(self.translations.get("error"))
+            msg_box.setText(self.translations.get("save_no_game_id", 
+                "Cannot save to Steam: Game ID is not specified. Please enter a Game ID or select a game from the list."))
+            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            msg_box.exec()
+            return
+        
         self.sync_table_to_data_rows()
         datas = self.replace_lang_in_bin()
         if datas is None:
@@ -864,17 +923,6 @@ class BinParserGUI(QMainWindow):
             msg_box.setIcon(QMessageBox.Icon.Warning)
             msg_box.setWindowTitle(self.translations.get("error"))
             msg_box.setText(self.translations.get("error_no_data_to_save"))
-            ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
-            msg_box.exec()
-            return
-
-        game_id = self.current_game_id()
-        if not game_id:
-            # Create custom warning message box
-            msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Icon.Warning)
-            msg_box.setWindowTitle(self.translations.get("error"))
-            msg_box.setText(self.translations.get("error_no_id"))
             ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
             msg_box.exec()
             return
@@ -901,11 +949,11 @@ class BinParserGUI(QMainWindow):
             
             self.set_modified(False)
         except Exception as e:
-            # Create custom error message box
+            # Create custom error message box with error details
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Critical)
             msg_box.setWindowTitle(self.translations.get("error"))
-            msg_box.setText(f"{self.translations.get('error_cannot_save')}{e}")
+            msg_box.setText(f"{self.translations.get('error_cannot_save')}\n{str(e)}")
             ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
             msg_box.exec()
 
@@ -943,11 +991,11 @@ class BinParserGUI(QMainWindow):
             ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
             msg_box.exec()
         except Exception as e:
-            # Create custom error message box
+            # Create custom error message box with error details
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Critical)
             msg_box.setWindowTitle(self.translations.get("error"))
-            msg_box.setText(f"{self.translations.get('error_cannot_save')}{e}")
+            msg_box.setText(f"{self.translations.get('error_cannot_save')}\n{str(e)}")
             ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
             msg_box.exec()
 
@@ -1142,15 +1190,34 @@ class BinParserGUI(QMainWindow):
             return
 
         try:
-            success, imported_count = self.csv_handler.import_translations(fname, self.data_rows, import_col)
+            success, imported_count, changed_count, skipped_count, reason = self.csv_handler.import_translations(
+                fname, self.data_rows, import_col
+            )
+            
             if success:
-                self.refresh_table()
-                QMessageBox.information(self, self.translations.get("success"), 
-                                      self.translations.get("import_success") + f" ({imported_count} items)")
+                if changed_count > 0:
+                    self.refresh_table()
+                    details = self.translations.get("import_details", 
+                        "Imported: {imported}, Changed: {changed}, Skipped: {skipped}").format(
+                        imported=imported_count, changed=changed_count, skipped=skipped_count
+                    )
+                    QMessageBox.information(self, self.translations.get("success"), details)
+                    self.set_modified(True)
+                else:
+                    # No changes made
+                    msg = self.translations.get("import_no_changes", "CSV imported, but no data was changed")
+                    if reason:
+                        msg += f"\n{self.translations.get('reason', 'Reason')}: {reason}"
+                    QMessageBox.information(self, self.translations.get("info"), msg)
             else:
-                QMessageBox.warning(self, self.translations.get("error"), "Import failed")
+                # Import failed
+                error_msg = self.translations.get("import_failed", "Import failed")
+                if reason:
+                    error_msg += f"\n{reason}"
+                QMessageBox.warning(self, self.translations.get("error"), error_msg)
         except Exception as e:
-            QMessageBox.warning(self, self.translations.get("error"), str(e))
+            QMessageBox.warning(self, self.translations.get("error"), 
+                              f"{self.translations.get('import_failed', 'Import failed')}\n{str(e)}")
 
     # =================================================================
     # TABLE OPERATIONS AND DATA MANAGEMENT
@@ -1182,6 +1249,30 @@ class BinParserGUI(QMainWindow):
             self.redo_stack.clear() 
             self.data_rows[row][header] = new_value
         self.set_modified(True)
+        
+        # Update row height to accommodate wrapped text
+        # This allows text to wrap down instead of expanding the column horizontally
+        if hasattr(self, 'update_row_heights'):
+            # Update only the affected row for performance
+            max_height = self.table.verticalHeader().defaultSectionSize()
+            has_content = False
+            
+            for col_i in range(self.table.columnCount()):
+                cell_item = self.table.item(row, col_i)
+                if cell_item and cell_item.text():
+                    has_content = True
+                    doc = QTextDocument()
+                    doc.setHtml(cell_item.text())
+                    doc.setTextWidth(self.table.columnWidth(col_i))
+                    height = doc.size().height() + 8
+                    if height > max_height:
+                        max_height = height
+            
+            # Only set custom height if there's actual content, otherwise use default
+            if has_content:
+                self.table.setRowHeight(row, int(max_height))
+            else:
+                self.table.setRowHeight(row, self.table.verticalHeader().defaultSectionSize())
 
     def sync_table_to_data_rows(self):
 
@@ -1519,6 +1610,32 @@ class BinParserGUI(QMainWindow):
 
         return version_number
 
+    def load_steam_game_names(self):
+        """Load Steam game names from JSON file"""
+        json_path = resource_path("assets/steam.api.allgamenames.json")
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Create a dictionary mapping appid to name for fast lookup
+                games_dict = {}
+                for app in data.get('applist', {}).get('apps', []):
+                    games_dict[str(app['appid'])] = app['name']
+                return games_dict
+        except Exception as e:
+            print(f"Failed to load Steam game names: {e}")
+            return {}
+    
+    def get_steam_game_name(self, appid):
+        """Get game name from Steam API data by appid"""
+        if not appid or not self.steam_game_names:
+            return None
+        return self.steam_game_names.get(str(appid))
+    
+    def on_steam_name_toggle(self, checked):
+        """Handle toggle for Steam API name"""
+        self.settings.setValue("UseSteamName", bool(checked))
+        self.gamename()
+
     def gamename(self):
         path = self.get_stats_bin_path()
 
@@ -1532,6 +1649,14 @@ class BinParserGUI(QMainWindow):
 
         # Use binary parser plugin
         name = self.binary_parser.get_gamename(data)
+        
+        # Check if we should use Steam API name instead
+        if self.settings.value("UseSteamName", False, type=bool):
+            game_id = self.game_id()
+            if game_id:
+                steam_name = self.get_steam_game_name(game_id)
+                if steam_name:
+                    name = steam_name
 
         if hasattr(self, "gamename_label"):
             self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else self.translations.get('unknown')}")
@@ -1559,9 +1684,13 @@ class BinParserGUI(QMainWindow):
     # DIALOGS AND EVENT HANDLERS
     # =================================================================
 
-    def show_find_replace_dialog(self):   
-        self.dlg = FindReplaceDialog(self, self.headers)
-        self.dlg.show()
+    def show_find_replace_dialog(self):
+        """Toggle find/replace panel visibility"""
+        if self.find_replace_panel.isVisible():
+            self.find_replace_panel.hide_panel()
+        else:
+            self.find_replace_panel.show()
+            self.find_replace_panel.find_edit.setFocus()
 
     def show_user_game_stats_list(self):
         stats_dir = os.path.join(self.steam_folder, "appcache", "stats")
@@ -1590,11 +1719,21 @@ class BinParserGUI(QMainWindow):
             # Read version and gamename directly from the file instead of using manual path
             version = UserGameStatsListDialog.get_version_from_file(file_path)
             gamename = UserGameStatsListDialog.get_gamename_from_file(file_path)
+            
+            # Check if we should use Steam API name
+            if self.settings.value("UseSteamName", False, type=bool):
+                m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', file_path)
+                if m:
+                    game_id = m.group(1)
+                    steam_name = self.get_steam_game_name(game_id)
+                    if steam_name:
+                        gamename = steam_name
+            
             stats_list.append((
                 gamename if gamename else self.translations.get("unknown"),
-                str(version) if version is not None else self.translations.get("unknown"),
+                str(version) if version else self.translations.get("unknown"),
                 game_id,
-                str(achievement_count)
+                achievement_count
             ))
         # Restore original values
         self.game_id_edit.setText(orig_game_id)
@@ -1603,7 +1742,7 @@ class BinParserGUI(QMainWindow):
         self.version()
         self.gamename()
         # Show dialog
-        dlg = UserGameStatsListDialog(self, stats_list)
+        dlg = UserGameStatsListDialog(self, stats_list, self.steam_game_names, self.settings)
         dlg.exec()
 
     def show_accent_color_picker(self):

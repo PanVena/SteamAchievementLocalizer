@@ -8,24 +8,47 @@
   "priority": 20,
   "style": "Fusion",
   "palette": {
-    "window": [30, 30, 30],
+    "window": [
+      30,
+      30,
+      30
+    ],
     "window_text": "white",
-    "base": [20, 20, 20],
-    "alternate_base": [45, 45, 45],
-    "tooltip_base": [35, 35, 35],
+    "base": [
+      20,
+      20,
+      20
+    ],
+    "alternate_base": [
+      45,
+      45,
+      45
+    ],
+    "tooltip_base": [
+      35,
+      35,
+      35
+    ],
     "tooltip_text": "white",
     "text": "white",
-    "button": [40, 40, 40],
+    "button": [
+      40,
+      40,
+      40
+    ],
     "button_text": "white",
     "bright_text": "red",
-    "link": [42, 130, 218],
+    "link": [
+      42,
+      130,
+      218
+    ],
     "highlight": "system",
     "highlighted_text": "white"
   },
   "styles": {
     "QLabel": "color: white;",
     "QLineEdit": "color: white; background-color: #141414; border: 1px solid #555; padding: 2px;",
-    "QGroupBox": "QGroupBox { font-weight: bold; }",
-    "QPushButton": "QPushButton { font-weight: bold;}"
+    "QGroupBox": "QGroupBox { font-weight: bold; }"
   }
 }

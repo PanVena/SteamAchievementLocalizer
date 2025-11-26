@@ -60,6 +60,19 @@ class UIBuilder:
         """Create File menu"""
         file_menu = QMenu(self.translations.get("file", "File"), self.parent)
         
+        # Steam API name toggle
+        self.use_steam_name_action = QAction(
+            self.translations.get("use_steam_name", "Use Steam API Name"),
+            self.parent,
+            checkable=True
+        )
+        self.use_steam_name_action.setChecked(
+            self.parent.settings.value("UseSteamName", False, type=bool)
+        )
+        self.use_steam_name_action.triggered.connect(self.parent.on_steam_name_toggle)
+        file_menu.addAction(self.use_steam_name_action)
+        file_menu.addSeparator()
+        
         # Export bin action
         export_bin_action = QAction(
             self.translations.get("export_bin", "Open bin file in explorer"), 

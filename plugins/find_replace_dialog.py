@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QFrame, QWidget
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QFrame
 
 from PyQt6.QtGui import QColor, QBrush, QTextCharFormat
 from PyQt6.QtCore import Qt
@@ -6,12 +6,11 @@ from .steam_lang_codes import get_display_name
 
 import re
 
-class FindReplaceDialog(QDialog):
+class FindReplacePanel(QWidget):
     def __init__(self, parent, headers):
         super().__init__(parent)
-        self.setWindowTitle(parent.translations.get("search_replace"))
-        self.translations = getattr(self.parent(), "translations", {})
-        self.setMinimumWidth(500)
+        self.parent_window = parent  # Store reference to parent window
+        self.translations = getattr(parent, "translations", {})
 
         self.table = parent.table
         self.data_rows = parent.data_rows
@@ -21,7 +20,7 @@ class FindReplaceDialog(QDialog):
         self.status = True
 
         self.layout = QVBoxLayout()
-
+        self.layout.setContentsMargins(5, 5, 5, 5)
 
         btns_choice_layout = QHBoxLayout()
         self.just_search_btn = QPushButton(self.translations.get("search"))
@@ -32,20 +31,39 @@ class FindReplaceDialog(QDialog):
 
         btns_choice_layout.addWidget(self.just_search_btn)
         btns_choice_layout.addWidget(self.replacing_btn)
+        btns_choice_layout.addStretch()
+        
+        # Add close button
+        self.close_panel_btn = QPushButton("×")
+        self.close_panel_btn.setMaximumWidth(30)
+        self.close_panel_btn.clicked.connect(self.hide_panel)
+        btns_choice_layout.addWidget(self.close_panel_btn)
+        
         self.layout.addLayout(btns_choice_layout)
-
 
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
         self.layout.addWidget(line)
 
-
         self.content_layout = QVBoxLayout()
         self.layout.addLayout(self.content_layout)
 
         self.setLayout(self.layout)
-        self.set_window() 
+        self.set_window()
+        self.hide()  # Hidden by default
+
+    def update_translations(self, translations):
+        """Update translations and refresh UI"""
+        self.translations = translations
+        # Refresh the current mode to update all labels
+        current_mode = self.status
+        self.set_window()
+
+    def hide_panel(self):
+        """Hide the panel and clean up"""
+        self.cleaner()
+        self.hide()
 
     def change_mode(self, mode: bool):
         if self.status != mode:
@@ -78,14 +96,8 @@ class FindReplaceDialog(QDialog):
             form_layout.addWidget(self.find_edit)
             self.content_layout.addLayout(form_layout)
 
-            btn_layout = QHBoxLayout()
-            self.close_btn = QPushButton(self.translations.get("close"))
-            btn_layout.addWidget(self.close_btn)
-            self.content_layout.addLayout(btn_layout)
-
-            self.find_edit.textChanged.connect(lambda text: self.parent().global_search_in_table(text))
-            self.close_btn.clicked.connect(self.accept)
-            self.adjustSize()
+            self.find_edit.textChanged.connect(lambda text: self.parent_window.global_search_in_table(text))
+            self.find_edit.setFocus()
 
         else:  
             form_layout = QHBoxLayout()
@@ -102,7 +114,8 @@ class FindReplaceDialog(QDialog):
 
             col_layout = QHBoxLayout()
             self.column_combo = QComboBox()
-            non_key_headers = [h for h in self.headers if h != 'key']
+            # Refresh headers from parent window
+            non_key_headers = [h for h in self.parent_window.headers if h != 'key']
             for header in non_key_headers:
                 display_name = get_display_name(header)
                 self.column_combo.addItem(display_name, header)
@@ -115,32 +128,27 @@ class FindReplaceDialog(QDialog):
 
             btn_layout = QHBoxLayout()
             self.replace_btn = QPushButton(self.translations.get("replace_all"))
-            self.close_btn = QPushButton(self.translations.get("close"))
             btn_layout.addWidget(self.replace_btn)
-            btn_layout.addWidget(self.close_btn)
             self.content_layout.addLayout(btn_layout)
-
-            self.close_btn.clicked.connect(self.accept)
 
             self.find_edit.textChanged.connect(self.update_matches)
             self.column_combo.currentIndexChanged.connect(self.update_matches)
             self.replace_btn.clicked.connect(self.replace_all)
-            self.close_btn.clicked.connect(self.accept)
             self.replace_edit.textChanged.connect(self.update_matches)
 
             self.update_matches()
-            self.adjustSize()
+            self.find_edit.setFocus()
 
 
 
     def update_matches(self):
-        translations = getattr(self.parent(), "translations", {})
+        translations = getattr(self.parent_window, "translations", {})
         find_text = self.find_edit.text()
         # Get the actual column header from combo box data
         col = self.column_combo.currentData() or self.column_combo.currentText()
         self.matches = []
 
-        col_idx = self.parent().headers.index(col) if col in self.parent().headers else -1
+        col_idx = self.parent_window.headers.index(col) if col in self.parent_window.headers else -1
         match_count = 0
 
         for row in range(self.table.rowCount()):
@@ -151,15 +159,15 @@ class FindReplaceDialog(QDialog):
             for row in range(self.table.rowCount()):
                 item = self.table.item(row, col_idx)
                 if item:
-                    plain_text = self.parent().data_rows[row].get(col, "")
+                    plain_text = self.parent_window.data_rows[row].get(col, "")
                     item.setText(plain_text)
 
         if not find_text or not col or col_idx == -1:
             self.match_label.setText(translations.get("found_nothing"))
             # CLEAR DELEGATE HIGHLIGHT
-            self.parent().highlight_delegate.set_highlight("")
-            self.parent().highlight_delegate.highlight_column = -1
-            self.parent().table.viewport().update()
+            self.parent_window.highlight_delegate.set_highlight("")
+            self.parent_window.highlight_delegate.highlight_column = -1
+            self.parent_window.table.viewport().update()
             return
 
         for row in range(self.table.rowCount()):
@@ -176,9 +184,9 @@ class FindReplaceDialog(QDialog):
         msg = translations.get("found").format(match_count=match_count)
         self.match_label.setText(msg)
         # DELEGATE HIGHLIGHT
-        self.parent().highlight_delegate.set_highlight(find_text)
-        self.parent().highlight_delegate.highlight_column = col_idx
-        self.parent().table.viewport().update()
+        self.parent_window.highlight_delegate.set_highlight(find_text)
+        self.parent_window.highlight_delegate.highlight_column = col_idx
+        self.parent_window.table.viewport().update()
 
 
 
@@ -204,19 +212,19 @@ class FindReplaceDialog(QDialog):
         col = self.column_combo.currentData() or self.column_combo.currentText()
         find_text = self.find_edit.text()
         replace_text = self.replace_edit.text()
-        col_idx = self.parent().headers.index(col)
+        col_idx = self.parent_window.headers.index(col)
         changed = 0
 
         for row in range(self.table.rowCount()):
             item = self.table.item(row, col_idx)
             if item:
-                old_plain = self.parent().data_rows[row].get(col, "")
+                old_plain = self.parent_window.data_rows[row].get(col, "")
                 if find_text and find_text.lower() in old_plain.lower():
                     new_val = re.sub(
                         re.escape(find_text), replace_text, old_plain, flags=re.IGNORECASE
                     )
                     item.setText(new_val)
-                    self.parent().data_rows[row][col] = new_val
+                    self.parent_window.data_rows[row][col] = new_val
                     changed += 1
                 else:
                     item.setText(old_plain)
@@ -226,10 +234,6 @@ class FindReplaceDialog(QDialog):
         for row in range(self.table.rowCount()):
             self.table.setRowHidden(row, False)
 
-        self.parent().highlight_delegate.set_highlight("")
-        self.parent().highlight_delegate.highlight_column = -1
-        self.parent().table.viewport().update()
-
-    def accept(self):
-        self.cleaner()
-        super().accept()
+        self.parent_window.highlight_delegate.set_highlight("")
+        self.parent_window.highlight_delegate.highlight_column = -1
+        self.parent_window.table.viewport().update()
