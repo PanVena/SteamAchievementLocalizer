@@ -138,8 +138,10 @@ jobs:
           Copy-Item LICENSE -Destination $tempPath -ErrorAction SilentlyContinue
           Copy-Item CHANGELOG.md -Destination $tempPath -ErrorAction SilentlyContinue
 
-          # Create ZIP
-          Compress-Archive -Path $tempPath -DestinationPath $zipPath -Force
+          # Create ZIP - use Push-Location to ensure proper directory structure in archive
+          Push-Location dist
+          Compress-Archive -Path $newFolderName -DestinationPath $zipPath -Force
+          Pop-Location
 
           Write-Host "Created: $zipName"
           Get-ChildItem $zipPath | Format-Table -AutoSize
