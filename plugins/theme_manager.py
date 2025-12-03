@@ -12,7 +12,8 @@ class ThemeManager:
     def __init__(self, main_window):
         self.main_window = main_window
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
-        self.themes_dir = "assets/themes"
+        # Use absolute path for themes directory to support bundled executables
+        self.themes_dir = self._get_resource_path("assets/themes")
         
         # Store original system palette for restoration
         app = QApplication.instance()
@@ -22,6 +23,17 @@ class ThemeManager:
             self.original_system_palette = None
         
         self.available_themes = self._load_available_themes()
+    
+    def _get_resource_path(self, relative_path):
+        """Get absolute path to resource, works for dev and bundled executable"""
+        import sys
+        if getattr(sys, 'frozen', False):
+            # Running as bundled executable
+            base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+        else:
+            # Running as normal Python script
+            base_path = os.path.dirname(os.path.dirname(__file__))
+        return os.path.join(base_path, relative_path)
     
     def _load_available_themes(self):
         """Load list of available themes"""

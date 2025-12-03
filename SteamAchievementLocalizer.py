@@ -33,17 +33,26 @@ from plugins.steam_lang_codes import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.2" 
+APP_VERSION = "0.8.2"
 
-LOCALES_DIR = "assets/locales"
+def resource_path(relative_path: str) -> str:
+    """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
+    if getattr(sys, 'frozen', False):
+        # When running as a bundled exe
+        base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+    else:
+        # When running as a normal .py file
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
 
 def load_available_locales():
     """Load available locales from the locales directory"""
     locales = {}
-    if os.path.exists(LOCALES_DIR):
-        for filename in os.listdir(LOCALES_DIR):
+    locales_dir = resource_path("assets/locales")
+    if os.path.exists(locales_dir):
+        for filename in os.listdir(locales_dir):
             if filename.endswith('.json'):
-                file_path = os.path.join(LOCALES_DIR, filename)
+                file_path = os.path.join(locales_dir, filename)
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         locale_data = json.load(f)
@@ -141,16 +150,6 @@ def choose_language():
     # Default to first available locale or English
     default_locale = sorted_names[0] if sorted_names else "English"
     return default_locale
-
-def resource_path(relative_path: str) -> str:
-    """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
-    if getattr(sys, 'frozen', False):
-        # When running as a bundled exe
-        base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
-    else:
-        # When running as a normal .py file
-        base_path = os.path.dirname(__file__)
-    return os.path.join(base_path, relative_path)
 
 def load_json_with_fallback(path):
     for encoding in ("utf-8-sig", "utf-8", "cp1251"):

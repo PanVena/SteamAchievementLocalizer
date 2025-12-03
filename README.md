@@ -195,6 +195,22 @@ This lets you repurpose the english column as a normalized / cleaned / community
 
 To propose an idea without code — open an Issue.
 
+### 🔨 Building from Source
+
+Want to build the application yourself? See **[BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md)** for detailed build instructions.
+
+**Quick build (Windows):**
+```cmd
+scripts\build_windows.bat
+```
+
+**Requirements:**
+- Python 3.8+
+- PyQt6
+- Nuitka or PyInstaller
+
+**Important:** Always include the `assets` directory when building. It contains themes, locales, and other essential resources.
+
 ---
 
 ## 🎨 Theme Development
