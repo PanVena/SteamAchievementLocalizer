@@ -376,30 +376,34 @@ jobs:
           fi
           
           # Create .desktop file
-          cat > "$appdir/steamachievementlocalizer.desktop" << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Steam Achievement Localizer
-Exec=SteamAchievementLocalizer
-Icon=steamachievementlocalizer
-Categories=Utility;Game;
-Comment=Localize Steam achievement files
-Terminal=false
-EOF
+          cat > "$appdir/steamachievementlocalizer.desktop" << 'DESKTOP_EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Steam Achievement Localizer
+          Exec=SteamAchievementLocalizer
+          Icon=steamachievementlocalizer
+          Categories=Utility;Game;
+          Comment=Localize Steam achievement files
+          Terminal=false
+          DESKTOP_EOF
+          # Remove leading spaces from desktop file
+          sed -i 's/^          //' "$appdir/steamachievementlocalizer.desktop"
           
           cp "$appdir/steamachievementlocalizer.desktop" "$appdir/usr/share/applications/"
           
           # Create AppRun script - use the actual executable name found earlier
-          cat > "$appdir/AppRun" << EOF
-#!/bin/bash
-SELF=\$(readlink -f "\$0")
-HERE=\${SELF%/*}
-export PATH="\${HERE}/usr/bin:\${PATH}"
-export LD_LIBRARY_PATH="\${HERE}/usr/bin:\${LD_LIBRARY_PATH}"
-export QT_PLUGIN_PATH="\${HERE}/usr/bin"
-cd "\${HERE}/usr/bin"
-exec "\${HERE}/usr/bin/$exe_name" "\$@"
-EOF
+          cat > "$appdir/AppRun" << APPRUN_EOF
+          #!/bin/bash
+          SELF=\$(readlink -f "\$0")
+          HERE=\${SELF%/*}
+          export PATH="\${HERE}/usr/bin:\${PATH}"
+          export LD_LIBRARY_PATH="\${HERE}/usr/bin:\${LD_LIBRARY_PATH}"
+          export QT_PLUGIN_PATH="\${HERE}/usr/bin"
+          cd "\${HERE}/usr/bin"
+          exec "\${HERE}/usr/bin/$exe_name" "\$@"
+          APPRUN_EOF
+          # Remove leading spaces from AppRun
+          sed -i 's/^          //' "$appdir/AppRun"
           chmod +x "$appdir/AppRun"
           
           echo "AppRun contents:"
