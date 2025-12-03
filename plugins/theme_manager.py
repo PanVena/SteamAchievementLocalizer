@@ -9,10 +9,11 @@ from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QGroupBox, QPushBut
 class ThemeManager:
     """Plugin for managing themes and fonts"""
     
-    def __init__(self, main_window):
+    def __init__(self, main_window, resource_path_func=None):
         self.main_window = main_window
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
-        self.themes_dir = "assets/themes"
+        self.resource_path = resource_path_func if resource_path_func else lambda x: x
+        self.themes_dir = self.resource_path("assets/themes")
         
         # Store original system palette for restoration
         app = QApplication.instance()

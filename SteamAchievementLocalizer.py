@@ -551,7 +551,7 @@ class BinParserGUI(QMainWindow):
         self.find_replace_panel = FindReplacePanel(self, self.headers)
         self.layout.addWidget(self.find_replace_panel)
         # Initialize theme manager
-        self.theme_manager = ThemeManager(self)
+        self.theme_manager = ThemeManager(self, resource_path)
 
         # Create menubar
         self.create_menubar()
