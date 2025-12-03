@@ -138,13 +138,17 @@ jobs:
           Copy-Item LICENSE -Destination $tempPath -ErrorAction SilentlyContinue
           Copy-Item CHANGELOG.md -Destination $tempPath -ErrorAction SilentlyContinue
 
-          # Create ZIP - use Push-Location to ensure proper directory structure in archive
           Push-Location dist
-          Compress-Archive -Path $newFolderName -DestinationPath $zipPath -Force
+          7z a -tzip "..\$zipName" "$newFolderName" -r
           Pop-Location
 
+          $zipPath = Join-Path (Get-Location) $zipName
           Write-Host "Created: $zipName"
           Get-ChildItem $zipPath | Format-Table -AutoSize
+          
+          # Verify ZIP contents
+          Write-Host "ZIP contents:"
+          7z l $zipPath | Select-Object -Last 20
 
           "file=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "artifact_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -277,7 +281,8 @@ jobs:
             libxcb-xfixes0 \
             libxcb-xinerama0 \
             fuse \
-            libfuse2
+            libfuse2 \
+            imagemagick
             
           sudo apt-get install -y libegl1 || sudo apt-get install -y libegl1-mesa || true
           sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2 || true
@@ -351,13 +356,13 @@ jobs:
           # Copy everything from Nuitka output to AppDir
           cp -r "$nuitka_dir"/* "$appdir/usr/bin/"
           
-          # Copy icon
+          # Copy icon - appimagetool needs icon in AppDir root as PNG
           if [ -f "assets/icon.ico" ]; then
-            # Convert ico to png using ImageMagick if available, otherwise just copy
-            if command -v convert &> /dev/null; then
-              convert "assets/icon.ico[0]" "$appdir/usr/share/icons/hicolor/256x256/apps/steamachievementlocalizer.png"
-            fi
-            cp "assets/icon.ico" "$appdir/steamachievementlocalizer.ico"
+            # Convert ico to png using ImageMagick
+            convert "assets/icon.ico[0]" "$appdir/steamachievementlocalizer.png"
+            convert "assets/icon.ico[0]" "$appdir/usr/share/icons/hicolor/256x256/apps/steamachievementlocalizer.png"
+            echo "Icon converted and copied successfully"
+            ls -la "$appdir/steamachievementlocalizer.png"
           fi
           
           # Create .desktop file

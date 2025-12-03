@@ -5,7 +5,7 @@
     "ua": "Catppuccin Mocha",
     "pl": "Catppuccin Mocha"
   },
-  "priority": 60,
+  "priority": 5,
   "style": "Fusion",
   "palette": {
     "window": [
