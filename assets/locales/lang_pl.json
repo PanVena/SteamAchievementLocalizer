@@ -139,5 +139,8 @@
     "button_no": "Nie",
     "button_cancel": "Anuluj",
     "auto":"Automatycznie",
-    "ach_number": "Osiągnięć: "
+    "ach_number": "Osiągnięć: ",
+    "file_search_section": "Wyszukiwanie pliku",
+    "file_search_section_expanded": "▼ Wyszukiwanie pliku (rozwinięte)",
+    "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)"
 }

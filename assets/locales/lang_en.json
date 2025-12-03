@@ -150,5 +150,8 @@
     "button_no": "No",
     "button_cancel": "Cancel",
     "auto": "Auto",
-    "ach_number": "Achievements number: "
+    "ach_number": "Achievements number: ",
+    "file_search_section": "File Search",
+    "file_search_section_expanded": "▼ File Search (expanded)",
+    "file_search_section_collapsed": "▶ File Search (collapsed)"
 }

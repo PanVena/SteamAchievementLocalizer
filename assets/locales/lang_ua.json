@@ -148,5 +148,8 @@
     "button_no": "Ні",
     "button_cancel": "Скасувати",
     "auto": "Авто",
-    "ach_number": "Досягнень: "
+    "ach_number": "Досягнень: ",
+    "file_search_section": "Пошук файлу",
+    "file_search_section_expanded": "▼ Пошук файлу (розгорнуто)",
+    "file_search_section_collapsed": "▶ Пошук файлу (згорнуто)"
 }
