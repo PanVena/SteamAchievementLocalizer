@@ -114,6 +114,30 @@ jobs:
           # List all DLLs to verify ICU is included
           Write-Host "All DLLs in dist:"
           Get-ChildItem dist -Recurse -Filter "*.dll" | Select-Object Name, Length | Format-Table -AutoSize
+          
+          # Find the dist output directory
+          $distDir = Get-ChildItem dist -Directory | Select-Object -First 1
+          
+          # Copy ICU libraries from PyQt6 if they're missing
+          $pyqt6Path = python -c "import PyQt6; import os; print(os.path.dirname(PyQt6.__file__))"
+          $qt6BinPath = Join-Path $pyqt6Path "Qt6\bin"
+          
+          Write-Host "Looking for ICU libraries in: $qt6BinPath"
+          if (Test-Path $qt6BinPath) {
+            Get-ChildItem $qt6BinPath -Filter "icu*.dll" | ForEach-Object {
+              Write-Host "Copying ICU library: $($_.Name)"
+              Copy-Item $_.FullName -Destination $distDir.FullName -Force
+            }
+          }
+          
+          # Also check directly in PyQt6 folder
+          Get-ChildItem $pyqt6Path -Filter "icu*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "Copying ICU library from PyQt6: $($_.Name)"
+            Copy-Item $_.FullName -Destination $distDir.FullName -Force
+          }
+          
+          Write-Host "Final DLL list:"
+          Get-ChildItem $distDir.FullName -Filter "*.dll" | Select-Object Name | Format-Table -AutoSize
 
       - name: Create ZIP archive
         id: artifact
