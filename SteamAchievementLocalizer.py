@@ -33,7 +33,7 @@ from plugins.steam_lang_codes import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.2" 
+APP_VERSION = "0.8.3" 
 
 LOCALES_DIR = "assets/locales"
 
