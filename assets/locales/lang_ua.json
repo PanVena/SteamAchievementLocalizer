@@ -149,7 +149,6 @@
     "button_cancel": "Скасувати",
     "auto": "Авто",
     "ach_number": "Досягнень: ",
-<<<<<<< HEAD
     "ready": "Готово",
     "help": "Поміч",
     "help_title": "Довідка",
@@ -224,10 +223,8 @@
     "tooltip_menu_theme": "Вибір колірної теми оформлення",
     "tooltip_menu_accent": "Налаштування акцентного кольору елементів",
     "tooltip_menu_font_weight": "Налаштування товщини шрифту інтерфейсу",
-    "tooltip_menu_font_size": "Налаштування розміру шрифту інтерфейсу"
-=======
+    "tooltip_menu_font_size": "Налаштування розміру шрифту інтерфейсу",
     "file_search_section": "Пошук файлу",
     "file_search_section_expanded": "▼ Пошук файлу (розгорнуто)",
     "file_search_section_collapsed": "▶ Пошук файлу (згорнуто)"
->>>>>>> 5718d4c3e231bfae9840c443f819cf1fc5b66de7
 }

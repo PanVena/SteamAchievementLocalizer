@@ -1,9 +1,11 @@
 __pycache__
-.csv
-.bin
+*.csv
+*.bin
 .vs
-.dist
-.exe
-.zip
-dist/SteamAchievementLocalizer.bin
+*.dist
+*.exe
+*.zip
+*.AppImage
+dist/
+build/
 .vscode/settings.json
