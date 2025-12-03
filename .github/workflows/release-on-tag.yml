@@ -105,10 +105,15 @@ jobs:
             --windows-icon-from-ico=assets/icon.ico `
             --include-data-dir=assets=assets `
             --assume-yes-for-downloads `
+            --include-qt-plugins=all `
             --show-progress
 
           Write-Host "Listing dist/:"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
+          
+          # List all DLLs to verify ICU is included
+          Write-Host "All DLLs in dist:"
+          Get-ChildItem dist -Recurse -Filter "*.dll" | Select-Object Name, Length | Format-Table -AutoSize
 
       - name: Create ZIP archive
         id: artifact
