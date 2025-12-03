@@ -61,9 +61,9 @@ jobs:
 
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m pip install --upgrade nuitka ordered-set zstandard
+          python -m pip install pyinstaller
 
-          python -m nuitka --version
+          pyinstaller --version
 
       - name: Verify version matches tag
         id: ver
@@ -87,57 +87,24 @@ jobs:
 
           "app_version=$srcVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Build (Nuitka standalone)
+      - name: Build (PyInstaller)
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
 
-          # Чистимо минулі артефакти
+          # Clean previous artifacts
           Remove-Item dist, build -Recurse -Force -ErrorAction SilentlyContinue
-          Get-ChildItem -Filter '*.build' | Remove-Item -Force -ErrorAction SilentlyContinue
 
-          python -m nuitka SteamAchievementLocalizer.py --standalone `
-            --remove-output `
-            --output-dir=dist `
-            --windows-console-mode=disable `
-            --plugin-enable=pyqt6 `
-            --windows-icon-from-ico=assets/icon.ico `
-            --include-data-dir=assets=assets `
-            --assume-yes-for-downloads `
-            --include-qt-plugins=all `
-            --show-progress
+          pyinstaller SteamAchievementLocalizer.py `
+            --noconfirm `
+            --windowed `
+            --name SteamAchievementLocalizer `
+            --icon assets/icon.ico `
+            --add-data "assets;assets"
 
           Write-Host "Listing dist/:"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
-          
-          # List all DLLs to verify ICU is included
-          Write-Host "All DLLs in dist:"
-          Get-ChildItem dist -Recurse -Filter "*.dll" | Select-Object Name, Length | Format-Table -AutoSize
-          
-          # Find the dist output directory
-          $distDir = Get-ChildItem dist -Directory | Select-Object -First 1
-          
-          # Copy ICU libraries from PyQt6 if they're missing
-          $pyqt6Path = python -c "import PyQt6; import os; print(os.path.dirname(PyQt6.__file__))"
-          $qt6BinPath = Join-Path $pyqt6Path "Qt6\bin"
-          
-          Write-Host "Looking for ICU libraries in: $qt6BinPath"
-          if (Test-Path $qt6BinPath) {
-            Get-ChildItem $qt6BinPath -Filter "icu*.dll" | ForEach-Object {
-              Write-Host "Copying ICU library: $($_.Name)"
-              Copy-Item $_.FullName -Destination $distDir.FullName -Force
-            }
-          }
-          
-          # Also check directly in PyQt6 folder
-          Get-ChildItem $pyqt6Path -Filter "icu*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "Copying ICU library from PyQt6: $($_.Name)"
-            Copy-Item $_.FullName -Destination $distDir.FullName -Force
-          }
-          
-          Write-Host "Final DLL list:"
-          Get-ChildItem $distDir.FullName -Filter "*.dll" | Select-Object Name | Format-Table -AutoSize
 
       - name: Create ZIP archive
         id: artifact
@@ -147,22 +114,21 @@ jobs:
 
           $version = "${{ steps.ver.outputs.app_version }}"
           
-          # Find the dist folder created by Nuitka
-          $distDir = Get-ChildItem dist -Directory | Select-Object -First 1
-          if (-not $distDir) {
+          # PyInstaller creates dist/SteamAchievementLocalizer folder
+          $distDir = "dist\SteamAchievementLocalizer"
+          if (-not (Test-Path $distDir)) {
             Write-Error "No dist directory found"
           }
 
           # Create archive name
           $zipName = "SteamAchievementLocalizer-v$version-win64.zip"
-          $zipPath = Join-Path (Get-Location) $zipName
 
-          # Rename dist folder to have a nice name inside the zip
+          # Rename to include version
           $newFolderName = "SteamAchievementLocalizer-v$version"
-          $tempPath = Join-Path dist $newFolderName
-          Rename-Item -Path $distDir.FullName -NewName $newFolderName
+          Rename-Item -Path $distDir -NewName $newFolderName
 
           # Copy additional files to the package
+          $tempPath = "dist\$newFolderName"
           Copy-Item README.md -Destination $tempPath -ErrorAction SilentlyContinue
           Copy-Item LICENSE -Destination $tempPath -ErrorAction SilentlyContinue
           Copy-Item CHANGELOG.md -Destination $tempPath -ErrorAction SilentlyContinue
@@ -177,7 +143,7 @@ jobs:
           
           # Verify ZIP contents
           Write-Host "ZIP contents:"
-          7z l $zipPath | Select-Object -Last 20
+          7z l $zipPath | Select-Object -Last 30
 
           "file=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "artifact_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
