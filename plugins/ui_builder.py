@@ -2,14 +2,28 @@
 UI Builder Plugin for Steam Achievement Localizer
 Handles UI component creation and menu building
 """
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QAction, QActionGroup, QKeySequence, QIcon
+from PyQt6.QtCore import Qt, QSettings, QEvent, QObject
+from PyQt6.QtGui import QAction, QActionGroup, QKeySequence, QIcon, QMouseEvent
 from PyQt6.QtWidgets import (
     QMenuBar, QMenu, QWidgetAction, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QLineEdit, QCheckBox, QPushButton, QGroupBox, QFrame,
-    QComboBox, QMessageBox
+    QComboBox, QMessageBox, QToolTip
 )
 from typing import Dict, List, Callable, Any, Optional
+
+class MenuTooltipFilter(QObject):
+    """Event filter to show tooltips for QMenuBar items"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.ToolTip:
+            if isinstance(obj, QMenuBar):
+                action = obj.actionAt(event.pos())
+                if action and action.toolTip():
+                    QToolTip.showText(event.globalPos(), action.toolTip(), obj)
+                    return True
+        return super().eventFilter(obj, event)
 
 
 class UIBuilder:
@@ -18,26 +32,52 @@ class UIBuilder:
     def __init__(self, parent, translations: Dict[str, str]):
         self.parent = parent
         self.translations = translations
+    
+    def _connect_status_tip(self, action, tooltip_key: str):
+        """Connect action's hovered signal to show tooltip in status bar"""
+        tooltip_text = self.translations.get(tooltip_key, "")
+        if tooltip_text:
+            action.setToolTip(tooltip_text)
+            action.hovered.connect(
+                lambda: self.parent.statusBar().showMessage(tooltip_text)
+            )
         
     def create_menubar(self) -> QMenuBar:
         """Create and return the main menu bar"""
         menubar = QMenuBar(self.parent)
         
+        # Install event filter for tooltips
+        self.tooltip_filter = MenuTooltipFilter(menubar)
+        menubar.installEventFilter(self.tooltip_filter)
+        
+        # Connect hovered signal for status bar
+        menubar.hovered.connect(lambda action: self.parent.statusBar().showMessage(
+            action.toolTip() if action and action.toolTip() else ""
+        ))
+        
         # File menu
         file_menu = self._create_file_menu()
-        menubar.addMenu(file_menu)
+        file_menu.setToolTipsVisible(True)
+        file_action = menubar.addMenu(file_menu)
+        file_action.setToolTip(self.translations.get("tooltip_menu_file", ""))
         
         # Edit menu
         edit_menu = self._create_edit_menu()
-        menubar.addMenu(edit_menu)
+        edit_menu.setToolTipsVisible(True)
+        edit_action = menubar.addMenu(edit_menu)
+        edit_action.setToolTip(self.translations.get("tooltip_menu_edit", ""))
         
         # Export/Import menu
         export_import_menu = self._create_export_import_menu()
-        menubar.addMenu(export_import_menu)
+        export_import_menu.setToolTipsVisible(True)
+        export_import_action = menubar.addMenu(export_import_menu)
+        export_import_action.setToolTip(self.translations.get("tooltip_menu_export", ""))
         
         # Save menu
         save_menu = self._create_save_menu()
-        menubar.addMenu(save_menu)
+        save_menu.setToolTipsVisible(True)
+        save_action = menubar.addMenu(save_menu)
+        save_action.setToolTip(self.translations.get("tooltip_menu_save", ""))
         
         # Individual actions
         stats_action = self._create_stats_action()
@@ -45,20 +85,40 @@ class UIBuilder:
 
         # Language menu
         language_menu = self._create_language_menu()
-        menubar.addMenu(language_menu)
+        language_menu.setToolTipsVisible(True)
+        language_action = menubar.addMenu(language_menu)
+        # language_menu doesn't have a specific tooltip key in the original code, 
+        # but we can try to find one or use a default if needed.
+        # Looking at previous grep, there wasn't a tooltip_menu_language, but let's check.
+        # If not exists, it will be empty string which is fine.
+        language_action.setToolTip(self.translations.get("tooltip_menu_language", "Change application language"))
         
         # Appearance menu
         appearance_menu = self._create_appearance_menu()
-        menubar.addMenu(appearance_menu)
+        appearance_menu.setToolTipsVisible(True)
+        appearance_action = menubar.addMenu(appearance_menu)
+        appearance_action.setToolTip(self.translations.get("tooltip_menu_appearance", "Change application appearance"))
+        
+        # Help menu
+        help_menu = self._create_help_menu()
+        help_menu.setToolTipsVisible(True)
+        help_action = menubar.addMenu(help_menu)
+        help_action.setToolTip(self.translations.get("tooltip_menu_help", ""))
         
         about_action = self._create_about_action()
-        menubar.addAction(about_action)
+        # menubar.addAction(about_action) # Moved to Help menu
         
         return menubar
     
     def _create_file_menu(self) -> QMenu:
         """Create File menu"""
         file_menu = QMenu(self.translations.get("file", "File"), self.parent)
+        file_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_file", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_file", "")
+            )
+        )
         
         # Steam API name toggle
         self.use_steam_name_action = QAction(
@@ -66,6 +126,7 @@ class UIBuilder:
             self.parent,
             checkable=True
         )
+        self._connect_status_tip(self.use_steam_name_action, "tooltip_use_steam_name")
         self.use_steam_name_action.setChecked(
             self.parent.settings.value("UseSteamName", False, type=bool)
         )
@@ -78,6 +139,7 @@ class UIBuilder:
             self.translations.get("export_bin", "Open bin file in explorer"), 
             self.parent
         )
+        self._connect_status_tip(export_bin_action, "tooltip_export_bin")
         export_bin_action.triggered.connect(self.parent.export_bin)
         
         # Delete file action
@@ -85,10 +147,12 @@ class UIBuilder:
             self.translations.get("delete_stats_file", "Delete stats file"), 
             self.parent
         )
+        self._connect_status_tip(delete_file_action, "tooltip_delete_stats_file")
         delete_file_action.triggered.connect(self.parent.delete_current_stats_file)
         
         # Exit action
         exit_action = QAction(self.translations.get("exit", "Exit"), self.parent)
+        self._connect_status_tip(exit_action, "tooltip_exit")
         exit_action.triggered.connect(self.parent._on_exit_action)
         
         file_menu.addAction(export_bin_action)
@@ -101,6 +165,12 @@ class UIBuilder:
     def _create_edit_menu(self) -> QMenu:
         """Create Edit menu"""
         edit_menu = QMenu(self.translations.get("edit", "Edit"), self.parent)
+        edit_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_edit", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_edit", "")
+            )
+        )
         
         # Global search widget
         search_widget = self._create_search_widget()
@@ -180,6 +250,13 @@ class UIBuilder:
     def _create_columns_menu(self) -> QMenu:
         """Create columns visibility submenu"""
         columns_menu = QMenu(self.translations.get("columns", "Columns"), self.parent)
+        columns_menu.setToolTipsVisible(True)
+        columns_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_columns", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_columns", "")
+            )
+        )
         
         if hasattr(self.parent, 'headers') and self.parent.headers:
             self.parent.column_actions = {}
@@ -187,6 +264,13 @@ class UIBuilder:
             for header in self.parent.headers:
                 checkbox = QCheckBox(header)
                 checkbox.setChecked(True)
+                
+                # Try specific column tooltip first, then generic toggle format
+                tooltip = self.translations.get(f"tooltip_col_{header}")
+                if not tooltip:
+                    tooltip = self.translations.get("tooltip_toggle_column", "Toggle {} column").format(header)
+                
+                checkbox.setToolTip(tooltip)
                 
                 # Disable key columns
                 if header in ["key", "ukrainian"]:
@@ -200,6 +284,9 @@ class UIBuilder:
                 
                 action = QWidgetAction(self.parent)
                 action.setDefaultWidget(checkbox)
+                # For QWidgetAction, we might need to set tooltip on the action itself too, 
+                # though it's the widget that receives events.
+                action.setToolTip(checkbox.toolTip())
                 columns_menu.addAction(action)
                 self.parent.column_actions[header] = checkbox
         
@@ -211,12 +298,19 @@ class UIBuilder:
             self.translations.get("export_import", "Export/Import"), 
             self.parent
         )
+        export_import_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_export", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_export", "")
+            )
+        )
         
         # Export all action
         export_all_action = QAction(
             self.translations.get("export_all", "Export to CSV (all languages)"), 
             self.parent
         )
+        self._connect_status_tip(export_all_action, "tooltip_export_all")
         export_all_action.triggered.connect(self.parent.export_csv_all)
         
         # Export for translate action
@@ -224,6 +318,7 @@ class UIBuilder:
             self.translations.get("export_for_translate", "Export to CSV for translation"), 
             self.parent
         )
+        self._connect_status_tip(export_for_translate_action, "tooltip_export_for_translate")
         export_for_translate_action.triggered.connect(self.parent.export_csv_for_translate)
         
         # Import action
@@ -231,6 +326,7 @@ class UIBuilder:
             self.translations.get("import_csv", "Import from CSV"), 
             self.parent
         )
+        self._connect_status_tip(import_action, "tooltip_import_csv")
         import_action.triggered.connect(self.parent.import_csv)
         
         export_import_menu.addAction(export_all_action)
@@ -243,12 +339,19 @@ class UIBuilder:
     def _create_save_menu(self) -> QMenu:
         """Create Save menu"""
         save_menu = QMenu(self.translations.get("save", "Save"), self.parent)
+        save_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_save", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_save", "")
+            )
+        )
         
         # Save for self action
         save_known_action = QAction(
             self.translations.get("save_bin_known", "Save bin file for yourself"), 
             self.parent
         )
+        self._connect_status_tip(save_known_action, "tooltip_save_bin_known")
         save_known_action.triggered.connect(self.parent.save_bin_know)
         
         # Save to Steam action
@@ -256,6 +359,7 @@ class UIBuilder:
             self.translations.get("save_bin_unknown", "Save bin file to Steam folder"), 
             self.parent
         )
+        self._connect_status_tip(save_unknown_action, "tooltip_save_bin_unknown")
         save_unknown_action.triggered.connect(self.parent.save_bin_unknow)
         
         save_menu.addAction(save_known_action)
@@ -266,6 +370,13 @@ class UIBuilder:
     def _create_language_menu(self) -> QMenu:
         """Create Language menu"""
         language_menu = QMenu(self.translations.get("language", "Language"), self.parent)
+        language_menu.setToolTipsVisible(True)
+        language_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_language", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_language", "")
+            )
+        )
         
         # Get available locales from parent (new system)
         if hasattr(self.parent, 'available_locales') and self.parent.available_locales:
@@ -282,6 +393,9 @@ class UIBuilder:
                 display_name = locale_info['native_name']
                 
                 action = QAction(display_name, self.parent)
+                tooltip = self.translations.get("tooltip_switch_lang", "Switch language to {}").format(display_name)
+                action.setToolTip(tooltip)
+                action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
                 action.triggered.connect(
                     lambda checked, l=lang_name: self.parent.change_language(l)
                 )
@@ -296,6 +410,9 @@ class UIBuilder:
             
             for lang in lang_files.keys():
                 action = QAction(lang, self.parent)
+                tooltip = self.translations.get("tooltip_switch_lang", "Switch language to {}").format(lang)
+                action.setToolTip(tooltip)
+                action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
                 action.triggered.connect(
                     lambda checked, l=lang: self.parent.change_language(l)
                 )
@@ -306,6 +423,13 @@ class UIBuilder:
     def _create_appearance_menu(self) -> QMenu:
         """Create Appearance menu"""
         appearance_menu = QMenu(self.translations.get("appearance", "Appearance"), self.parent)
+        appearance_menu.setToolTipsVisible(True)
+        appearance_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_appearance", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_appearance", "")
+            )
+        )
         
         # Theme submenu
         if hasattr(self.parent, 'theme_manager'):
@@ -326,9 +450,41 @@ class UIBuilder:
         
         return appearance_menu
     
+    def _create_help_menu(self) -> QMenu:
+        """Create Help menu"""
+        help_menu = QMenu(self.translations.get("help", "Help"), self.parent)
+        help_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_help", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_help", "")
+            )
+        )
+        
+        # Help dialog action
+       ## help_action = QAction(self.translations.get("help_title", "Help"), self.parent)
+      ##  self._connect_status_tip(help_action, "tooltip_help_dialog")
+       ## help_action.triggered.connect(self.parent.show_help_dialog)
+       ## help_menu.addAction(help_action)
+        
+       ## help_menu.addSeparator()
+        
+        # About action
+        about_action = self._create_about_action()
+        help_menu.addAction(about_action)
+        
+        return help_menu
+    
     def _create_theme_submenu(self) -> QMenu:
         """Create theme selection submenu"""
         theme_menu = QMenu(self.translations.get("theme", "Theme"), self.parent)
+        theme_menu.setToolTipsVisible(True)
+        theme_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_theme", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_theme", "")
+            )
+        )
+        
         theme_group = QActionGroup(self.parent)
         theme_group.setExclusive(True)
         
@@ -343,6 +499,11 @@ class UIBuilder:
             display_name = self.parent.theme_manager.get_theme_display_name(theme, language_code)
             action = QAction(display_name, self.parent, checkable=True)
             action.setChecked(theme == current_theme)
+            
+            tooltip = self.translations.get("tooltip_select_theme", "Select {} theme").format(display_name)
+            action.setToolTip(tooltip)
+            action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
+            
             action.triggered.connect(
                 lambda checked, t=theme: self.parent.theme_manager.set_theme(t)
             )
@@ -365,6 +526,14 @@ class UIBuilder:
     def _create_accent_color_submenu(self) -> QMenu:
         """Create accent color selection submenu"""
         accent_color_menu = QMenu(self.translations.get("accent_color", "Accent Color"), self.parent)
+        accent_color_menu.setToolTipsVisible(True)
+        accent_color_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_accent", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_accent", "")
+            )
+        )
+        
         accent_group = QActionGroup(self.parent)
         accent_group.setExclusive(True)
         
@@ -374,6 +543,8 @@ class UIBuilder:
         # Theme default accent color option
         theme_default_action = QAction(self.translations.get("theme_default", "Theme Default"), self.parent, checkable=True)
         theme_default_action.setChecked(current_mode == "theme_default")
+        theme_default_action.setToolTip(self.translations.get("tooltip_accent_default", "Use default theme accent color"))
+        theme_default_action.hovered.connect(lambda: self.parent.statusBar().showMessage(theme_default_action.toolTip()))
         theme_default_action.triggered.connect(
             lambda checked: self.parent.theme_manager.set_accent_color("theme_default")
         )
@@ -381,6 +552,8 @@ class UIBuilder:
         # Custom accent color option
         custom_action = QAction(self.translations.get("custom", "Custom..."), self.parent, checkable=True)
         custom_action.setChecked(current_mode == "custom")
+        custom_action.setToolTip(self.translations.get("tooltip_accent_custom", "Choose a custom accent color"))
+        custom_action.hovered.connect(lambda: self.parent.statusBar().showMessage(custom_action.toolTip()))
         custom_action.triggered.connect(
             lambda checked: self.parent.show_accent_color_picker() if checked else None
         )
@@ -398,6 +571,14 @@ class UIBuilder:
     def _create_font_weight_submenu(self) -> QMenu:
         """Create font weight submenu"""
         font_weight_menu = QMenu(self.translations.get("font_weight", "Font Weight"), self.parent)
+        font_weight_menu.setToolTipsVisible(True)
+        font_weight_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_font_weight", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_font_weight", "")
+            )
+        )
+        
         font_group = QActionGroup(self.parent)
         font_group.setExclusive(True)
         
@@ -408,6 +589,11 @@ class UIBuilder:
                              ("Bold", self.translations.get("font_bold", "Bold"))]:
             action = QAction(label, self.parent, checkable=True)
             action.setChecked(weight == current_weight)
+            
+            tooltip = self.translations.get("tooltip_set_font_weight", "Set font weight to {}").format(label)
+            action.setToolTip(tooltip)
+            action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
+            
             action.triggered.connect(
                 lambda checked, w=weight: self.parent.theme_manager.set_font_weight(w)
             )
@@ -421,6 +607,14 @@ class UIBuilder:
     def _create_font_size_submenu(self) -> QMenu:
         """Create font size submenu"""
         font_size_menu = QMenu(self.translations.get("font_size", "Font Size"), self.parent)
+        font_size_menu.setToolTipsVisible(True)
+        font_size_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_font_size", "") if action is None or action.isSeparator() 
+                else action.toolTip() or self.translations.get("tooltip_menu_font_size", "")
+            )
+        )
+        
         font_size_group = QActionGroup(self.parent)
         font_size_group.setExclusive(True)
         
@@ -438,6 +632,11 @@ class UIBuilder:
         for size, label in font_sizes:
             action = QAction(label, self.parent, checkable=True)
             action.setChecked(size == current_size)
+            
+            tooltip = self.translations.get("tooltip_set_font_size", "Set font size to {}").format(label)
+            action.setToolTip(tooltip)
+            action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
+            
             action.triggered.connect(
                 lambda checked, s=size: self.parent.theme_manager.set_font_size(s)
             )
@@ -454,12 +653,16 @@ class UIBuilder:
             self.translations.get("show_user_game_stats", "Show Game Stats"), 
             self.parent
         )
+        self._connect_status_tip(show_stats_action, "tooltip_show_user_game_stats")
         show_stats_action.triggered.connect(self.parent.show_user_game_stats_list)
         return show_stats_action
+    
+        return about_action
     
     def _create_about_action(self) -> QAction:
         """Create about action"""
         about_action = QAction(self.translations.get("about", "About"), self.parent)
+        self._connect_status_tip(about_action, "tooltip_menu_about")
         about_action.triggered.connect(
             lambda: QMessageBox.information(
                 self.parent,

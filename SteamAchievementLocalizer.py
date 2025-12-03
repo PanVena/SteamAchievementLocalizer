@@ -22,6 +22,7 @@ from plugins.steam_integration import SteamIntegration
 from plugins.csv_handler import CSVHandler
 from plugins.file_manager import FileManager
 from plugins.ui_builder import UIBuilder
+from plugins.help_dialog import HelpDialog
 from plugins.steam_lang_codes import (
     get_available_languages_for_selection,
     get_display_name,
@@ -223,6 +224,9 @@ class BinParserGUI(QMainWindow):
         self.central_widget.setLayout(self.layout)
         self.setCentralWidget(self.central_widget)
         
+        # Add status bar for menu tooltips
+        self.statusBar().showMessage(self.translations.get("ready", "Ready"))
+        
 
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
         self.default_steam_path = self.detect_steam_path()
@@ -235,10 +239,13 @@ class BinParserGUI(QMainWindow):
         stats_bin_path_layout = QHBoxLayout()
         self.stats_bin_path_path = QLineEdit()
         self.stats_bin_path_path.setPlaceholderText(self.translations.get("man_select_file_label"))
+        self.stats_bin_path_path.setToolTip(self.translations.get("tooltip_man_select_file", ""))
         self.stats_bin_path_path.textChanged.connect(lambda text: self.settings.setValue("LastEnteredFilePath", text))
         self.stats_bin_path_btn = QPushButton(self.translations.get("man_select_file"))
+        self.stats_bin_path_btn.setToolTip(self.translations.get("tooltip_man_select_file", ""))
         self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
         self.select_stats_bin_path_btn = QPushButton(self.translations.get("get_ach"))
+        self.select_stats_bin_path_btn.setToolTip(self.translations.get("tooltip_get_ach_manual", ""))
         self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
@@ -283,10 +290,13 @@ class BinParserGUI(QMainWindow):
         steam_folder_layout = QHBoxLayout()
         self.steam_folder_path = QLineEdit()
         self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
+        self.steam_folder_path.setToolTip(self.translations.get("tooltip_steam_folder", ""))
         self.steam_folder_path.textChanged.connect(self.on_steam_path_changed)
         self.steam_auto_path_btn = QPushButton(self.translations.get("auto"))
+        self.steam_auto_path_btn.setToolTip(self.translations.get("tooltip_steam_auto", ""))
         self.steam_auto_path_btn.clicked.connect(self.steam_auto_forcing)
         self.select_steam_folder_btn = QPushButton(self.translations.get("select_steam_folder"))
+        self.select_steam_folder_btn.setToolTip(self.translations.get("tooltip_select_steam_folder", ""))
         self.select_steam_folder_btn.clicked.connect(self.select_steam_folder)
         steam_folder_layout.addWidget(self.steam_folder_path)
         steam_folder_layout.addWidget(self.steam_auto_path_btn)
@@ -299,10 +309,13 @@ class BinParserGUI(QMainWindow):
         game_id_layout = QHBoxLayout()
         self.game_id_edit = QLineEdit()
         self.game_id_edit.setPlaceholderText(self.translations.get("game_id_label"))
+        self.game_id_edit.setToolTip(self.translations.get("tooltip_game_id", ""))
         self.game_id_edit.textChanged.connect(lambda text: self.settings.setValue("LastEnteredID", text))
         self.load_game_btn = QPushButton(self.translations.get("get_ach"))
+        self.load_game_btn.setToolTip(self.translations.get("tooltip_get_ach_steam", ""))
         self.load_game_btn.clicked.connect(self.load_steam_game_stats)
         self.clear_game_id = QPushButton(self.translations.get("clear_and_paste"))
+        self.clear_game_id.setToolTip(self.translations.get("tooltip_clear_paste", ""))
         self.clear_game_id.pressed.connect(lambda: ( 
             self.game_id_edit.clear(),
             self.game_id_edit.setText(QApplication.clipboard().text()),
@@ -342,6 +355,7 @@ class BinParserGUI(QMainWindow):
             self.lang_layout.addWidget(self.translation_lang_label)
             
             self.translation_lang_combo = QComboBox()
+            self.translation_lang_combo.setToolTip(self.translations.get("tooltip_translation_lang", ""))
             available_languages = get_available_languages_for_selection()
             system_lang = get_system_language()
             
@@ -413,33 +427,47 @@ class BinParserGUI(QMainWindow):
 
         # --- Table ---
         self.table = QTableWidget()
+        self.table.setToolTip(self.translations.get("tooltip_table", ""))
         self.table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.itemChanged.connect(self.on_table_item_changed)
 
         # --- Context Menu for Copy/Paste/Cut/Delete/Redo ---
+        # --- Context Menu for Copy/Paste/Cut/Delete/Redo ---
         self.copy_action = QAction(self.translations.get("copy", "Copy"), self)
         self.copy_action.setShortcut("Ctrl+C")
+        self.copy_action.setToolTip(self.translations.get("tooltip_copy", "Copy selection to clipboard"))
+        self.copy_action.hovered.connect(lambda: self.statusBar().showMessage(self.copy_action.toolTip()))
         self.copy_action.triggered.connect(self.copy_selection_to_clipboard)
 
         self.paste_action = QAction(self.translations.get("paste", "Paste"), self)
         self.paste_action.setShortcut("Ctrl+V")
+        self.paste_action.setToolTip(self.translations.get("tooltip_paste", "Paste from clipboard"))
+        self.paste_action.hovered.connect(lambda: self.statusBar().showMessage(self.paste_action.toolTip()))
         self.paste_action.triggered.connect(self.paste_from_clipboard)
 
         self.cut_action = QAction(self.translations.get("cut", "Cut"), self)
         self.cut_action.setShortcut("Ctrl+X")
+        self.cut_action.setToolTip(self.translations.get("tooltip_cut", "Cut selection to clipboard"))
+        self.cut_action.hovered.connect(lambda: self.statusBar().showMessage(self.cut_action.toolTip()))
         self.cut_action.triggered.connect(self.cut_selection_to_clipboard)
 
         self.delete_action = QAction(self.translations.get("delete", "Delete"), self)
         self.delete_action.setShortcut("Delete")
+        self.delete_action.setToolTip(self.translations.get("tooltip_delete", "Delete selection"))
+        self.delete_action.hovered.connect(lambda: self.statusBar().showMessage(self.delete_action.toolTip()))
         self.delete_action.triggered.connect(self.clear_selection)
         
         self.redo_action = QAction(self.translations.get("redo", "Redo"), self)
         self.redo_action.setShortcut("Ctrl+Y")
+        self.redo_action.setToolTip(self.translations.get("tooltip_redo", "Redo last action"))
+        self.redo_action.hovered.connect(lambda: self.statusBar().showMessage(self.redo_action.toolTip()))
         self.redo_action.triggered.connect(self.redo)
 
         self.undo_action = QAction(self.translations.get("undo", "Undo"), self)
         self.undo_action.setShortcut("Ctrl+Z")
+        self.undo_action.setToolTip(self.translations.get("tooltip_undo", "Undo last action"))
+        self.undo_action.hovered.connect(lambda: self.statusBar().showMessage(self.undo_action.toolTip()))
         self.undo_action.triggered.connect(self.undo)
 
 
@@ -497,6 +525,8 @@ class BinParserGUI(QMainWindow):
         # Replace in column action
         self.replace_in_column_action = QAction(self.translations.get("search_replace", "Search and Replace"), self)
         self.replace_in_column_action.setShortcut("Ctrl+F")
+        self.replace_in_column_action.setToolTip(self.translations.get("tooltip_replace_in_column", "Search and replace text in columns"))
+        self.replace_in_column_action.hovered.connect(lambda: self.statusBar().showMessage(self.replace_in_column_action.toolTip()))
         self.replace_in_column_action.triggered.connect(self.show_find_replace_dialog)
         self.table.addAction(self.replace_in_column_action)
 
@@ -717,10 +747,15 @@ class BinParserGUI(QMainWindow):
         self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
         self.steam_folder_path.setPlaceholderText(self.translations.get("steam_folder_label"))
         self.select_steam_folder_btn.setText(self.translations.get("select_steam_folder"))
+        self.select_steam_folder_btn.setToolTip(self.translations.get("tooltip_select_steam_folder", ""))
         self.steam_auto_path_btn.setText(self.translations.get("auto"))
+        self.steam_auto_path_btn.setToolTip(self.translations.get("tooltip_steam_auto", ""))
         self.game_id_edit.setPlaceholderText(self.translations.get("game_id_label"))
+        self.game_id_edit.setToolTip(self.translations.get("tooltip_game_id", ""))
         self.load_game_btn.setText(self.translations.get("get_ach"))
+        self.load_game_btn.setToolTip(self.translations.get("tooltip_get_ach_steam", ""))
         self.clear_game_id.setText(self.translations.get("clear_and_paste"))
+        self.clear_game_id.setToolTip(self.translations.get("tooltip_clear_paste", ""))
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
@@ -775,6 +810,10 @@ class BinParserGUI(QMainWindow):
         if update_menubar:
             self.create_menubar()
 
+    def show_help_dialog(self):
+        """Show the help dialog"""
+        dialog = HelpDialog(self, self.translations)
+        dialog.exec()
 
     # =================================================================
     # FILE OPERATIONS AND STEAM INTEGRATION
