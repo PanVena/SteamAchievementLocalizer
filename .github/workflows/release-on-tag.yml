@@ -101,7 +101,9 @@ jobs:
             --windowed `
             --name SteamAchievementLocalizer `
             --icon assets/icon.ico `
-            --add-data "assets;assets"
+            --add-data "assets;assets" `
+            --collect-all PyQt6 `
+            --hidden-import PyQt6.sip
 
           Write-Host "Listing dist/:"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
