@@ -174,5 +174,8 @@
     "tooltip_menu_theme": "Select color theme",
     "tooltip_menu_accent": "Select accent color",
     "tooltip_menu_font_weight": "Select font weight",
-    "tooltip_menu_font_size": "Select font size"
+    "tooltip_menu_font_size": "Select font size",
+    "file_search_section": "File Search",
+    "file_search_section_expanded": "▼ File Search (expanded)",
+    "file_search_section_collapsed": "▶ File Search (collapsed)"
 }

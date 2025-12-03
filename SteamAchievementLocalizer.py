@@ -234,6 +234,15 @@ class BinParserGUI(QMainWindow):
         self.force_manual_path = False  
 
 
+        # Create collapsible section for file search inputs
+        self.file_search_section = QGroupBox()
+        self.file_search_section.setCheckable(True)
+        self.file_search_section.setChecked(True)  # Initially expanded
+        self.file_search_section.setTitle(self.translations.get("file_search_section", "▼ File Search"))
+        self.file_search_section.toggled.connect(self.on_file_search_section_toggled)
+        self.file_search_section.setFlat(False)
+        
+        file_search_layout = QVBoxLayout()
         
         # --- File localization selection ---
         stats_bin_path_layout = QHBoxLayout()
@@ -255,7 +264,7 @@ class BinParserGUI(QMainWindow):
         self.stats_group = QGroupBox(self.translations.get("man_file_sel_label"))
         self.stats_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         self.stats_group.setLayout(stats_bin_path_layout)
-        self.layout.addWidget(self.stats_group)   
+        file_search_layout.addWidget(self.stats_group)   
         
         
         # --- OR (with lines) ---
@@ -283,7 +292,7 @@ class BinParserGUI(QMainWindow):
         box_1 = QGroupBox("")  
         box_1.setFlat(False)   
         box_1.setLayout(abo_layout)
-        self.layout.addWidget(box_1)
+        file_search_layout.addWidget(box_1)
 
 
         # --- Steam folder selection ---
@@ -333,7 +342,11 @@ class BinParserGUI(QMainWindow):
         self.steam_group = QGroupBox(self.translations.get("indirect_file_sel_label"))
         self.steam_group.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         self.steam_group.setLayout(steam_group_layout)
-        self.layout.addWidget(self.steam_group)
+        file_search_layout.addWidget(self.steam_group)
+        
+        # Set layout for collapsible section
+        self.file_search_section.setLayout(file_search_layout)
+        self.layout.addWidget(self.file_search_section)
         
 
        
@@ -759,6 +772,13 @@ class BinParserGUI(QMainWindow):
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
+        
+        # Update file search section title based on state
+        if hasattr(self, 'file_search_section'):
+            if self.file_search_section.isChecked():
+                self.file_search_section.setTitle(self.translations.get("file_search_section_expanded", "▼ File Search"))
+            else:
+                self.file_search_section.setTitle(self.translations.get("file_search_section_collapsed", "▶ File Search"))
         # Update translation language label if exists and visible
         if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
             self.translation_lang_label.setText(self.translations.get("translation_lang"))
@@ -914,6 +934,11 @@ class BinParserGUI(QMainWindow):
         self.gamename()
         self.countby2 = len(all_rows)//2
         self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
+        
+        # Collapse file search section after loading table
+        if hasattr(self, 'file_search_section'):
+            self.file_search_section.setChecked(False)
+        
         msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
         QMessageBox.information(self, self.translations.get("success"), msg)
 
@@ -1718,6 +1743,29 @@ class BinParserGUI(QMainWindow):
             self.load_steam_game_stats()
         else:
             self.game_id_edit.clear()
+
+    def on_file_search_section_toggled(self, checked):
+        """Handle file search section collapse/expand"""
+        if checked:
+            # Expanded - show arrow down and content
+            self.file_search_section.setTitle(self.translations.get("file_search_section_expanded", "▼ File Search"))
+            # Restore normal height
+            self.file_search_section.setMaximumHeight(16777215)  # Qt default max
+            # Show all child widgets
+            for i in range(self.file_search_section.layout().count()):
+                widget = self.file_search_section.layout().itemAt(i).widget()
+                if widget:
+                    widget.setVisible(True)
+        else:
+            # Collapsed - show arrow right and hide content
+            self.file_search_section.setTitle(self.translations.get("file_search_section_collapsed", "▶ File Search"))
+            # Hide all child widgets to free up space
+            for i in range(self.file_search_section.layout().count()):
+                widget = self.file_search_section.layout().itemAt(i).widget()
+                if widget:
+                    widget.setVisible(False)
+            # Set minimal height when collapsed
+            self.file_search_section.setMaximumHeight(35)
 
     # =================================================================
     # DIALOGS AND EVENT HANDLERS

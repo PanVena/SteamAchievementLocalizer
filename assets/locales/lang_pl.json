@@ -138,6 +138,7 @@
     "button_yes": "Tak",
     "button_no": "Nie",
     "button_cancel": "Anuluj",
+<<<<<<< HEAD
     "auto": "Automatycznie",
     "ach_number": "Osiągnięć: ",
     "main_window_group": "Okno główne",
@@ -164,4 +165,11 @@
     "tooltip_menu_accent": "Wybierz kolor akcentu",
     "tooltip_menu_font_weight": "Wybierz grubość czcionki",
     "tooltip_menu_font_size": "Wybierz rozmiar czcionki"
+=======
+    "auto":"Automatycznie",
+    "ach_number": "Osiągnięć: ",
+    "file_search_section": "Wyszukiwanie pliku",
+    "file_search_section_expanded": "▼ Wyszukiwanie pliku (rozwinięte)",
+    "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)"
+>>>>>>> 5718d4c3e231bfae9840c443f819cf1fc5b66de7
 }
