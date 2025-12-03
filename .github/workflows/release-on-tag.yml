@@ -356,6 +356,11 @@ jobs:
           # Copy everything from Nuitka output to AppDir
           cp -r "$nuitka_dir"/* "$appdir/usr/bin/"
           
+          # Find the actual executable name (Nuitka creates .bin on Linux)
+          exe_file=$(find "$appdir/usr/bin" -maxdepth 1 -name "SteamAchievementLocalizer*" -type f -executable | head -n1)
+          exe_name=$(basename "$exe_file")
+          echo "Found executable: $exe_name"
+          
           # Copy icon - appimagetool needs icon in AppDir root as PNG
           if [ -f "assets/icon.ico" ]; then
             # Convert ico to png using ImageMagick
@@ -366,31 +371,34 @@ jobs:
           fi
           
           # Create .desktop file
-          cat > "$appdir/steamachievementlocalizer.desktop" << EOF
-          [Desktop Entry]
-          Type=Application
-          Name=Steam Achievement Localizer
-          Exec=SteamAchievementLocalizer
-          Icon=steamachievementlocalizer
-          Categories=Utility;Game;
-          Comment=Localize Steam achievement files
-          Terminal=false
-          EOF
+          cat > "$appdir/steamachievementlocalizer.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Steam Achievement Localizer
+Exec=SteamAchievementLocalizer
+Icon=steamachievementlocalizer
+Categories=Utility;Game;
+Comment=Localize Steam achievement files
+Terminal=false
+EOF
           
           cp "$appdir/steamachievementlocalizer.desktop" "$appdir/usr/share/applications/"
           
-          # Create AppRun script
-          cat > "$appdir/AppRun" << 'EOF'
-          #!/bin/bash
-          SELF=$(readlink -f "$0")
-          HERE=${SELF%/*}
-          export PATH="${HERE}/usr/bin:${PATH}"
-          export LD_LIBRARY_PATH="${HERE}/usr/bin:${LD_LIBRARY_PATH}"
-          export QT_PLUGIN_PATH="${HERE}/usr/bin"
-          cd "${HERE}/usr/bin"
-          exec "${HERE}/usr/bin/SteamAchievementLocalizer" "$@"
-          EOF
+          # Create AppRun script - use the actual executable name found earlier
+          cat > "$appdir/AppRun" << EOF
+#!/bin/bash
+SELF=\$(readlink -f "\$0")
+HERE=\${SELF%/*}
+export PATH="\${HERE}/usr/bin:\${PATH}"
+export LD_LIBRARY_PATH="\${HERE}/usr/bin:\${LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="\${HERE}/usr/bin"
+cd "\${HERE}/usr/bin"
+exec "\${HERE}/usr/bin/$exe_name" "\$@"
+EOF
           chmod +x "$appdir/AppRun"
+          
+          echo "AppRun contents:"
+          cat "$appdir/AppRun"
           
           # Build AppImage
           appimage_name="SteamAchievementLocalizer-v${version}-linux64.AppImage"
