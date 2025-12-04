@@ -360,9 +360,9 @@ jobs:
           
           # Copy icon - appimagetool needs icon in AppDir root as PNG
           if [ -f "assets/icon.ico" ]; then
-            # Convert ico to png using ImageMagick
-            convert "assets/icon.ico[0]" "$appdir/steamachievementlocalizer.png"
-            convert "assets/icon.ico[0]" "$appdir/usr/share/icons/hicolor/256x256/apps/steamachievementlocalizer.png"
+            # Convert ico to png using ImageMagick - use [4] for 256x256 resolution
+            convert "assets/icon.ico[4]" "$appdir/steamachievementlocalizer.png"
+            convert "assets/icon.ico[4]" "$appdir/usr/share/icons/hicolor/256x256/apps/steamachievementlocalizer.png"
             echo "Icon converted and copied successfully"
             ls -la "$appdir/steamachievementlocalizer.png"
           fi
