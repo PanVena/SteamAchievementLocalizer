@@ -122,10 +122,10 @@ jobs:
             Write-Error "No dist directory found"
           }
 
-          # Create archive name
-          $zipName = "SteamAchievementLocalizer-v$version-win64.zip"
+          # Create archive name (fixed name for direct download links)
+          $zipName = "SteamAchievementLocalizer-win64.zip"
 
-          # Rename to include version
+          # Keep versioned folder inside archive for user clarity
           $newFolderName = "SteamAchievementLocalizer-v$version"
           Rename-Item -Path $distDir -NewName $newFolderName
 
@@ -171,8 +171,8 @@ jobs:
           ## Steam Achievement Localizer v$version
 
           ### Downloads
-          - **Windows**: SteamAchievementLocalizer-v$version-win64.zip
-          - **Linux**: SteamAchievementLocalizer-v$version-linux64.AppImage
+          - **Windows**: SteamAchievementLocalizer-win64.zip
+          - **Linux**: SteamAchievementLocalizer-linux64.AppImage
 
           ### Installation
           **Windows**: 
@@ -181,7 +181,7 @@ jobs:
 
           **Linux**: 
           1. Download the AppImage
-          2. Make it executable: `chmod +x SteamAchievementLocalizer-v$version-linux64.AppImage`
+          2. Make it executable: ``chmod +x SteamAchievementLocalizer-linux64.AppImage``
           3. Run the AppImage
 
           ### Requirements
@@ -401,8 +401,8 @@ jobs:
           echo "AppRun contents:"
           cat "$appdir/AppRun"
           
-          # Build AppImage
-          appimage_name="SteamAchievementLocalizer-v${version}-linux64.AppImage"
+          # Build AppImage (fixed name for direct download links)
+          appimage_name="SteamAchievementLocalizer-linux64.AppImage"
           
           # Use FUSE workaround for GitHub Actions
           ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$appdir" "$appimage_name"
