@@ -28,6 +28,7 @@
     "save": "Zapisz",
     "save_bin_unknown": "Zapisz binarkę w folderze Steam",
     "save_bin_known": "Zapisz binarkę dla siebie",
+    "tools": "Narzędzia",
     "export_import": "Eksport/Import",
     "export_bin": "Otwórz wybraną binarkę w eksploratorze",
     "export_all": "Eksport do CSV (wszystkie języki)",

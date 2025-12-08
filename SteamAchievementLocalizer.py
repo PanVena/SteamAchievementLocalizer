@@ -31,7 +31,7 @@ from plugins.steam_lang_codes import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.3" 
+APP_VERSION = "0.8.4" 
 
 LOCALES_DIR = "assets/locales"
 
@@ -541,12 +541,29 @@ class BinParserGUI(QMainWindow):
 
     def create_menubar(self):
         """Create menubar using ui_builder plugin"""
-        # Initialize ui_builder with current translations
-        self.ui_builder = UIBuilder(self, self.translations)
-        menubar = self.ui_builder.create_menubar()
-        
-        # Adding menubar to the layout
-        self.setMenuWidget(menubar)
+        # On macOS, get existing menubar or create new one
+        # On other platforms, always create new
+        if sys.platform == "darwin":
+            # Get existing menubar if it exists
+            menubar = self.menuBar()
+            # Clear all existing actions/menus
+            menubar.clear()
+
+            # Initialize ui_builder with current translations
+            self.ui_builder = UIBuilder(self, self.translations)
+            # Populate the existing menubar
+            self.ui_builder.populate_menubar(menubar)
+        else:
+            # On other platforms, remove old widget and create new
+            old_menubar = self.menuWidget()
+            if old_menubar:
+                old_menubar.deleteLater()
+                self.setMenuWidget(None)
+
+            # Initialize ui_builder with current translations
+            self.ui_builder = UIBuilder(self, self.translations)
+            menubar = self.ui_builder.create_menubar()
+            self.setMenuWidget(menubar)
 
     def set_window_size(self):
         screen = QApplication.primaryScreen()
@@ -777,33 +794,33 @@ class BinParserGUI(QMainWindow):
         # Update find/replace panel translations
         if hasattr(self, 'find_replace_panel'):
             self.find_replace_panel.update_translations(self.translations)
-        
-        self.create_menubar()
-        
-        # Update theme and font checkboxes after recreating menubar
-        if hasattr(self, 'theme_manager'):
-            current_theme = self.theme_manager.get_current_theme()
-            for theme, action in getattr(self, "theme_actions", {}).items():
-                action.setChecked(theme == current_theme)
-                
-            current_weight = self.theme_manager.get_current_font_weight()
-            for weight, action in getattr(self, "font_actions", {}).items():
-                action.setChecked(weight == current_weight)
-                
-            current_size = self.theme_manager.get_current_font_size()
-            for size, action in getattr(self, "font_size_actions", {}).items():
-                action.setChecked(size == current_size)
-        
-        for header, action in getattr(self, "column_actions", {}).items():
-            col = self.headers.index(header)
-            action.setChecked(not self.table.isColumnHidden(col))
+
+        if update_menubar:
+            self.create_menubar()
+
+            # Update theme and font checkboxes after recreating menubar
+            if hasattr(self, 'theme_manager'):
+                current_theme = self.theme_manager.get_current_theme()
+                for theme, action in getattr(self, "theme_actions", {}).items():
+                    action.setChecked(theme == current_theme)
+
+                current_weight = self.theme_manager.get_current_font_weight()
+                for weight, action in getattr(self, "font_actions", {}).items():
+                    action.setChecked(weight == current_weight)
+
+                current_size = self.theme_manager.get_current_font_size()
+                for size, action in getattr(self, "font_size_actions", {}).items():
+                    action.setChecked(size == current_size)
+
+            for header, action in getattr(self, "column_actions", {}).items():
+                col = self.headers.index(header)
+                action.setChecked(not self.table.isColumnHidden(col))
+
         self.version()
         self.gamename()
         # Apply fonts to all widgets
         if hasattr(self, 'theme_manager'):
             self.theme_manager.apply_font_to_widgets()
-        if update_menubar:
-            self.create_menubar()
 
     def show_help_dialog(self):
         """Show the help dialog"""

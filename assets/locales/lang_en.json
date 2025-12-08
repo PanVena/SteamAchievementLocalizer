@@ -31,6 +31,7 @@
     "save": "Save",
     "save_bin_unknown": "Save bin file to Steam folder",
     "save_bin_known": "Save bin file for yourself",
+    "tools": "Tools",
     "export_import": "Export/Import",
     "export_bin": "Open current bin file in Explorer",
     "export_all": "Export to CSV (all languages)",
