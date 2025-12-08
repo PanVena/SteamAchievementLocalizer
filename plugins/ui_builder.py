@@ -45,16 +45,20 @@ class UIBuilder:
     def create_menubar(self) -> QMenuBar:
         """Create and return the main menu bar"""
         menubar = QMenuBar(self.parent)
-        
+        self.populate_menubar(menubar)
+        return menubar
+
+    def populate_menubar(self, menubar: QMenuBar):
+        """Populate an existing menubar with menus and actions"""
         # Install event filter for tooltips
         self.tooltip_filter = MenuTooltipFilter(menubar)
         menubar.installEventFilter(self.tooltip_filter)
-        
+
         # Connect hovered signal for status bar
         menubar.hovered.connect(lambda action: self.parent.statusBar().showMessage(
             action.toolTip() if action and action.toolTip() else ""
         ))
-        
+
         # File menu
         file_menu = self._create_file_menu()
         file_menu.setToolTipsVisible(True)
@@ -106,12 +110,10 @@ class UIBuilder:
         help_menu.setToolTipsVisible(True)
         help_action = menubar.addMenu(help_menu)
         help_action.setToolTip(self.translations.get("tooltip_menu_help", ""))
-        
+
         about_action = self._create_about_action()
         # menubar.addAction(about_action) # Moved to Help menu
-        
-        return menubar
-    
+
     def _create_file_menu(self) -> QMenu:
         """Create File menu"""
         file_menu = QMenu(self.translations.get("file", "File"), self.parent)
@@ -417,9 +419,12 @@ class UIBuilder:
                 tooltip = self.translations.get("tooltip_switch_lang", "Switch language to {}").format(display_name)
                 action.setToolTip(tooltip)
                 action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
-                action.triggered.connect(
-                    lambda checked, l=lang_name: self.parent.change_language(l)
-                )
+
+                # Use a method that properly captures the language variable
+                def make_lang_handler(lang):
+                    return lambda: self.parent.change_language(lang)
+
+                action.triggered.connect(make_lang_handler(lang_name))
                 language_menu.addAction(action)
         else:
             # Fallback to legacy system
@@ -434,9 +439,12 @@ class UIBuilder:
                 tooltip = self.translations.get("tooltip_switch_lang", "Switch language to {}").format(lang)
                 action.setToolTip(tooltip)
                 action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
-                action.triggered.connect(
-                    lambda checked, l=lang: self.parent.change_language(l)
-                )
+
+                # Use a method that properly captures the language variable
+                def make_lang_handler_legacy(lang_name):
+                    return lambda: self.parent.change_language(lang_name)
+
+                action.triggered.connect(make_lang_handler_legacy(lang))
                 language_menu.addAction(action)
         
         return language_menu
@@ -520,15 +528,17 @@ class UIBuilder:
             display_name = self.parent.theme_manager.get_theme_display_name(theme, language_code)
             action = QAction(display_name, self.parent, checkable=True)
             action.setChecked(theme == current_theme)
-            
+
             tooltip = self.translations.get("tooltip_select_theme", "Select {} theme").format(display_name)
             action.setToolTip(tooltip)
             action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
-            
-            action.triggered.connect(
-                lambda checked, t=theme: self.parent.theme_manager.set_theme(t)
-            )
-            
+
+            # Use a method that properly captures the theme variable
+            def make_theme_handler(theme_name):
+                return lambda: self.parent.theme_manager.set_theme(theme_name)
+
+            action.triggered.connect(make_theme_handler(theme))
+
             theme_group.addAction(action)
             theme_menu.addAction(action)
             self.parent.theme_actions[theme] = action
@@ -567,16 +577,16 @@ class UIBuilder:
         theme_default_action.setToolTip(self.translations.get("tooltip_accent_default", "Use default theme accent color"))
         theme_default_action.hovered.connect(lambda: self.parent.statusBar().showMessage(theme_default_action.toolTip()))
         theme_default_action.triggered.connect(
-            lambda checked: self.parent.theme_manager.set_accent_color("theme_default")
+            lambda: self.parent.theme_manager.set_accent_color("theme_default")
         )
-        
+
         # Custom accent color option
         custom_action = QAction(self.translations.get("custom", "Custom..."), self.parent, checkable=True)
         custom_action.setChecked(current_mode == "custom")
         custom_action.setToolTip(self.translations.get("tooltip_accent_custom", "Choose a custom accent color"))
         custom_action.hovered.connect(lambda: self.parent.statusBar().showMessage(custom_action.toolTip()))
         custom_action.triggered.connect(
-            lambda checked: self.parent.show_accent_color_picker() if checked else None
+            lambda: self.parent.show_accent_color_picker()
         )
         
         accent_group.addAction(theme_default_action)
@@ -606,19 +616,21 @@ class UIBuilder:
         self.parent.font_actions = {}
         current_weight = self.parent.theme_manager.get_current_font_weight()
         
-        for weight, label in [("Normal", self.translations.get("font_normal", "Normal")), 
+        for weight, label in [("Normal", self.translations.get("font_normal", "Normal")),
                              ("Bold", self.translations.get("font_bold", "Bold"))]:
             action = QAction(label, self.parent, checkable=True)
             action.setChecked(weight == current_weight)
-            
+
             tooltip = self.translations.get("tooltip_set_font_weight", "Set font weight to {}").format(label)
             action.setToolTip(tooltip)
             action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
-            
-            action.triggered.connect(
-                lambda checked, w=weight: self.parent.theme_manager.set_font_weight(w)
-            )
-            
+
+            # Use a method that properly captures the weight variable
+            def make_weight_handler(w):
+                return lambda: self.parent.theme_manager.set_font_weight(w)
+
+            action.triggered.connect(make_weight_handler(weight))
+
             font_group.addAction(action)
             font_weight_menu.addAction(action)
             self.parent.font_actions[weight] = action
@@ -653,15 +665,17 @@ class UIBuilder:
         for size, label in font_sizes:
             action = QAction(label, self.parent, checkable=True)
             action.setChecked(size == current_size)
-            
+
             tooltip = self.translations.get("tooltip_set_font_size", "Set font size to {}").format(label)
             action.setToolTip(tooltip)
             action.hovered.connect(lambda t=tooltip: self.parent.statusBar().showMessage(t))
-            
-            action.triggered.connect(
-                lambda checked, s=size: self.parent.theme_manager.set_font_size(s)
-            )
-            
+
+            # Use a method that properly captures the size variable
+            def make_size_handler(s):
+                return lambda: self.parent.theme_manager.set_font_size(s)
+
+            action.triggered.connect(make_size_handler(size))
+
             font_size_group.addAction(action)
             font_size_menu.addAction(action)
             self.parent.font_size_actions[size] = action
