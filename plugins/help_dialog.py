@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt
 class HelpDialog(QDialog):
     def __init__(self, parent=None, translations=None):
         super().__init__(parent)
+        self.parent_window = parent  # Store reference to parent window
         self.translations = translations or {}
         self.setWindowTitle(self.translations.get("help_title", "Help"))
         self.resize(800, 600)
@@ -19,6 +20,10 @@ class HelpDialog(QDialog):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(self.translations.get("help_search_placeholder", "Search topics..."))
         self.search_input.textChanged.connect(self.filter_tree)
+        
+        # Setup custom context menu for the search input
+        if parent and hasattr(parent, 'context_menu_manager'):
+            parent.context_menu_manager.setup_lineedit(self.search_input)
         
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_input)

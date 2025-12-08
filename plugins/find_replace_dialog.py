@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QFrame, QStyle
 
-from PyQt6.QtGui import QColor, QBrush, QTextCharFormat
+from PyQt6.QtGui import QColor, QBrush, QTextCharFormat, QIcon
 from PyQt6.QtCore import Qt
 from .steam_lang_codes import get_display_name
 
@@ -34,8 +34,11 @@ class FindReplacePanel(QWidget):
         btns_choice_layout.addStretch()
         
         # Add close button
-        self.close_panel_btn = QPushButton("×")
+        self.close_panel_btn = QPushButton()
+        close_icon = QIcon.fromTheme("window-close", self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton))
+        self.close_panel_btn.setIcon(close_icon)
         self.close_panel_btn.setMaximumWidth(30)
+        self.close_panel_btn.setToolTip(self.translations.get("close", "Close"))
         self.close_panel_btn.clicked.connect(self.hide_panel)
         btns_choice_layout.addWidget(self.close_panel_btn)
         
@@ -98,6 +101,10 @@ class FindReplacePanel(QWidget):
 
             self.find_edit.textChanged.connect(lambda text: self.parent_window.global_search_in_table(text))
             self.find_edit.setFocus()
+            
+            # Setup custom context menu for find edit
+            if hasattr(self.parent_window, 'context_menu_manager'):
+                self.parent_window.context_menu_manager.setup_lineedit(self.find_edit)
 
         else:  
             form_layout = QHBoxLayout()
@@ -111,6 +118,11 @@ class FindReplacePanel(QWidget):
             form_layout.addWidget(QLabel(self.translations.get("replace_text")))
             form_layout.addWidget(self.replace_edit)
             self.content_layout.addLayout(form_layout)
+            
+            # Setup custom context menu for find and replace edits
+            if hasattr(self.parent_window, 'context_menu_manager'):
+                self.parent_window.context_menu_manager.setup_lineedit(self.find_edit)
+                self.parent_window.context_menu_manager.setup_lineedit(self.replace_edit)
 
             col_layout = QHBoxLayout()
             self.column_combo = QComboBox()

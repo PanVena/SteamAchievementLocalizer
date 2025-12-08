@@ -224,6 +224,9 @@ class UIBuilder:
                 self.parent.global_search_line.textChanged.connect(
                     self.parent.global_search_in_table
                 )
+            # Setup custom context menu for search line edit
+            if hasattr(self.parent, 'context_menu_manager'):
+                self.parent.context_menu_manager.setup_lineedit(self.parent.global_search_line)
         
         search_widget = QWidget(self.parent)
         search_layout = QHBoxLayout(search_widget)
@@ -696,6 +699,10 @@ class UIBuilder:
         stats_bin_path_layout.addWidget(self.parent.stats_bin_path_btn)
         stats_bin_path_layout.addWidget(self.parent.select_stats_bin_path_btn)
         
+        # Setup custom context menu for the line edit
+        if hasattr(self.parent, 'context_menu_manager'):
+            self.parent.context_menu_manager.setup_lineedit(self.parent.stats_bin_path_path)
+        
         # Create group
         stats_group = QGroupBox(
             self.translations.get("man_file_sel_label", "Manual File Selection")
@@ -725,6 +732,10 @@ class UIBuilder:
         steam_folder_layout.addWidget(self.parent.steam_folder_path)
         steam_folder_layout.addWidget(self.parent.select_steam_folder_btn)
         
+        # Setup custom context menu for the line edit
+        if hasattr(self.parent, 'context_menu_manager'):
+            self.parent.context_menu_manager.setup_lineedit(self.parent.steam_folder_path)
+        
         # Game ID selection
         game_id_layout = QHBoxLayout()
         
@@ -745,6 +756,10 @@ class UIBuilder:
         game_id_layout.addWidget(self.parent.game_id_edit)
         game_id_layout.addWidget(self.parent.load_game_btn)
         game_id_layout.addWidget(self.parent.clear_game_id)
+        
+        # Setup custom context menu for the line edit
+        if hasattr(self.parent, 'context_menu_manager'):
+            self.parent.context_menu_manager.setup_lineedit(self.parent.game_id_edit)
         
         # Combine layouts
         steam_group_layout.addLayout(steam_folder_layout)

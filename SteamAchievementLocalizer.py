@@ -1,16 +1,13 @@
 import sys
-import csv
 import re
 import os
-import subprocess
 import json
-import shutil
-from PyQt6.QtCore import Qt, QSettings, QTimer
-from PyQt6.QtGui import QIcon, QAction,QKeySequence, QTextDocument, QColor, QFontMetrics
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QAbstractItemDelegate, QCheckBox
+    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView
 )
 from plugins.highlight_delegate import HighlightDelegate
 from plugins.find_replace_dialog import FindReplacePanel
@@ -23,6 +20,7 @@ from plugins.csv_handler import CSVHandler
 from plugins.file_manager import FileManager
 from plugins.ui_builder import UIBuilder
 from plugins.help_dialog import HelpDialog
+from plugins.context_menu import ContextMenuManager
 from plugins.steam_lang_codes import (
     get_available_languages_for_selection,
     get_display_name,
@@ -445,54 +443,34 @@ class BinParserGUI(QMainWindow):
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         self.table.itemChanged.connect(self.on_table_item_changed)
 
-        # --- Context Menu for Copy/Paste/Cut/Delete/Redo ---
-        # --- Context Menu for Copy/Paste/Cut/Delete/Redo ---
-        self.copy_action = QAction(self.translations.get("copy", "Copy"), self)
-        self.copy_action.setShortcut("Ctrl+C")
-        self.copy_action.setToolTip(self.translations.get("tooltip_copy", "Copy selection to clipboard"))
-        self.copy_action.hovered.connect(lambda: self.statusBar().showMessage(self.copy_action.toolTip()))
-        self.copy_action.triggered.connect(self.copy_selection_to_clipboard)
-
-        self.paste_action = QAction(self.translations.get("paste", "Paste"), self)
-        self.paste_action.setShortcut("Ctrl+V")
-        self.paste_action.setToolTip(self.translations.get("tooltip_paste", "Paste from clipboard"))
-        self.paste_action.hovered.connect(lambda: self.statusBar().showMessage(self.paste_action.toolTip()))
-        self.paste_action.triggered.connect(self.paste_from_clipboard)
-
-        self.cut_action = QAction(self.translations.get("cut", "Cut"), self)
-        self.cut_action.setShortcut("Ctrl+X")
-        self.cut_action.setToolTip(self.translations.get("tooltip_cut", "Cut selection to clipboard"))
-        self.cut_action.hovered.connect(lambda: self.statusBar().showMessage(self.cut_action.toolTip()))
-        self.cut_action.triggered.connect(self.cut_selection_to_clipboard)
-
-        self.delete_action = QAction(self.translations.get("delete", "Delete"), self)
-        self.delete_action.setShortcut("Delete")
-        self.delete_action.setToolTip(self.translations.get("tooltip_delete", "Delete selection"))
-        self.delete_action.hovered.connect(lambda: self.statusBar().showMessage(self.delete_action.toolTip()))
-        self.delete_action.triggered.connect(self.clear_selection)
+        # --- Context Menu Manager ---
+        self.context_menu_manager = ContextMenuManager(self, self.translations)
         
-        self.redo_action = QAction(self.translations.get("redo", "Redo"), self)
-        self.redo_action.setShortcut("Ctrl+Y")
-        self.redo_action.setToolTip(self.translations.get("tooltip_redo", "Redo last action"))
-        self.redo_action.hovered.connect(lambda: self.statusBar().showMessage(self.redo_action.toolTip()))
-        self.redo_action.triggered.connect(self.redo)
-
-        self.undo_action = QAction(self.translations.get("undo", "Undo"), self)
-        self.undo_action.setShortcut("Ctrl+Z")
-        self.undo_action.setToolTip(self.translations.get("tooltip_undo", "Undo last action"))
-        self.undo_action.hovered.connect(lambda: self.statusBar().showMessage(self.undo_action.toolTip()))
-        self.undo_action.triggered.connect(self.undo)
-
-
-        # Set context menu policy and add actions
-        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
-        self.table.addAction(self.undo_action)
-        self.table.addAction(self.redo_action)
-        self.table.addAction(self.copy_action)
-        self.table.addAction(self.paste_action)
-        self.table.addAction(self.cut_action)
-        self.table.addAction(self.delete_action)
+        # Create table actions
+        self.table_actions = self.context_menu_manager.create_table_actions()
+        self.undo_action = self.table_actions['undo']
+        self.redo_action = self.table_actions['redo']
+        self.cut_action = self.table_actions['cut']
+        self.copy_action = self.table_actions['copy']
+        self.paste_action = self.table_actions['paste']
+        self.delete_action = self.table_actions['delete']
+        self.select_all_action = self.table_actions['select_all']
+        self.replace_in_column_action = self.table_actions['find_replace']
         
+        # Connect select_all to table
+        self.select_all_action.triggered.connect(self.table.selectAll)
+        
+        # Add tooltips and status bar messages
+        for name, action in self.table_actions.items():
+            tooltip_key = f"tooltip_{name}" if name != 'find_replace' else "tooltip_replace_in_column"
+            action.setToolTip(self.translations.get(tooltip_key, ""))
+            action.hovered.connect(lambda a=action: self.statusBar().showMessage(a.toolTip()))
+        
+        # Setup table context menu with find/replace action
+        self.context_menu_manager.setup_table(self.table, [self.replace_in_column_action])
+        
+        # Add actions to table for keyboard shortcuts
+        self.table.addAction(self.replace_in_column_action)
 
 
         self.layout.addWidget(self.table)
@@ -535,13 +513,10 @@ class BinParserGUI(QMainWindow):
                 obj.setText(items["default"])
                 self.settings.setValue(items["key"], items["default"])
 
-        # Replace in column action
-        self.replace_in_column_action = QAction(self.translations.get("search_replace", "Search and Replace"), self)
-        self.replace_in_column_action.setShortcut("Ctrl+F")
-        self.replace_in_column_action.setToolTip(self.translations.get("tooltip_replace_in_column", "Search and replace text in columns"))
-        self.replace_in_column_action.hovered.connect(lambda: self.statusBar().showMessage(self.replace_in_column_action.toolTip()))
-        self.replace_in_column_action.triggered.connect(self.show_find_replace_dialog)
-        self.table.addAction(self.replace_in_column_action)
+        # Setup custom context menus for all QLineEdit widgets using context menu manager
+        self.context_menu_manager.setup_lineedit(self.stats_bin_path_path)
+        self.context_menu_manager.setup_lineedit(self.steam_folder_path)
+        self.context_menu_manager.setup_lineedit(self.game_id_edit)
 
         # Highlight delegate for search
         self.highlight_delegate = HighlightDelegate(self.table)
