@@ -173,20 +173,27 @@ jobs:
           ### Downloads
           - **Windows**: SteamAchievementLocalizer-win64.zip
           - **Linux**: SteamAchievementLocalizer-linux64.AppImage
+          - **macOS**: SteamAchievementLocalizer-macOS.dmg
 
           ### Installation
-          **Windows**: 
+          **Windows**:
           1. Download and extract the ZIP archive
           2. Run `SteamAchievementLocalizer.exe`
 
-          **Linux**: 
+          **Linux**:
           1. Download the AppImage
           2. Make it executable: ``chmod +x SteamAchievementLocalizer-linux64.AppImage``
           3. Run the AppImage
 
+          **macOS**:
+          1. Download and open the DMG file
+          2. Drag ``SteamAchievementLocalizer.app`` to Applications folder
+          3. Right-click the app and select "Open" (first launch only, for Gatekeeper)
+
           ### Requirements
           - **Windows**: Windows 10 or later
           - **Linux**: Modern Linux distribution with FUSE support (for AppImage)
+          - **macOS**: macOS 10.13 (High Sierra) or later
 
           ---
           $changelogContent
@@ -425,9 +432,162 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.picktag.outputs.tag }}"
-          
+
           echo "Uploading AppImage to existing release $TAG"
-          
+
           gh release upload "$TAG" "${{ steps.artifact.outputs.appimage_file }}" --clobber
-          
+
           echo "AppImage uploaded successfully!"
+
+  build_macos:
+    runs-on: macos-latest
+    needs: build_windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag (push or manual)
+        id: picktag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git fetch --tags --force
+            if [ -n "${{ github.event.inputs.tag }}" ]; then
+              TAG="${{ github.event.inputs.tag }}"
+            else
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.tag }}"
+            if [ -z "$TAG" ]; then
+              TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "Using tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git checkout "$TAG"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install py2app
+
+      - name: Verify version matches tag
+        id: ver
+        run: |
+          tag="${{ steps.picktag.outputs.tag }}"
+          tagNoV=${tag#v}
+
+          srcVersion=$(grep -oE 'APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"' SteamAchievementLocalizer.py | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "Source version: $srcVersion | Tag version: $tagNoV"
+
+          if [ "$srcVersion" != "$tagNoV" ]; then
+            echo "ERROR: APP_VERSION ($srcVersion) != tag ($tagNoV)"
+            exit 1
+          fi
+
+          echo "app_version=$srcVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Create .icns icon
+        run: |
+          # Create iconset from .ico
+          mkdir -p assets/icon.iconset
+          sips -s format png assets/icon.ico --out assets/icon.iconset/icon_512x512.png -z 512 512
+          sips -s format png assets/icon.ico --out assets/icon.iconset/icon_256x256.png -z 256 256
+          sips -s format png assets/icon.ico --out assets/icon.iconset/icon_128x128.png -z 128 128
+          sips -s format png assets/icon.ico --out assets/icon.iconset/icon_32x32.png -z 32 32
+          sips -s format png assets/icon.ico --out assets/icon.iconset/icon_16x16.png -z 16 16
+
+          # Convert to icns
+          iconutil -c icns assets/icon.iconset -o assets/icon.icns
+          rm -rf assets/icon.iconset
+
+          echo "Icon created successfully"
+          ls -la assets/icon.icns
+
+      - name: Build macOS app
+        run: |
+          # Clean previous builds
+          rm -rf dist build
+
+          # Build using py2app
+          python setup.py py2app
+
+          # Rename to remove spaces
+          if [ -d "dist/Steam Achievement Localizer.app" ]; then
+            mv "dist/Steam Achievement Localizer.app" "dist/SteamAchievementLocalizer.app"
+          fi
+
+          echo "Listing dist/:"
+          ls -la dist/
+
+      - name: Create DMG
+        id: artifact
+        run: |
+          version="${{ steps.ver.outputs.app_version }}"
+
+          # Check if app was built
+          if [ ! -d "dist/SteamAchievementLocalizer.app" ]; then
+            echo "Error: App bundle not found"
+            exit 1
+          fi
+
+          # Create temporary directory for DMG contents
+          DMG_DIR="dist/dmg_temp"
+          mkdir -p "$DMG_DIR"
+
+          # Copy app to temp directory
+          cp -R "dist/SteamAchievementLocalizer.app" "$DMG_DIR/"
+
+          # Copy additional files
+          cp README.md "$DMG_DIR/" || true
+          cp LICENSE "$DMG_DIR/" || true
+          cp CHANGELOG.md "$DMG_DIR/" || true
+
+          # Create Applications symlink
+          ln -s /Applications "$DMG_DIR/Applications"
+
+          # Create DMG with fixed name for direct download links
+          DMG_NAME="SteamAchievementLocalizer-macOS.dmg"
+
+          hdiutil create -volname "Steam Achievement Localizer v$version" \
+            -srcfolder "$DMG_DIR" \
+            -ov -format UDZO \
+            "dist/$DMG_NAME"
+
+          # Clean up
+          rm -rf "$DMG_DIR"
+
+          echo "Created: $DMG_NAME"
+          ls -lh "dist/$DMG_NAME"
+
+          echo "dmg_file=dist/$DMG_NAME" >> "$GITHUB_OUTPUT"
+          echo "dmg_name=$DMG_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-v${{ steps.ver.outputs.app_version }}
+          path: ${{ steps.artifact.outputs.dmg_file }}
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.picktag.outputs.tag }}"
+
+          echo "Uploading DMG to existing release $TAG"
+
+          gh release upload "$TAG" "${{ steps.artifact.outputs.dmg_file }}" --clobber
+
+          echo "DMG uploaded successfully!"

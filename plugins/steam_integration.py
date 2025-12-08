@@ -25,7 +25,10 @@ class SteamIntegration:
         
         # Linux/Mac paths
         possible_paths = [
-            # Standard Linux/Mac paths
+            # macOS standard paths
+            os.path.join(home, "Library", "Application Support", "Steam"),
+            os.path.join(home, "Library", "Application Support", "steam"),
+            # Standard Linux paths
             os.path.join(home, ".steam", "steam"),
             os.path.join(home, ".steam", "Steam"),
             os.path.join(home, ".local", "share", "Steam"),

@@ -78,10 +78,12 @@ class UIBuilder:
         save_menu.setToolTipsVisible(True)
         save_action = menubar.addMenu(save_menu)
         save_action.setToolTip(self.translations.get("tooltip_menu_save", ""))
-        
-        # Individual actions
-        stats_action = self._create_stats_action()
-        menubar.addAction(stats_action)
+
+        # Tools menu (for stats and other utilities)
+        tools_menu = self._create_tools_menu()
+        tools_menu.setToolTipsVisible(True)
+        tools_action = menubar.addMenu(tools_menu)
+        tools_action.setToolTip(self.translations.get("tooltip_menu_tools", "Tools and utilities"))
 
         # Language menu
         language_menu = self._create_language_menu()
@@ -344,31 +346,47 @@ class UIBuilder:
         save_menu = QMenu(self.translations.get("save", "Save"), self.parent)
         save_menu.hovered.connect(
             lambda action: self.parent.statusBar().showMessage(
-                self.translations.get("tooltip_menu_save", "") if action is None or action.isSeparator() 
+                self.translations.get("tooltip_menu_save", "") if action is None or action.isSeparator()
                 else action.toolTip() or self.translations.get("tooltip_menu_save", "")
             )
         )
-        
+
         # Save for self action
         save_known_action = QAction(
-            self.translations.get("save_bin_known", "Save bin file for yourself"), 
+            self.translations.get("save_bin_known", "Save bin file for yourself"),
             self.parent
         )
         self._connect_status_tip(save_known_action, "tooltip_save_bin_known")
         save_known_action.triggered.connect(self.parent.save_bin_know)
-        
+
         # Save to Steam action
         save_unknown_action = QAction(
-            self.translations.get("save_bin_unknown", "Save bin file to Steam folder"), 
+            self.translations.get("save_bin_unknown", "Save bin file to Steam folder"),
             self.parent
         )
         self._connect_status_tip(save_unknown_action, "tooltip_save_bin_unknown")
         save_unknown_action.triggered.connect(self.parent.save_bin_unknow)
-        
+
         save_menu.addAction(save_known_action)
         save_menu.addAction(save_unknown_action)
-        
+
         return save_menu
+
+    def _create_tools_menu(self) -> QMenu:
+        """Create Tools menu"""
+        tools_menu = QMenu(self.translations.get("tools", "Tools"), self.parent)
+        tools_menu.hovered.connect(
+            lambda action: self.parent.statusBar().showMessage(
+                self.translations.get("tooltip_menu_tools", "") if action is None or action.isSeparator()
+                else action.toolTip() or self.translations.get("tooltip_menu_tools", "")
+            )
+        )
+
+        # Stats action
+        stats_action = self._create_stats_action()
+        tools_menu.addAction(stats_action)
+
+        return tools_menu
     
     def _create_language_menu(self) -> QMenu:
         """Create Language menu"""

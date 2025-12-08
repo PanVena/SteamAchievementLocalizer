@@ -544,9 +544,14 @@ class BinParserGUI(QMainWindow):
         # Initialize ui_builder with current translations
         self.ui_builder = UIBuilder(self, self.translations)
         menubar = self.ui_builder.create_menubar()
-        
-        # Adding menubar to the layout
-        self.setMenuWidget(menubar)
+
+        # Adding menubar
+        # On macOS, use setMenuBar for native menu bar
+        # On other platforms, use setMenuWidget to embed in window
+        if sys.platform == "darwin":
+            self.setMenuBar(menubar)
+        else:
+            self.setMenuWidget(menubar)
 
     def set_window_size(self):
         screen = QApplication.primaryScreen()

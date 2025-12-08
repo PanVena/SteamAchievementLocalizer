@@ -6,6 +6,17 @@ __pycache__
 *.exe
 *.zip
 *.AppImage
+*.dmg
 dist/
 build/
+*.build
 .vscode/settings.json
+.idea
+*.egg-info
+
+# macOS
+.DS_Store
+assets/icon.iconset/
+
+# PyInstaller auto-generated
+*.spec
