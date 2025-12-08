@@ -13,6 +13,7 @@ Graficzne narzędzie (PyQt6) do przeglądania, edycji i lokalizacji plików osi�
 <p align="center">
   <a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest/download/SteamAchievementLocalizer-win64.zip"><img src="https://img.shields.io/badge/Windows-pobierz-00f2ff.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDQ4IDQ4Ij4KPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTYsNmgxN3YxN0g2VjZ6Ij48L3BhdGg+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTI1LjA0MiwyMi45NThWNkg0MnYxNi45NThIMjUuMDQyeiI+PC9wYXRoPjxwYXRoIGZpbGw9IiNmZmZmZmYiIGQ9Ik02LDI1aDE3djE3SDZWMjV6Ij48L3BhdGg+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTI1LDQyVjI1aDE3djE3SDI1eiI+PC9wYXRoPgo8L3N2Zz4=&logoColor=white" alt="Windows"></a>
   <a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest/download/SteamAchievementLocalizer-linux64.AppImage"><img src="https://img.shields.io/badge/Linux-pobierz-10b981?logo=linux&logoColor=white" alt="Linux"></a>
+  <a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/latest/download/SteamAchievementLocalizer-macOS.dmg"><img src="https://img.shields.io/badge/macOS-pobierz-007AFF?logo=apple&logoColor=white" alt="macOS"></a>
   <a href="https://github.com/PanVena/SteamAchievementLocalizer/releases/"><img src="https://img.shields.io/github/downloads/PanVena/SteamAchievementLocalizer/total?color=bd00ff&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
 </p>
 
