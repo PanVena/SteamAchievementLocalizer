@@ -38,7 +38,7 @@ jobs:
         run: |
           git config user.name "panvena-actions"
           git config user.email "panvena-actions@users.noreply.github.com"
-          git remote set-url origin https://${PAT}@github.com/PanVena/SteamAchievementLocalizer.git
+          git remote set-url origin https://${PAT}@github.com/Vadko/SteamAchievementLocalizer.git
 
       - name: Commit version change (if changed)
         run: |
