@@ -368,7 +368,6 @@ class BinParserGUI(QMainWindow):
             self.translation_lang_combo = QComboBox()
             self.translation_lang_combo.setToolTip(self.translations.get("tooltip_translation_lang", ""))
             available_languages = get_available_languages_for_selection()
-            system_lang = get_system_language()
             
             # Add languages to combo box with display names
             for lang_code in available_languages:
@@ -376,12 +375,8 @@ class BinParserGUI(QMainWindow):
                 self.translation_lang_combo.addItem(display_name, lang_code)
             
             # Set system language as default
-            default_index = 0
-            for i in range(self.translation_lang_combo.count()):
-                if self.translation_lang_combo.itemData(i) == system_lang:
-                    default_index = i
-                    break
-            self.translation_lang_combo.setCurrentIndex(default_index)
+                # Set first available language as default
+                self.translation_lang_combo.setCurrentIndex(0)
             
             self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
             self.lang_layout.addWidget(self.translation_lang_combo)
