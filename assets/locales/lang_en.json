@@ -85,7 +85,7 @@
     "error_no_data_to_save": "First load the achievements file",
     "in_steam_folder_saved": "File saved in Steam folder. Restart Steam to see changes.",
     "file_saving_file_dialog": "Save modified file",
-    "file_saved": "File saved successfully in:<br>{save_path}<br><br>Don't forget to restart Steam when you`ll put this file back to Steam folder.",
+    "file_saved": "File saved successfully in:<br>{save_path}<br><br>Don't forget to restart Steam when you`ll put this file back to Steam folder.<br>You can find the paths where to put them:<br>C:\\Program Files (x86)\\Steam\\appcache\\stats (for Windows)<br>~/.steam/steam/appcache/stats (for Linux)",
     "attention": "Attention",
     "folder_not_found_auto": "Could not find Steam folder automatically",
     "man_select_file_file_dialog": "Select UserGameStatsSchema file",

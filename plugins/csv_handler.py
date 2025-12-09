@@ -70,10 +70,10 @@ class CSVHandler:
                     continue
             
             if content is None:
-                return False, 0, 0, 0, "Could not decode CSV file with any supported encoding"
+                return False, 0, 0, 0, "cannot_decode_csv"
             
             if not content:
-                return False, 0, 0, 0, "CSV file is empty"
+                return False, 0, 0, 0, "error_empty"
             
             header = content[0]
             
@@ -82,21 +82,20 @@ class CSVHandler:
             try:
                 key_idx = header.index('key')
             except ValueError:
-                return False, 0, 0, 0, "Required column 'key' missing"
+                return False, 0, 0, 0, "error_no_key_column"
             
             # Try to find translation column (new format) or import_column directly (old format)
             translation_idx = None
             if 'translation' in header:
                 translation_idx = header.index('translation')
             elif import_column in header:
-                # Old format: CSV has direct language column (e.g., 'ukrainian')
                 translation_idx = header.index(import_column)
             else:
-                return False, 0, 0, 0, f"Required column 'translation' or '{import_column}' missing"
+                return False, 0, 0, 0, "error_no_translation_column"
             
             # Check if import_column exists in data_rows
             if data_rows and import_column not in data_rows[0]:
-                return False, 0, 0, 0, f"Target language column '{import_column}' not found in current data"
+                return False, 0, 0, 0, "error_no_target_column"
             
             # Create mapping for fast lookup
             key_to_row = {row['key']: row for row in data_rows}
@@ -135,14 +134,14 @@ class CSVHandler:
             reason = ""
             if changed_count == 0:
                 if imported_count == 0:
-                    reason = "No valid translations found in CSV"
+                    reason = "reason_no_valid_translations"
                 else:
-                    reason = "All translations were identical to existing values"
+                    reason = "reason_all_identical"
             
             return True, imported_count, changed_count, skipped_count, reason
             
         except Exception as e:
-            return False, 0, 0, 0, f"Failed to import CSV: {e}"
+            return False, 0, 0, 0, "import_failed"
     
     def validate_csv_structure(self, filepath: str) -> Dict[str, Any]:
         """Validate CSV file structure and return info"""
