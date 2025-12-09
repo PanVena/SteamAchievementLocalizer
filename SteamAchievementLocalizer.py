@@ -1882,7 +1882,7 @@ class BinParserGUI(QMainWindow):
 
             save_dialog = QMessageBox(self)
             save_dialog.setWindowTitle(self.translations.get("save_where_title"))
-            context_lang = self.context_lang_combo.currentText()
+            context_lang = self.translation_lang_combo.currentText() if self.translation_lang_combo else self.language
             msg4 = self.translations.get("save_where_msg").format(context=context_lang)
             save_dialog.setText(msg4)
             btn_self = save_dialog.addButton(self.translations.get("save_for_self"), QMessageBox.ButtonRole.AcceptRole)
