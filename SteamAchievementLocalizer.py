@@ -659,9 +659,43 @@ class BinParserGUI(QMainWindow):
     def set_column_visible(self, header, visible):
         try:
             col = self.headers.index(header)
-            self.table.setColumnHidden(col, not visible)        
+            self.table.setColumnHidden(col, not visible)
+            
+            # Save visible columns to QSettings
+            visible_cols = self.settings.value("VisibleColumns", [])
+            if visible_cols is None:
+                visible_cols = []
+            # Ensure it's a list
+            if not isinstance(visible_cols, list):
+                visible_cols = []
+                
+            if visible and header not in visible_cols:
+                visible_cols.append(header)
+            elif not visible and header in visible_cols:
+                visible_cols.remove(header)
+            
+            self.settings.setValue("VisibleColumns", visible_cols)
+            self.settings.sync()
         except ValueError:
             pass
+    
+    def show_all_columns(self):
+        """Show all columns"""
+        if not hasattr(self, 'column_actions') or not self.column_actions:
+            return
+        
+        for header, checkbox in self.column_actions.items():
+            if checkbox.isEnabled():  # Skip disabled checkboxes (key, ukrainian)
+                checkbox.setChecked(True)
+    
+    def hide_all_columns(self):
+        """Hide all columns except mandatory ones (key, ukrainian)"""
+        if not hasattr(self, 'column_actions') or not self.column_actions:
+            return
+        
+        for header, checkbox in self.column_actions.items():
+            if checkbox.isEnabled():  # Skip disabled checkboxes (key, ukrainian)
+                checkbox.setChecked(False)
 
     # =================================================================
     # LANGUAGE AND LOCALIZATION
@@ -870,6 +904,25 @@ class BinParserGUI(QMainWindow):
         if not hasattr(self, 'raw_data') or not self.raw_data:
             return
         
+        # Load visible columns from QSettings
+        visible_columns = self.settings.value("VisibleColumns", [])
+        
+        # Migration: if VisibleColumns is empty but HiddenColumns exists, migrate
+        if not visible_columns:
+            hidden_columns = self.settings.value("HiddenColumns", [])
+            if hidden_columns and isinstance(hidden_columns, list):
+                # If we have old hidden columns setting, we need to migrate
+                # We'll handle this after we know what columns exist
+                pass
+            visible_columns = []
+        
+        if visible_columns is None:
+            visible_columns = []
+        # Ensure it's a list and convert to set for faster lookup
+        if not isinstance(visible_columns, list):
+            visible_columns = []
+        visible_columns_set = set(visible_columns)
+        
         # Use binary parser plugin
         all_rows, headers = self.binary_parser.parse_binary_data(self.raw_data)
         self.chunks = self.binary_parser.chunks
@@ -913,6 +966,35 @@ class BinParserGUI(QMainWindow):
 
                 self.table.setItem(row_i, col_i, item)
         self.table.blockSignals(False)
+        
+        # Restore column visibility settings
+        # Hide columns that are NOT in the visible list (except mandatory ones)
+        mandatory_columns = {'key', 'ukrainian'}  # Always visible
+        
+        # Migration: convert old HiddenColumns to VisibleColumns if needed
+        if not visible_columns_set:
+            old_hidden = self.settings.value("HiddenColumns", [])
+            if old_hidden and isinstance(old_hidden, list):
+                # All columns except hidden ones should be visible
+                visible_columns_set = set(h for h in self.headers if h not in old_hidden)
+                # Save migrated data
+                self.settings.setValue("VisibleColumns", list(visible_columns_set))
+                self.settings.remove("HiddenColumns")  # Remove old setting
+                self.settings.sync()
+            else:
+                # No saved preferences - show all columns by default
+                visible_columns_set = set(self.headers)
+        
+        for i, header in enumerate(self.headers):
+            if header in mandatory_columns:
+                # Mandatory columns always visible
+                self.table.setColumnHidden(i, False)
+            elif header not in visible_columns_set:
+                # Hide columns not in visible list
+                self.table.setColumnHidden(i, True)
+            else:
+                # Show columns in visible list
+                self.table.setColumnHidden(i, False)
         
         self.stretch_columns()
         self.update_row_heights()
@@ -1376,6 +1458,10 @@ class BinParserGUI(QMainWindow):
         for row in range(self.table.rowCount()):
             max_height = self.table.verticalHeader().defaultSectionSize()
             for col in range(self.table.columnCount()):
+                # Skip hidden columns to avoid calculation issues
+                if self.table.isColumnHidden(col):
+                    continue
+                    
                 item = self.table.item(row, col)
                 if item and item.text():
                     doc = QTextDocument()

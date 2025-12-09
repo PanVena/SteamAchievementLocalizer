@@ -295,7 +295,7 @@ class ContextMenuManager:
         actions['select_all'].setShortcut("Ctrl+A")
         
         actions['find_replace'] = QAction(
-            self._get_icon("edit-find-replace", QStyle.StandardPixmap.SP_FileDialogInfoView),
+            self._get_icon("edit-find-replace", QStyle.StandardPixmap.SP_FileDialogDetailedView),
             self.translations.get("search_replace", "Search and Replace"),
             self.parent
         )

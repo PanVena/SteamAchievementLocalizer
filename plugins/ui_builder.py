@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QMessageBox, QToolTip
 )
 from typing import Dict, List, Callable, Any, Optional
+import sys
 
 class MenuTooltipFilter(QObject):
     """Event filter to show tooltips for QMenuBar items"""
@@ -83,11 +84,17 @@ class UIBuilder:
         save_action = menubar.addMenu(save_menu)
         save_action.setToolTip(self.translations.get("tooltip_menu_save", ""))
 
-        # Tools menu (for stats and other utilities)
-        tools_menu = self._create_tools_menu()
-        tools_menu.setToolTipsVisible(True)
-        tools_action = menubar.addMenu(tools_menu)
-        tools_action.setToolTip(self.translations.get("tooltip_menu_tools", "Tools and utilities"))
+        # Tools menu - only on macOS, on other platforms add stats action directly
+        if sys.platform == "darwin":
+            # macOS: keep Tools submenu
+            tools_menu = self._create_tools_menu()
+            tools_menu.setToolTipsVisible(True)
+            tools_action = menubar.addMenu(tools_menu)
+            tools_action.setToolTip(self.translations.get("tooltip_menu_tools", "Tools and utilities"))
+        else:
+            # Windows/Linux: add stats action directly to menubar
+            stats_action = self._create_stats_action()
+            menubar.addAction(stats_action)
 
         # Language menu
         language_menu = self._create_language_menu()
@@ -266,11 +273,43 @@ class UIBuilder:
         )
         
         if hasattr(self.parent, 'headers') and self.parent.headers:
+            # Add Select All / Deselect All buttons
+            button_widget = QWidget()
+            button_layout = QHBoxLayout(button_widget)
+            button_layout.setContentsMargins(8, 4, 8, 4)
+            
+            select_all_btn = QPushButton(self.translations.get("select_all", "Select All"))
+            select_all_btn.setToolTip(self.translations.get("tooltip_select_all_columns", "Show all columns"))
+            select_all_btn.clicked.connect(self.parent.show_all_columns)
+            
+            deselect_all_btn = QPushButton(self.translations.get("deselect_all", "Deselect All"))
+            deselect_all_btn.setToolTip(self.translations.get("tooltip_deselect_all_columns", "Hide all columns (except mandatory)"))
+            deselect_all_btn.clicked.connect(self.parent.hide_all_columns)
+            
+            button_layout.addWidget(select_all_btn)
+            button_layout.addWidget(deselect_all_btn)
+            
+            button_action = QWidgetAction(self.parent)
+            button_action.setDefaultWidget(button_widget)
+            columns_menu.addAction(button_action)
+            columns_menu.addSeparator()
+            
             self.parent.column_actions = {}
             
             for header in self.parent.headers:
                 checkbox = QCheckBox(header)
-                checkbox.setChecked(True)
+                
+                # Check actual column visibility state
+                is_visible = True  # Default to visible
+                if hasattr(self.parent, 'table') and self.parent.table.columnCount() > 0:
+                    try:
+                        col_index = self.parent.headers.index(header)
+                        is_visible = not self.parent.table.isColumnHidden(col_index)
+                    except (ValueError, IndexError):
+                        # Header not found or invalid index, default to visible
+                        is_visible = True
+                
+                checkbox.setChecked(is_visible)
                 
                 # Try specific column tooltip first, then generic toggle format
                 tooltip = self.translations.get(f"tooltip_col_{header}")
