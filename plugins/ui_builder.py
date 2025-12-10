@@ -732,7 +732,7 @@ class UIBuilder:
         show_stats_action.triggered.connect(self.parent.show_user_game_stats_list)
         return show_stats_action
     
-        return about_action
+        
     
     def _create_about_action(self) -> QAction:
         """Create about action"""
