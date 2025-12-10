@@ -318,8 +318,9 @@ class UIBuilder:
                 
                 checkbox.setToolTip(tooltip)
                 
-                # Disable key columns
-                if header in ["key", "ukrainian"]:
+                # Disable mandatory columns (key and current translation language)
+                mandatory_columns = self.parent.get_mandatory_columns() if hasattr(self.parent, 'get_mandatory_columns') else {'key'}
+                if header in mandatory_columns:
                     checkbox.setEnabled(False)
                 else:
                     checkbox.toggled.connect(

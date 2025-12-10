@@ -3,9 +3,6 @@ Steam Language Codes Mapping
 Simple display names for Steam language codes in table headers
 """
 
-import locale
-import os
-
 # Steam's standard language codes with display names
 STEAM_LANGUAGE_CODES = {
     'arabic': 'Arabic (العربية)',
@@ -37,62 +34,6 @@ STEAM_LANGUAGE_CODES = {
     'vietnamese': 'Vietnamese (Tiếng Việt)'
 }
 
-# Mapping from locale codes to Steam language codes
-LOCALE_TO_STEAM = {
-    'uk': 'ukrainian',
-    'uk_UA': 'ukrainian', 
-    'pl': 'polish',
-    'pl_PL': 'polish',
-    'de': 'german',
-    'de_DE': 'german',
-    'fr': 'french',
-    'fr_FR': 'french',
-    'es': 'spanish',
-    'es_ES': 'spanish',
-    'es_419': 'latam',
-    'es_MX': 'latam',
-    'es_AR': 'latam',
-    'it': 'italian',
-    'it_IT': 'italian',
-    'pt': 'portuguese',
-    'pt_PT': 'portuguese',
-    'pt_BR': 'brazilian',
-    'ja': 'japanese',
-    'ja_JP': 'japanese',
-    'ko': 'koreana',
-    'ko_KR': 'koreana',
-    'ar': 'arabic',
-    'bg': 'bulgarian',
-    'bg_BG': 'bulgarian',
-    'cs': 'czech',
-    'cs_CZ': 'czech',
-    'da': 'danish',
-    'da_DK': 'danish',
-    'nl': 'dutch',
-    'nl_NL': 'dutch',
-    'fi': 'finnish',
-    'fi_FI': 'finnish',
-    'el': 'greek',
-    'el_GR': 'greek',
-    'hu': 'hungarian',
-    'hu_HU': 'hungarian',
-    'id': 'indonesian',
-    'id_ID': 'indonesian',
-    'no': 'norwegian',
-    'nb': 'norwegian',
-    'nb_NO': 'norwegian',
-    'ro': 'romanian',
-    'ro_RO': 'romanian',
-    'sv': 'swedish',
-    'sv_SE': 'swedish',
-    'th': 'thai',
-    'th_TH': 'thai',
-    'tr': 'turkish',
-    'tr_TR': 'turkish',
-    'vi': 'vietnamese',
-    'vi_VN': 'vietnamese'
-}
-
 def get_display_name(steam_code: str) -> str:
     """Get display name for Steam language code"""
     return STEAM_LANGUAGE_CODES.get(steam_code, steam_code.title())
@@ -104,54 +45,12 @@ def get_code_from_display_name(display_name: str) -> str:
             return code
     return display_name.lower()  # Fallback
 
-def get_system_language() -> str:
-    """
-    Detect system language and return corresponding Steam language code
-    Returns 'english' as fallback if system language is not in Steam languages
-    """
-    try:
-        # Try to get system locale
-        system_locale = locale.getdefaultlocale()[0]
-        if system_locale:
-            # Check full locale first (e.g., uk_UA)
-            if system_locale in LOCALE_TO_STEAM:
-                return LOCALE_TO_STEAM[system_locale]
-            
-            # Check language part only (e.g., uk from uk_UA)
-            lang_part = system_locale.split('_')[0]
-            if lang_part in LOCALE_TO_STEAM:
-                return LOCALE_TO_STEAM[lang_part]
-        
-        # Try environment variables as backup
-        for env_var in ['LANG', 'LANGUAGE', 'LC_ALL']:
-            env_lang = os.environ.get(env_var, '')
-            if env_lang:
-                lang_code = env_lang.split('.')[0].split('_')[0]
-                if lang_code in LOCALE_TO_STEAM:
-                    return LOCALE_TO_STEAM[lang_code]
-                    
-    except Exception:
-        pass
-    
-    return 'english'  # Default fallback
-
 def get_available_languages_for_selection() -> list:
     """
     Get list of available Steam languages for selection, 
-    with system language first
+    sorted by display name
     """
-    system_lang = get_system_language()
-    languages = []
+    languages = [(code, display) for code, display in STEAM_LANGUAGE_CODES.items()]
+    languages.sort(key=lambda x: x[1])  # Sort by display name
     
-    # Add system language first if it's not english
-    if system_lang != 'english' and system_lang in STEAM_LANGUAGE_CODES:
-        languages.append(system_lang)
-    
-    # Add all other languages sorted by display name, excluding system language
-    other_languages = [(code, display) for code, display in STEAM_LANGUAGE_CODES.items() 
-                      if code != system_lang]
-    other_languages.sort(key=lambda x: x[1])  # Sort by display name
-    
-    languages.extend([code for code, _ in other_languages])
-    
-    return languages
+    return [code for code, _ in languages]

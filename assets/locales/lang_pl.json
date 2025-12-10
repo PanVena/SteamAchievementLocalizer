@@ -3,7 +3,8 @@
         "name": "Polski",
         "native_name": "Polski (Polish)",
         "code": "pl",
-        "priority": 30
+        "priority": 30,
+        "steam_lang_code": "polish"
     },
     "app_title": "Lokalizator osiągnięć Steam od Veny ver ",
     "warning_title_achtung": "Uwaga",

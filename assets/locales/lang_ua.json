@@ -3,7 +3,8 @@
         "name": "Українська",
         "native_name": "Українська (Ukrainian)",
         "code": "ua",
-        "priority": 20
+        "priority": 20,
+        "steam_lang_code": "ukrainian"
     },
     "app_title": "Локалізатор досягнень Стіму від Вени ver ",
     "warning_title_achtung": "Ахтунґ",

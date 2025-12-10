@@ -24,7 +24,6 @@ from plugins.context_menu import ContextMenuManager
 from plugins.steam_lang_codes import (
     get_available_languages_for_selection,
     get_display_name,
-    get_system_language,
     get_code_from_display_name
 )
 
@@ -376,7 +375,7 @@ class BinParserGUI(QMainWindow):
             
             # Set system language as default
                 # Set first available language as default
-                self.translation_lang_combo.setCurrentIndex(0)
+                self.translation_lang_combo.setCurrentIndex(25)
             
             self.translation_lang_combo.currentTextChanged.connect(self.on_translation_language_changed)
             self.lang_layout.addWidget(self.translation_lang_combo)
@@ -656,6 +655,35 @@ class BinParserGUI(QMainWindow):
         self.settings.setValue("UserSteamPath", self.steam_folder)
         self.settings.sync()
 
+    def get_mandatory_columns(self):
+        """Get mandatory columns based on current translation language"""
+        # Automatically build mapping from UI language to Steam language code from available locales
+        ui_to_steam_lang = {}
+        if hasattr(self, 'available_locales') and self.available_locales:
+            for locale_name, locale_info in self.available_locales.items():
+                steam_lang = locale_info.get('data', {}).get('_locale_info', {}).get('steam_lang_code')
+                if steam_lang:
+                    ui_to_steam_lang[locale_name] = steam_lang
+        
+        # Determine translation language
+        if self.language in ui_to_steam_lang:
+            translation_lang = ui_to_steam_lang[self.language]
+        else:
+            # For English and other UI languages, get selected language from combo box
+            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
+                translation_lang = self.translation_lang_combo.currentData()
+            else:
+                # Fallback to ukrainian for English UI (user can change it via combo box)
+                # For other languages, use the language mapping or default to ukrainian
+                translation_lang = ui_to_steam_lang.get(self.language, 'ukrainian')
+        
+        # Always include 'key' and the current translation language (if available)
+        mandatory = {'key'}
+        if translation_lang:
+            mandatory.add(translation_lang)
+        
+        return mandatory
+    
     def set_column_visible(self, header, visible):
         try:
             col = self.headers.index(header)
@@ -685,16 +713,16 @@ class BinParserGUI(QMainWindow):
             return
         
         for header, checkbox in self.column_actions.items():
-            if checkbox.isEnabled():  # Skip disabled checkboxes (key, ukrainian)
+            if checkbox.isEnabled():  # Skip disabled checkboxes (mandatory columns)
                 checkbox.setChecked(True)
     
     def hide_all_columns(self):
-        """Hide all columns except mandatory ones (key, ukrainian)"""
+        """Hide all columns except mandatory ones"""
         if not hasattr(self, 'column_actions') or not self.column_actions:
             return
         
         for header, checkbox in self.column_actions.items():
-            if checkbox.isEnabled():  # Skip disabled checkboxes (key, ukrainian)
+            if checkbox.isEnabled():  # Skip disabled checkboxes (mandatory columns)
                 checkbox.setChecked(False)
 
     # =================================================================
@@ -731,7 +759,8 @@ class BinParserGUI(QMainWindow):
         if show_translation_controls:
             # Create translation controls if they don't exist
             if not hasattr(self, 'translation_lang_label') or not self.translation_lang_label:
-                from plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name, get_system_language
+
+                from plugins.steam_lang_codes import get_available_languages_for_selection, get_display_name
                 
                 self.translation_lang_label = QLabel(self.translations.get("translation_lang", "Translation:"))
                 # Insert at position 0 (beginning)
@@ -739,17 +768,17 @@ class BinParserGUI(QMainWindow):
                 
                 self.translation_lang_combo = QComboBox()
                 available_languages = get_available_languages_for_selection()
-                system_lang = get_system_language()
+                default_lang = 'ukrainian'
                 
                 # Add languages to combo box with display names
                 for lang_code in available_languages:
                     display_name = get_display_name(lang_code)
                     self.translation_lang_combo.addItem(display_name, lang_code)
                 
-                # Set system language as default
+                # Set default language
                 default_index = 0
                 for i in range(self.translation_lang_combo.count()):
-                    if self.translation_lang_combo.itemData(i) == system_lang:
+                    if self.translation_lang_combo.itemData(i) == default_lang:
                         default_index = i
                         break
                 self.translation_lang_combo.setCurrentIndex(default_index)
@@ -967,35 +996,31 @@ class BinParserGUI(QMainWindow):
                 self.table.setItem(row_i, col_i, item)
         self.table.blockSignals(False)
         
-        # Restore column visibility settings
-        # Hide columns that are NOT in the visible list (except mandatory ones)
-        mandatory_columns = {'key', 'ukrainian'}  # Always visible
-        
-        # Migration: convert old HiddenColumns to VisibleColumns if needed
-        if not visible_columns_set:
-            old_hidden = self.settings.value("HiddenColumns", [])
-            if old_hidden and isinstance(old_hidden, list):
-                # All columns except hidden ones should be visible
-                visible_columns_set = set(h for h in self.headers if h not in old_hidden)
-                # Save migrated data
-                self.settings.setValue("VisibleColumns", list(visible_columns_set))
-                self.settings.remove("HiddenColumns")  # Remove old setting
-                self.settings.sync()
-            else:
-                # No saved preferences - show all columns by default
-                visible_columns_set = set(self.headers)
-        
+        # Глобальний режим видимості колонок (мов)
+        mandatory_columns = self.get_mandatory_columns()  # Always visible
+
+        # Глобальний список видимих колонок (мов)
+        visible_columns = self.settings.value("VisibleColumns", None)
+        if visible_columns is None or not isinstance(visible_columns, list) or not visible_columns:
+            # Якщо користувач не налаштовував — показувати всі доступні
+            visible_columns_set = set(self.headers)
+        else:
+            visible_columns_set = set(visible_columns)
+
+        # Оновити глобальний список, якщо з'явилися нові колонки (наприклад, після відкриття іншої гри)
+        # Додаємо тільки якщо користувач ще не налаштовував (тобто якщо visible_columns був None або порожній)
+        if visible_columns is None or not isinstance(visible_columns, list) or not visible_columns:
+            self.settings.setValue("VisibleColumns", list(self.headers))
+            self.settings.sync()
+
         for i, header in enumerate(self.headers):
             if header in mandatory_columns:
-                # Mandatory columns always visible
                 self.table.setColumnHidden(i, False)
             elif header not in visible_columns_set:
-                # Hide columns not in visible list
                 self.table.setColumnHidden(i, True)
             else:
-                # Show columns in visible list
                 self.table.setColumnHidden(i, False)
-        
+
         self.stretch_columns()
         self.update_row_heights()
         self.create_menubar()
@@ -1003,11 +1028,11 @@ class BinParserGUI(QMainWindow):
         self.gamename()
         self.countby2 = len(all_rows)//2
         self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
-        
+
         # Collapse file search section after loading table
         if hasattr(self, 'file_search_section'):
             self.file_search_section.setChecked(False)
-        
+
         msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
         QMessageBox.information(self, self.translations.get("success"), msg)
 
@@ -1578,11 +1603,13 @@ class BinParserGUI(QMainWindow):
         prioritized = ['key']
         
         # Determine translation language based on UI or user selection
-        # Create mapping from UI language to Steam language code
-        ui_to_steam_lang = {
-            'Українська': 'ukrainian',
-            'Polski': 'polish'
-        }
+        # Automatically build mapping from UI language to Steam language code from available locales
+        ui_to_steam_lang = {}
+        if hasattr(self, 'available_locales') and self.available_locales:
+            for locale_name, locale_info in self.available_locales.items():
+                steam_lang = locale_info.get('data', {}).get('_locale_info', {}).get('steam_lang_code')
+                if steam_lang:
+                    ui_to_steam_lang[locale_name] = steam_lang
         
         if self.language in ui_to_steam_lang:
             translation_lang = ui_to_steam_lang[self.language]
@@ -1591,7 +1618,9 @@ class BinParserGUI(QMainWindow):
             if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
                 translation_lang = self.translation_lang_combo.currentData()
             else:
-                translation_lang = get_system_language()
+                # Fallback to ukrainian for English UI (user can change it via combo box)
+                # For other languages, use the language mapping or default to ukrainian
+                translation_lang = ui_to_steam_lang.get(self.language, 'ukrainian')
         
         # Add translation column (prefer existing data column)
         if translation_lang and translation_lang != 'english':
