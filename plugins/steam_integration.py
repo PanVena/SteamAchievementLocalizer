@@ -142,17 +142,22 @@ class SteamIntegration:
                     ["nemo", "--browser", "--select", filepath]
                 ]
                 
+                # Prepare environment without LD_LIBRARY_PATH for Nuitka/PyInstaller compatibility
+                env = os.environ.copy()
+                if "LD_LIBRARY_PATH" in env:
+                    del env["LD_LIBRARY_PATH"]
+                
                 for cmd in candidates:
                     if shutil.which(cmd[0]):
                         try:
-                            subprocess.run(cmd, check=True)
+                            subprocess.run(cmd, check=True, env=env)
                             return True
                         except Exception:
                             continue
                 
                 # Fallback - just open folder
                 try:
-                    subprocess.run(["xdg-open", folder])
+                    subprocess.run(["xdg-open", folder], env=env)
                     return True
                 except Exception:
                     pass

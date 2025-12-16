@@ -1416,6 +1416,10 @@ class BinParserGUI(QMainWindow):
             has_content = False
             
             for col_i in range(self.table.columnCount()):
+                # Skip hidden columns
+                if self.table.isColumnHidden(col_i):
+                    continue
+
                 cell_item = self.table.item(row, col_i)
                 if cell_item and cell_item.text():
                     has_content = True

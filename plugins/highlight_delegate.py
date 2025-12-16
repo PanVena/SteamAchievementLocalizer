@@ -55,5 +55,5 @@ class HighlightDelegate(QStyledItemDelegate):
         doc = QTextDocument()
         doc.setHtml(str(text) if text else "")
         sz = doc.size().toSize()
-        print(f"SizeHint for row {index.row()}, col {index.column()} = {sz}")
+        # print(f"SizeHint for row {index.row()}, col {index.column()} = {sz}")
         return sz
