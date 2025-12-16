@@ -41,7 +41,7 @@
     "language": "Мова",
     "exit": "Вихід",
     "save_changes_title": "Зберегти зміни?",
-    "save_changes_msg": "Бажаєте зберегти зміни перед виходом?",
+    "save_changes_msg": "Бажаєте зберегти зміни?",
     "save_where_title": "Куди зберегти?",
     "save_where_msg": "Куди бажаєте зберегти зміни?<br>",
     "save_for_self": "Для себе",
@@ -232,5 +232,7 @@
     "tooltip_menu_font_size": "Налаштування розміру шрифту інтерфейсу",
     "file_search_section": "Пошук файлу",
     "file_search_section_expanded": "▼ Пошук файлу (розгорнуто)",
-    "file_search_section_collapsed": "▶ Пошук файлу (згорнуто)"
+    "file_search_section_collapsed": "▶ Пошук файлу (згорнуто)",
+    "drag_drop_hint": "Відпустіть файл .bin сюди",
+    "file_dropped_msg": "Файл перетягнуто: {path}"
 }

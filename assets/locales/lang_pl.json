@@ -39,7 +39,7 @@
     "language": "Język",
     "exit": "Wyjście",
     "save_changes_title": "Zapisać zmiany?",
-    "save_changes_msg": "Czy chcesz zapisać zmiany przed wyjściem?",
+    "save_changes_msg": "Czy chcesz zapisać zmiany?",
     "save_where_title": "Gdzie zapisać?",
     "save_where_msg": "Gdzie chcesz zapisać zmiany?<br>",
     "save_for_self": "Dla siebie",
@@ -173,5 +173,7 @@
     "tooltip_menu_font_size": "Wybierz rozmiar czcionki",
     "file_search_section": "Wyszukiwanie pliku",
     "file_search_section_expanded": "▼ Wyszukiwanie pliku (rozwinięte)",
-    "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)"
+    "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)",
+    "drag_drop_hint": "Upuść plik .bin tutaj",
+    "file_dropped_msg": "Upuszczono plik: {path}"
 }

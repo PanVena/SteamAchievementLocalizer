@@ -41,7 +41,7 @@
     "language": "Language",
     "exit": "Exit",
     "save_changes_title": "Save Changes?",
-    "save_changes_msg": "Do you want to save your changes before exiting?",
+    "save_changes_msg": "Do you want to save your changes?",
     "save_where_title": "Where to save?",
     "save_where_msg": "Where do you want to save your changes?<br>",
     "save_for_self": "For yourself",
@@ -183,5 +183,7 @@
     "tooltip_menu_font_size": "Select font size",
     "file_search_section": "File Search",
     "file_search_section_expanded": "▼ File Search (expanded)",
-    "file_search_section_collapsed": "▶ File Search (collapsed)"
+    "file_search_section_collapsed": "▶ File Search (collapsed)",
+    "drag_drop_hint": "Drop .bin file here",
+    "file_dropped_msg": "File dropped: {path}"
 }

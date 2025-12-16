@@ -9,22 +9,12 @@ from PyQt6.QtWidgets import (
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
     QInputDialog, QMainWindow, QColorDialog, QAbstractItemView
 )
-from plugins.highlight_delegate import HighlightDelegate
-from plugins.find_replace_dialog import FindReplacePanel
-from plugins.user_game_stats_list_dialog import UserGameStatsListDialog
-from plugins.context_lang_dialog import ContextLangDialog
-from plugins.theme_manager import ThemeManager
-from plugins.binary_parser import BinaryParser
-from plugins.steam_integration import SteamIntegration
-from plugins.csv_handler import CSVHandler
-from plugins.file_manager import FileManager
-from plugins.ui_builder import UIBuilder
-from plugins.help_dialog import HelpDialog
-from plugins.context_menu import ContextMenuManager
-from plugins.steam_lang_codes import (
-    get_available_languages_for_selection,
-    get_display_name,
-    get_code_from_display_name
+from plugins import (
+    HighlightDelegate, FindReplacePanel, UserGameStatsListDialog,
+    ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
+    CSVHandler, FileManager, UIBuilder,HelpDialog, ContextMenuManager,
+    DragDropPlugin, get_available_languages_for_selection,
+    get_display_name, get_code_from_display_name
 )
 
 if sys.platform == "win32":
@@ -201,6 +191,7 @@ class BinParserGUI(QMainWindow):
         self.steam_integration = SteamIntegration()
         self.csv_handler = CSVHandler()
         self.file_manager = FileManager()
+        self.drag_drop_plugin = DragDropPlugin(self)
         
         # Load Steam game names database
         self.steam_game_names = self.load_steam_game_names()
@@ -905,7 +896,11 @@ class BinParserGUI(QMainWindow):
             self.settings.sync()  
 
     def load_steam_game_stats(self):
-        self.force_manual_path = False
+        # Trigger saving if needed
+        if not self.check_unsaved_changes():
+            return
+            
+        # Get game ID and steam path
         game_id = self.game_id()
         if not game_id:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_no_id"))
@@ -1186,6 +1181,9 @@ class BinParserGUI(QMainWindow):
             self.select_stats_bin_path()
 
     def select_stats_bin_path(self):
+        if not self.check_unsaved_changes():
+             return
+
         path = self.stats_bin_path_path.text().strip()
         if not path:
             QMessageBox.warning(self, self.translations.get("error"), self.translations.get("error_UserGameStatsSchema_sel"))
@@ -1979,9 +1977,15 @@ class BinParserGUI(QMainWindow):
     def is_modified(self):
         return getattr(self, 'modified', False)
 
-    def maybe_save_before_exit(self):
+    def check_unsaved_changes(self):
+        """
+        Checks for unsaved changes and prompts user to save if necessary.
+        Returns True if it's safe to proceed (changes saved or discarded, or no changes).
+        Returns False if user cancelled.
+        """
         if not self.is_modified():
-            return True  # No changes, allow exit
+            return True  # No changes, safe to proceed
+
         save_box = QMessageBox(self)
         save_box.setWindowTitle(self.translations.get("save_changes_title"))
         save_box.setText(self.translations.get("save_changes_msg"))
@@ -1993,10 +1997,14 @@ class BinParserGUI(QMainWindow):
         clicked = save_box.clickedButton()
 
         if clicked == btn_yes:
-
             save_dialog = QMessageBox(self)
             save_dialog.setWindowTitle(self.translations.get("save_where_title"))
-            context_lang = self.translation_lang_combo.currentText() if self.translation_lang_combo else self.language
+            
+            # Helper to safely get current text or fallback
+            context_lang = 'English'
+            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
+                 context_lang = self.translation_lang_combo.currentText()
+            
             msg4 = self.translations.get("save_where_msg").format(context=context_lang)
             save_dialog.setText(msg4)
             btn_self = save_dialog.addButton(self.translations.get("save_for_self"), QMessageBox.ButtonRole.AcceptRole)
@@ -2004,21 +2012,26 @@ class BinParserGUI(QMainWindow):
             btn_cancel2 = save_dialog.addButton(self.translations.get("cancel"), QMessageBox.ButtonRole.RejectRole)
             save_dialog.setDefaultButton(btn_self)
             save_dialog.exec()
+            
             clicked2 = save_dialog.clickedButton()
             if clicked2 == btn_self:
                 self.save_bin_know()
-                self.close()
                 return not self.is_modified()
             elif clicked2 == btn_steam:
                 self.save_bin_unknow()
-                self.close()
                 return not self.is_modified()
             else:
-                return False
+                return False # User cancelled second dialog
         elif clicked == btn_no:
-            return True
+            return True # User explicitly said No, so proceed without saving
         else:
-            return False
+            return False # User cancelled first dialog
+
+    def maybe_save_before_exit(self):
+        if self.check_unsaved_changes():
+             # If check passed (saved or discarded), we can close
+             return True
+        return False
 
     def closeEvent(self, event):
         if self.maybe_save_before_exit():
