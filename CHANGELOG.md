@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.9] - 2025-12-16
+
+### Changed
+- Updated build workflow procedures in GitHub Actions.
+- Refined build metadata and versioning configuration.
+- Changed author name in LICENSE file to Latin characters for better compatibility.
+
+### Fixed
+- Fixed duplicate "unsaved changes" prompt appearing multiple times when loading files via drag-and-drop.
+
 ## [0.8.8] - 2025-12-16
 
 ### Fixed
