@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.8] - 2025-12-16
+
+### Fixed
+- Fixed row height explosion on save when hidden columns are present.
+- Fixed file manager not opening on Linux Nuitka builds by clearing `LD_LIBRARY_PATH`.
+- Removed debug print from highlight delegate.
+
+## [0.8.7] - 2025-12-12
+
+### Changed
+- Universalized column control and automated language mapping.
+- Implemented dynamic mandatory column determination based on selected translation language.
+- Automated `ui_to_steam_lang` mapping using available locales.
+- Updated UI builder to respect dynamic mandatory columns.
+- Changed storage logic to save `VisibleColumns` instead of `HiddenColumns`, with automatic migration.
+- New columns in games are now automatically visible.
+- Added "Select All" / "Deselect All" buttons to columns menu with translations (ua, en, pl).
+- Tools menu is now macOS-only; Windows/Linux have stats action directly in menubar.
+- Changed icon for find/replace action in context menu.
+
+### Fixed
+- Fixed formatting in `_create_about_action` method.
+- Fixed row heights skipping hidden columns during calculation.
+
+## [0.8.6] - 2025-12-09
+
+### Changed
+- Removed system language dependency; default fallback is now Ukrainian.
+- Refactored CSV error handling for localization.
+- Added and fixed Ukrainian translations.
+- Prepared diagnostics for Linux file manager opening.
+
 ## [0.8.5] - 2025-12-09
 
 ### Fixed
