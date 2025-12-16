@@ -31,9 +31,44 @@ Builds a macOS `.app` bundle and optionally creates a `.dmg` installer.
 
 ---
 
+### `update_version.py`
+
+**NEW**: Unified version management script that updates version numbers across all build configuration files.
+
+**Usage:**
+```bash
+python scripts/update_version.py X.Y.Z
+```
+
+**Example:**
+```bash
+# Update to version 0.8.9
+python scripts/update_version.py 0.8.9
+```
+
+**What it updates:**
+1. `APP_VERSION` in `SteamAchievementLocalizer.py`
+2. `filevers` and `prodvers` in `version_info.txt` (Windows metadata)
+3. `FileVersion` and `ProductVersion` strings in `version_info.txt`
+4. `VERSION` in `setup.py` (macOS build)
+
+**Output:**
+- ✓ Success messages for each updated file
+- ⚠ Warning messages if patterns not found
+- ✗ Error messages if update fails
+
+**Benefits:**
+- Single source of truth for version numbers
+- Prevents version mismatch between platforms
+- Automatic format conversion (e.g., "0.8.9" → "(0, 8, 9, 0)" for Windows)
+
+---
+
 ### `bump_version.py`
 
-Updates version numbers across the project files.
+**DEPRECATED**: Use `update_version.py` instead for better cross-platform version management.
+
+Legacy script for incrementing version numbers.
 
 **Usage:**
 ```bash
@@ -48,30 +83,7 @@ python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump [major
   - `patch`: Increment patch version (0.0.X)
   - `none`: Don't change version (useful for checking current version)
 
-**What it updates:**
-1. `APP_VERSION` in the main Python file
-2. `version` in `SteamAchievementLocalizer-macOS.spec`
-3. `CFBundleShortVersionString` in the spec file
-4. `CFBundleVersion` in the spec file
-
-**Example:**
-```bash
-# Bump patch version (0.8.3 -> 0.8.4)
-python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump patch
-
-# Bump minor version (0.8.3 -> 0.9.0)
-python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump minor
-
-# Bump major version (0.8.3 -> 1.0.0)
-python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump major
-
-# Check current version without changing
-python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump none
-```
-
-**Output:**
-- Prints the new version to stdout
-- Prints update messages to stderr
+**Note:** This script only updates the main Python file and macOS spec file. Use `update_version.py` for complete version synchronization.
 
 ---
 
@@ -96,9 +108,9 @@ See `.github/workflows/` for more details.
 
 ### Building for Distribution
 
-1. Bump version:
+1. Update version:
    ```bash
-   python scripts/bump_version.py --file SteamAchievementLocalizer.py --bump patch
+   python scripts/update_version.py 0.8.9
    ```
 
 2. Build for macOS:
@@ -113,11 +125,21 @@ See `.github/workflows/` for more details.
 
 ### Creating a Release
 
-1. Commit your changes
-2. Tag the release:
+1. Update version in all files:
    ```bash
-   git tag v0.8.4
-   git push origin v0.8.4
+   python scripts/update_version.py 0.8.9
+   ```
+
+2. Commit your changes:
+   ```bash
+   git add .
+   git commit -m "Release v0.8.9"
+   ```
+
+3. Tag the release:
+   ```bash
+   git tag v0.8.9
+   git push origin v0.8.9
    ```
 
 3. GitHub Actions will automatically:

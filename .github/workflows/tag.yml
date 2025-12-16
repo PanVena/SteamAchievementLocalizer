@@ -32,6 +32,11 @@ jobs:
           echo "new=$NEW_VER" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VER"
 
+      - name: Sync version to all files
+        run: |
+          echo "Syncing version ${{ steps.bump.outputs.new }} to all build files..."
+          python scripts/update_version.py "${{ steps.bump.outputs.new }}"
+
       - name: Configure git (use PAT to allow triggering downstream workflows)
         env:
           PAT: ${{ secrets.ACTIONS_PAT }}
@@ -42,10 +47,10 @@ jobs:
 
       - name: Commit version change (if changed)
         run: |
-          if git diff --quiet SteamAchievementLocalizer.py; then
+          if git diff --quiet; then
             echo "Version unchanged (bump probably 'none')"
           else
-            git add SteamAchievementLocalizer.py
+            git add SteamAchievementLocalizer.py version_info.txt setup.py
             git commit -m "chore: bump version to ${{ steps.bump.outputs.new }}"
             git push
           fi

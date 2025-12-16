@@ -6,7 +6,7 @@ from setuptools import setup
 import os
 
 # Get version from source
-VERSION = "0.8.5"
+VERSION = "0.8.8"
 with open("SteamAchievementLocalizer.py", "r", encoding="utf-8") as f:
     for line in f:
         if "APP_VERSION" in line:
@@ -41,7 +41,9 @@ OPTIONS = {
         'CFBundleIdentifier': 'com.panvena.steamachievementlocalizer',
         'CFBundleVersion': VERSION,
         'CFBundleShortVersionString': VERSION,
-        'NSHumanReadableCopyright': 'Copyright © 2024 Pan Vena. MIT License.',
+        'CFBundleGetInfoString': f'Steam Achievement Localizer {VERSION}, Copyright © 2025 Pan Vena',
+        'NSHumanReadableCopyright': 'Copyright © 2025 Pan Vena. MIT License.',
+        'NSHumanReadableDescription': 'Tool for localizing Steam achievement files',
         'LSMinimumSystemVersion': '10.13.0',
         'NSHighResolutionCapable': True,
         'CFBundleDocumentTypes': [
@@ -72,6 +74,7 @@ OPTIONS = {
         'plugins.help_dialog',
         'plugins.context_menu',
         'plugins.steam_lang_codes',
+        'plugins.drag_drop_overlay',
     ],
     'excludes': [
         'tkinter',

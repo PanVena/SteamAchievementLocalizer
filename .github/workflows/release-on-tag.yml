@@ -87,6 +87,43 @@ jobs:
 
           "app_version=$srcVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Update version_info.txt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          
+          $version = "${{ steps.ver.outputs.app_version }}"
+          $versionParts = $version.Split('.')
+          $major = $versionParts[0]
+          $minor = $versionParts[1]
+          $patch = $versionParts[2]
+          $versionTuple = "($major, $minor, $patch, 0)"
+          $versionWithZero = "$version.0"
+          
+          Write-Host "Updating version_info.txt to version $version"
+          
+          # Read the template
+          $content = Get-Content version_info.txt -Raw -Encoding UTF8
+          
+          # Update filevers
+          $content = $content -replace 'filevers=\([^)]*\)', "filevers=$versionTuple"
+          
+          # Update prodvers
+          $content = $content -replace 'prodvers=\([^)]*\)', "prodvers=$versionTuple"
+          
+          # Update FileVersion string
+          $content = $content -replace "StringStruct\(u'FileVersion',\s*u'[^']*'\)", "StringStruct(u'FileVersion', u'$versionWithZero')"
+          
+          # Update ProductVersion string
+          $content = $content -replace "StringStruct\(u'ProductVersion',\s*u'[^']*'\)", "StringStruct(u'ProductVersion', u'$versionWithZero')"
+          
+          # Write back
+          $content | Out-File -FilePath version_info.txt -Encoding UTF8 -NoNewline
+          
+          Write-Host "version_info.txt updated successfully"
+          Write-Host "Contents:"
+          Get-Content version_info.txt | Select-Object -First 10
+
       - name: Build (PyInstaller)
         shell: powershell
         run: |
@@ -101,6 +138,7 @@ jobs:
             --windowed `
             --name SteamAchievementLocalizer `
             --icon assets/icon.ico `
+            --version-file version_info.txt `
             --add-data "assets;assets" `
             --collect-all PyQt6 `
             --hidden-import PyQt6.sip
@@ -379,11 +417,19 @@ jobs:
           [Desktop Entry]
           Type=Application
           Name=Steam Achievement Localizer
+          GenericName=Achievement Localizer
+          Comment=Localize Steam achievement files
           Exec=SteamAchievementLocalizer
           Icon=steamachievementlocalizer
           Categories=Utility;Game;
-          Comment=Localize Steam achievement files
           Terminal=false
+          StartupNotify=true
+          Keywords=steam;achievements;localization;translation;
+          MimeType=application/octet-stream;
+          X-AppImage-Version=$version
+          X-AppImage-Author=Pan Vena
+          X-AppImage-License=MIT
+          X-AppImage-URL=https://github.com/PanVena/SteamAchievementLocalizer
           DESKTOP_EOF
           # Remove leading spaces from desktop file
           sed -i 's/^          //' "$appdir/steamachievementlocalizer.desktop"

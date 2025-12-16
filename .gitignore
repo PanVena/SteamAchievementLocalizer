@@ -13,6 +13,7 @@ build/
 .vscode/settings.json
 .idea
 *.egg-info
+.eggs/
 
 # macOS
 .DS_Store

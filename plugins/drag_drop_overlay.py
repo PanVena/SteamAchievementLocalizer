@@ -146,27 +146,16 @@ class DragDropPlugin(QObject):
 
     def open_file(self, file_path):
         # Integration logic
-        # 1. Check for unsaved changes if the main window supports it
-        if hasattr(self.main_window, 'check_unsaved_changes'):
-            if not self.main_window.check_unsaved_changes():
-                return
-
-        # 2. Fill the path in the line edit
+        # Note: We don't check for unsaved changes here because select_stats_bin_path() 
+        # already performs this check. Doing it here would cause a duplicate prompt.
+        
+        # Fill the path in the line edit
         if hasattr(self.main_window, 'stats_bin_path_path'):
              self.main_window.stats_bin_path_path.setText(file_path)
              
-             # 2. Trigger the load button logic
+             # Trigger the load button logic
              if hasattr(self.main_window, 'select_stats_bin_path'):
-                 # select_stats_bin_path usually opens a dialog if called directly?
-                 # No, checking the button connection:
-                 # self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
-                 # self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search) -> This is the dialog.
-                 
-                 # Wait, looking at UI code:
-                 # stats_bin_path_btn = "Choose File"
-                 # select_stats_bin_path_btn = "Get Achievements"
-                 
-                 # So we need to call self.select_stats_bin_path() which matches "Get Achievements"
+                 # select_stats_bin_path() will check for unsaved changes and load the file
                  self.main_window.select_stats_bin_path()
              else:
                  translations = getattr(self.main_window, 'translations', {})
