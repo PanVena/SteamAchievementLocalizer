@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+
+## [0.8.10] - 2025-12-17
+
+### Fixed
+- **Critical**: Fixed `gamename()` and `version()` functions re-reading files instead of using already loaded data, causing incorrect game information display when switching between manual and Steam ID file loading modes.
+- Fixed Game ID field being overwritten when loading files manually. Game ID from manual files is now stored separately in `manual_file_game_id` variable.
+- Fixed "Available Files" dialog not resetting `force_manual_path` flag on parent window, causing wrong file to be loaded after selecting game from dialog.
+- Fixed "Get Achievements" button not resetting `force_manual_path` flag when loading by Game ID, potentially loading wrong file after manual file selection.
+
 ## [0.8.9] - 2025-12-16
 
 ### Changed

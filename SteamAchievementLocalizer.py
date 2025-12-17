@@ -1765,18 +1765,14 @@ class BinParserGUI(QMainWindow):
             self.headers = [h for h in self.headers if h not in columns_to_remove]
 
     def version(self):
-        path = self.get_stats_bin_path()
-
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except Exception as e:
+        # Use already loaded data instead of re-reading file
+        if not hasattr(self, 'raw_data') or not self.raw_data:
             if hasattr(self, "version_label"):
                 self.version_label.setText(f"{self.translations.get('file_version')}{self.translations.get('unknown')}")
             return None
 
         # Use binary parser plugin
-        version_number = self.binary_parser.get_version(data)
+        version_number = self.binary_parser.get_version(self.raw_data)
 
         if hasattr(self, "version_label"):
             if version_number is not None:
@@ -1813,22 +1809,18 @@ class BinParserGUI(QMainWindow):
         self.gamename()
 
     def gamename(self):
-        path = self.get_stats_bin_path()
-
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except Exception as e:
+        # Use already loaded data instead of re-reading file
+        if not hasattr(self, 'raw_data') or not self.raw_data:
             if hasattr(self, "gamename_label"):
                 self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
         # Use binary parser plugin
-        name = self.binary_parser.get_gamename(data)
+        name = self.binary_parser.get_gamename(self.raw_data)
         
         # Check if we should use Steam API name instead
         if self.settings.value("UseSteamName", False, type=bool):
-            game_id = self.game_id()
+            game_id = self.current_game_id()  # Use current_game_id() to respect manual mode
             if game_id:
                 steam_name = self.get_steam_game_name(game_id)
                 if steam_name:
