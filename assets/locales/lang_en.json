@@ -185,5 +185,6 @@
     "file_search_section_expanded": "▼ File Search (expanded)",
     "file_search_section_collapsed": "▶ File Search (collapsed)",
     "drag_drop_hint": "Drop .bin file here",
-    "file_dropped_msg": "File dropped: {path}"
+    "file_dropped_msg": "File dropped: {path}",
+    "tooltip_use_steam_name": "Use Steam API to fetch game names (requires internet connection for new games)"
 }

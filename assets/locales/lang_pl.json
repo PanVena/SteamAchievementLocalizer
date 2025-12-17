@@ -175,5 +175,6 @@
     "file_search_section_expanded": "▼ Wyszukiwanie pliku (rozwinięte)",
     "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)",
     "drag_drop_hint": "Upuść plik .bin tutaj",
-    "file_dropped_msg": "Upuszczono plik: {path}"
+    "file_dropped_msg": "Upuszczono plik: {path}",
+    "tooltip_use_steam_name": "Użyj Steam API do pobierania nazw gier (wymaga połączenia internetowego dla nowych gier)"
 }

@@ -29,7 +29,6 @@ DATA_FILES = [
         'assets/themes/light.json',
         'assets/themes/system.json',
     ]),
-    ('assets', ['assets/steam.api.allgamenames.json']),
 ]
 
 OPTIONS = {
@@ -75,6 +74,7 @@ OPTIONS = {
         'plugins.context_menu',
         'plugins.steam_lang_codes',
         'plugins.drag_drop_overlay',
+        'plugins.progress_dialog',
     ],
     'excludes': [
         'tkinter',
