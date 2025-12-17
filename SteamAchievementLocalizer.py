@@ -219,7 +219,8 @@ class BinParserGUI(QMainWindow):
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
         self.default_steam_path = self.detect_steam_path()
         
-        self.force_manual_path = False  
+        self.force_manual_path = False
+        self.manual_file_game_id = None  # Store Game ID from manually loaded file  
 
 
         # Create collapsible section for file search inputs
@@ -899,6 +900,10 @@ class BinParserGUI(QMainWindow):
         # Trigger saving if needed
         if not self.check_unsaved_changes():
             return
+        
+        # Reset force_manual_path to ensure we use Steam path when loading by game ID
+        self.force_manual_path = False
+        self.manual_file_game_id = None
             
         # Get game ID and steam path
         game_id = self.game_id()
@@ -1198,11 +1203,14 @@ class BinParserGUI(QMainWindow):
         # Activate manual path usage
         self.force_manual_path = True
 
-        # Try to extract game_id from filename
+        # Try to extract game_id from filename and store it separately
+        # Don't overwrite the user's Game ID field
         import re
         m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', path)
         if m:
-            self.game_id_edit.setText(m.group(1))
+            self.manual_file_game_id = m.group(1)
+        else:
+            self.manual_file_game_id = None
 
         self.parse_and_fill_table()
         self.version()
@@ -1834,6 +1842,10 @@ class BinParserGUI(QMainWindow):
     def current_game_id(self):
         # Return game ID based on current mode (manual or steam path)
         if self.force_manual_path:
+            # Use the stored manual file game ID if available
+            if hasattr(self, 'manual_file_game_id') and self.manual_file_game_id:
+                return self.manual_file_game_id
+            # Fallback: extract from filename
             manual_path = self.stats_bin_path_path.text().strip()
             import re
             m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', manual_path)
