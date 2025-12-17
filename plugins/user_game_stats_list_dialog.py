@@ -174,7 +174,6 @@ class UserGameStatsListDialog(QDialog):
         self.select_btn.setEnabled(True)
 
     def select_game(self):
-        self.force_manual_path = False 
         if self.selected_row is None:
             return
         item_id = self.table.item(self.selected_row, 2)
@@ -184,6 +183,9 @@ class UserGameStatsListDialog(QDialog):
         parent = self.parent()
         if hasattr(parent, "game_id_edit"):
             parent.game_id_edit.setText(game_id)
+            # Reset force_manual_path on parent to ensure we use Steam path
+            if hasattr(parent, "force_manual_path"):
+                parent.force_manual_path = False
             if hasattr(parent, "load_steam_game_stats"):
                 parent.load_steam_game_stats()
         self.accept()
