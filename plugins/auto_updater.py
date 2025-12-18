@@ -11,9 +11,24 @@ import tempfile
 import shutil
 import subprocess
 import zipfile
+import ssl
 import urllib.request
 import urllib.error
 from typing import Optional, Dict, Any, Tuple
+
+
+def create_ssl_context():
+    """Create SSL context that works on macOS without certificate issues"""
+    try:
+        # Try to use certifi certificates if available
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        # Fallback: create unverified context (less secure but works)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
 
 from PyQt6.QtCore import QThread, pyqtSignal, QSettings, Qt
 from PyQt6.QtWidgets import (
@@ -88,7 +103,8 @@ class UpdateChecker(QThread):
                 }
             )
 
-            with urllib.request.urlopen(req, timeout=10) as response:
+            ssl_context = create_ssl_context()
+            with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
                 data = json.loads(response.read().decode('utf-8'))
 
             # Update last check time
@@ -157,7 +173,8 @@ class UpdateDownloader(QThread):
                 headers={'User-Agent': 'SteamAchievementLocalizer'}
             )
 
-            with urllib.request.urlopen(req, timeout=60) as response:
+            ssl_context = create_ssl_context()
+            with urllib.request.urlopen(req, timeout=60, context=ssl_context) as response:
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded = 0
 
