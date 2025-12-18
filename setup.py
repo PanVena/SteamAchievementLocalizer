@@ -55,7 +55,7 @@ OPTIONS = {
             }
         ],
     },
-    'packages': ['PyQt6'],
+    'packages': ['PyQt6', 'certifi'],
     'includes': [
         'PyQt6.QtCore',
         'PyQt6.QtGui',

@@ -18,13 +18,22 @@ from typing import Optional, Dict, Any, Tuple
 
 
 def create_ssl_context():
-    """Create SSL context that works on macOS without certificate issues"""
+    """Create SSL context that works cross-platform (macOS, Linux, Windows)"""
+    # Try certifi first
     try:
-        # Try to use certifi certificates if available
         import certifi
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        # Fallback: create unverified context (less secure but works)
+        cert_path = certifi.where()
+        # Verify the cert file actually exists (important for AppImage/frozen builds)
+        if os.path.isfile(cert_path):
+            return ssl.create_default_context(cafile=cert_path)
+    except (ImportError, FileNotFoundError, OSError):
+        pass
+    
+    # Fallback to system certificates
+    try:
+        return ssl.create_default_context()
+    except Exception:
+        # Last resort: unverified context (less secure but works)
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE

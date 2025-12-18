@@ -13,10 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-updater plugin for automatic updates.
 
 ### Changed
-- Updated build workflow procedures in GitHub Actions.on.
-
+- Updated build workflow procedures in GitHub Actions.
 
 ### Fixed
+- **Linux/macOS**: Fixed SSL certificate verification issues in AppImage and .app builds by properly bundling certifi data files.
+- Improved cross-platform SSL context creation with better error handling and fallback mechanisms for frozen builds.
 - Import urllib.request for Nuitka and py2app builds.
 
 ## [0.8.11] - 2025-12-18

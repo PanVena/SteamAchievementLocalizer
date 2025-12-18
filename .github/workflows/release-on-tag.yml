@@ -368,6 +368,7 @@ jobs:
             --plugin-enable=pyqt6 \
             --include-data-dir=assets=assets \
             --include-package=certifi \
+            --include-package-data=certifi \
             --assume-yes-for-downloads \
             --show-progress
 
@@ -528,6 +529,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m pip install certifi
           python -m pip install py2app
 
       - name: Verify version matches tag
