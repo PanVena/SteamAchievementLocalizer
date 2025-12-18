@@ -16,9 +16,8 @@ from plugins import (
     ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
     CSVHandler, FileManager, UIBuilder, HelpDialog, ContextMenuManager,
     DragDropPlugin, GameNameFetchWorker, get_available_languages_for_selection,
-    get_display_name, get_code_from_display_name
+    get_display_name, get_code_from_display_name, AutoUpdater
 )
-from plugins.auto_updater import AutoUpdater
 
 if sys.platform == "win32":
     import winreg

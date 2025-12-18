@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.12] - 2025-12-18
+
+### Added
+- Auto-updater plugin for automatic updates.
+
+### Changed
+- Updated build workflow procedures in GitHub Actions.on.
+
+
+### Fixed
+- Import urllib.request for Nuitka and py2app builds.
+
 ## [0.8.11] - 2025-12-18
 
 ### Added

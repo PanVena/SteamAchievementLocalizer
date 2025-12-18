@@ -366,6 +366,7 @@ jobs:
             --output-dir=dist \
             --plugin-enable=pyqt6 \
             --include-data-dir=assets=assets \
+            --include-module=urlib.request \
             --assume-yes-for-downloads \
             --show-progress
 

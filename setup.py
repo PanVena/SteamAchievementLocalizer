@@ -61,6 +61,7 @@ OPTIONS = {
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
         'PyQt6.sip',
+        'urllib.request',
         'plugins.highlight_delegate',
         'plugins.find_replace_dialog',
         'plugins.user_game_stats_list_dialog',
@@ -76,6 +77,7 @@ OPTIONS = {
         'plugins.steam_lang_codes',
         'plugins.drag_drop_overlay',
         'plugins.game_name_fetch_worker',
+        'plugins.auto_updater',
     ],
     'excludes': [
         'tkinter',
