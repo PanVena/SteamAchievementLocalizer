@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.11] - 2025-12-18
+
+### Added
+- Game name fetching worker for async Steam game name fetching (`game_name_fetch_worker.py`).
+- Steam API all game names cache file (`steam.api.allgamenames.json`).
+- Progress bar to status bar for visual feedback during long Steam API operations.
+- Batch progress tracking for loading multiple games from Steam API.
+- Progress helper methods: `show_progress()`, `update_progress()`, `hide_progress()`.
+- `get_steam_game_name_without_progress()` method for batch operations.
+- Progress dialog plugin to build configuration.
+
+### Changed
+- Updated Ukrainian, English, and Polish localization files.
+- Updated binary parser, drag-drop overlay, and user stats dialog.
+- Calculate total count before loading to show accurate progress (e.g., "Loading 1/101").
+- Updated tooltips to warn about internet requirement for Steam API names.
+- Updated setup.py and plugin initialization.
+
+### Fixed
+- Fixed infinite recursion in `load_json_with_fallback`.
+- Fixed `force_manual_path` flag handling.
+
+### Removed
+- Removed `progress_dialog.py` (replaced with new implementation).
+
 ## [0.8.10] - 2025-12-17
 
 ### Fixed
