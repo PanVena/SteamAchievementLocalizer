@@ -3,7 +3,7 @@ import re
 import os
 import json
 import time
-import urllib.request
+import requests
 from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal
 from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor
 from PyQt6.QtWidgets import (
@@ -1869,8 +1869,9 @@ class BinParserGUI(QMainWindow):
                 return None
             
             url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-            with urllib.request.urlopen(url, timeout=5) as response:
-                data = json.loads(response.read().decode())
+            response = requests.get(url, timeout=5, verify=True)
+            response.raise_for_status()
+            data = response.json()
             
             if progress_callback:
                 progress_callback(100, f"Loaded game {appid}")
@@ -1878,8 +1879,8 @@ class BinParserGUI(QMainWindow):
             if str(appid) in data and data[str(appid)]['success']:
                 return data[str(appid)]['data']['name']
             return None
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
                 return "RATE_LIMITED"
             return None
         except Exception:

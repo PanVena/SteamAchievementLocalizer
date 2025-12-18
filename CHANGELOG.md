@@ -13,11 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-updater plugin for automatic updates.
 
 ### Changed
+- **Auto-updater**: Migrated from `urllib` to `requests` library for better SSL/HTTPS handling in AppImage and macOS builds.
+- **Steam API**: Migrated Steam game name fetching from `urllib` to `requests` for improved reliability.
 - Updated build workflow procedures in GitHub Actions.
 
 ### Fixed
-- **Linux/macOS**: Fixed SSL certificate verification issues in AppImage and .app builds by properly bundling certifi data files.
-- Improved cross-platform SSL context creation with better error handling and fallback mechanisms for frozen builds.
+- **Linux/macOS**: Fixed SSL certificate verification issues by using `requests` library which has superior certificate management.
 - Import urllib.request for Nuitka and py2app builds.
 
 ## [0.8.11] - 2025-12-18

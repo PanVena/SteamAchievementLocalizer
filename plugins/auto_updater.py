@@ -11,33 +11,12 @@ import tempfile
 import shutil
 import subprocess
 import zipfile
-import ssl
-import urllib.request
-import urllib.error
 from typing import Optional, Dict, Any, Tuple
 
-
-def create_ssl_context():
-    """Create SSL context that works cross-platform (macOS, Linux, Windows)"""
-    # Try certifi first
-    try:
-        import certifi
-        cert_path = certifi.where()
-        # Verify the cert file actually exists (important for AppImage/frozen builds)
-        if os.path.isfile(cert_path):
-            return ssl.create_default_context(cafile=cert_path)
-    except (ImportError, FileNotFoundError, OSError):
-        pass
-    
-    # Fallback to system certificates
-    try:
-        return ssl.create_default_context()
-    except Exception:
-        # Last resort: unverified context (less secure but works)
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        return ctx
+try:
+    import requests
+except ImportError:
+    requests = None
 
 from PyQt6.QtCore import QThread, pyqtSignal, QSettings, Qt
 from PyQt6.QtWidgets import (
@@ -103,18 +82,19 @@ class UpdateChecker(QThread):
             self.no_update.emit()
             return
 
-        try:
-            req = urllib.request.Request(
-                GITHUB_API_URL,
-                headers={
-                    'User-Agent': 'SteamAchievementLocalizer',
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            )
+        if not requests:
+            self.error_occurred.emit("requests library not available")
+            return
 
-            ssl_context = create_ssl_context()
-            with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
-                data = json.loads(response.read().decode('utf-8'))
+        try:
+            headers = {
+                'User-Agent': 'SteamAchievementLocalizer',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+            
+            response = requests.get(GITHUB_API_URL, headers=headers, timeout=10, verify=True)
+            response.raise_for_status()
+            data = response.json()
 
             # Update last check time
             self.settings.setValue("last_update_check", int(time.time()))
@@ -149,10 +129,10 @@ class UpdateChecker(QThread):
             else:
                 self.no_update.emit()
 
-        except urllib.error.HTTPError as e:
-            self.error_occurred.emit(f"HTTP Error: {e.code}")
-        except urllib.error.URLError as e:
-            self.error_occurred.emit(f"Network Error: {str(e.reason)}")
+        except requests.exceptions.HTTPError as e:
+            self.error_occurred.emit(f"HTTP Error: {e.response.status_code}")
+        except requests.exceptions.RequestException as e:
+            self.error_occurred.emit(f"Network Error: {str(e)}")
         except Exception as e:
             self.error_occurred.emit(str(e))
 
@@ -173,31 +153,31 @@ class UpdateDownloader(QThread):
         self.cancelled = True
 
     def run(self):
+        if not requests:
+            self.error_occurred.emit("requests library not available")
+            return
+
         try:
             temp_dir = tempfile.mkdtemp(prefix="sal_update_")
             file_path = os.path.join(temp_dir, self.filename)
 
-            req = urllib.request.Request(
-                self.download_url,
-                headers={'User-Agent': 'SteamAchievementLocalizer'}
-            )
+            headers = {'User-Agent': 'SteamAchievementLocalizer'}
+            
+            # Stream download with progress
+            response = requests.get(self.download_url, headers=headers, timeout=60, stream=True, verify=True)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
 
-            ssl_context = create_ssl_context()
-            with urllib.request.urlopen(req, timeout=60, context=ssl_context) as response:
-                total_size = int(response.headers.get('content-length', 0))
-                downloaded = 0
+            with open(file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if self.cancelled:
+                        f.close()
+                        os.remove(file_path)
+                        return
 
-                with open(file_path, 'wb') as f:
-                    while True:
-                        if self.cancelled:
-                            f.close()
-                            os.remove(file_path)
-                            return
-
-                        chunk = response.read(8192)
-                        if not chunk:
-                            break
-
+                    if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
                         self.progress.emit(downloaded, total_size)
