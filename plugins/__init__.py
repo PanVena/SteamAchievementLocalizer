@@ -11,7 +11,7 @@ from .ui_builder import UIBuilder
 from .help_dialog import HelpDialog
 from .context_menu import ContextMenuManager
 from .drag_drop_overlay import DragDropPlugin
-from .progress_dialog import ProgressDialog, WorkerThread
+from .game_name_fetch_worker import GameNameFetchWorker
 from .steam_lang_codes import (
     get_available_languages_for_selection,
     get_display_name,
@@ -32,8 +32,7 @@ __all__ = [
     'HelpDialog',
     'ContextMenuManager',
     'DragDropPlugin',
-    'ProgressDialog',
-    'WorkerThread',
+    'GameNameFetchWorker',
     'get_available_languages_for_selection',
     'get_display_name',
     'get_code_from_display_name'

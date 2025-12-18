@@ -135,6 +135,8 @@ class DragDropPlugin(QObject):
                     if urls:
                         path = urls[0].toLocalFile()
                         if path.endswith('.bin'):
+                             self.main_window.activateWindow()
+                             self.main_window.raise_()
                              self.overlay.show_overlay()
                              event.acceptProposedAction()
                              return True

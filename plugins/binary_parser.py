@@ -179,3 +179,8 @@ class BinaryParser:
     def get_gamename(self, data: bytes) -> Optional[str]:
         """Extract game name from binary data"""
         return self.extract_metadata(data, "gamename")
+
+    def get_achievement_count(self, data: bytes) -> int:
+        """Count achievements in binary data"""
+        chunks = self.split_chunks(data)
+        return sum(1 for chunk in chunks if b'\x01english\x00' in chunk and chunk.count(b'\x01english\x00') >= 2)

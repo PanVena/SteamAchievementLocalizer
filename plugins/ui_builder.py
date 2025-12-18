@@ -427,7 +427,7 @@ class UIBuilder:
         # Stats action
         stats_action = self._create_stats_action()
         tools_menu.addAction(stats_action)
-
+    
         return tools_menu
     
     def _create_language_menu(self) -> QMenu:

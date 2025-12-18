@@ -4,7 +4,7 @@ import os
 import json
 import time
 import urllib.request
-from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal
 from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
@@ -14,8 +14,8 @@ from PyQt6.QtWidgets import (
 from plugins import (
     HighlightDelegate, FindReplacePanel, UserGameStatsListDialog,
     ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
-    CSVHandler, FileManager, UIBuilder,HelpDialog, ContextMenuManager,
-    DragDropPlugin, get_available_languages_for_selection,
+    CSVHandler, FileManager, UIBuilder, HelpDialog, ContextMenuManager,
+    DragDropPlugin, GameNameFetchWorker, get_available_languages_for_selection,
     get_display_name, get_code_from_display_name
 )
 
@@ -25,6 +25,7 @@ if sys.platform == "win32":
 APP_VERSION = "0.8.11" 
 
 LOCALES_DIR = "assets/locales"
+STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
 
 def load_available_locales():
     """Load available locales from the locales directory"""
@@ -60,8 +61,8 @@ def load_available_locales():
                                     'priority': 999,
                                     'data': locale_data
                                 }
-                except (json.JSONDecodeError, FileNotFoundError) as e:
-                    print(f"Error loading locale from {filename}: {e}")
+                except (json.JSONDecodeError, FileNotFoundError):
+                    pass
     return locales
 
 def get_sorted_locale_names(locales):
@@ -194,6 +195,7 @@ class BinParserGUI(QMainWindow):
         
         # Steam game names - not loaded from file anymore, using API only
         self.steam_game_names = {}
+        self.steam_app_names = self.load_steam_app_list()
         
         # Load available locales and store for ui_builder access
         self.available_locales = load_available_locales()
@@ -836,7 +838,7 @@ class BinParserGUI(QMainWindow):
         if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
             self.translation_lang_label.setText(self.translations.get("translation_lang"))
         
-        if self.countby2 is int:
+        if isinstance(self.countby2, int):
             self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
 
         else:
@@ -1037,7 +1039,7 @@ class BinParserGUI(QMainWindow):
         self.create_menubar()
         self.version()
         self.gamename()
-        self.countby2 = len(all_rows)//2
+        self.countby2 = self.binary_parser.get_achievement_count(self.raw_data)
         self.ach_number.setText(f"{self.translations.get('ach_number')}{self.countby2}")
 
         # Collapse file search section after loading table
@@ -1808,8 +1810,10 @@ class BinParserGUI(QMainWindow):
             print(f"Failed to load Steam game names: {e}")
             return {}
     
-    def show_progress(self, message="Loading...", total=1):
+    def show_progress(self, message=None, total=1):
         """Show progress bar in status bar for batch operations"""
+        if message is None:
+            message = self.translations.get("loading", "Loading...")
         self.progress_current = 0
         self.progress_total = total
         self.progress_bar.setMaximum(total)
@@ -1818,8 +1822,10 @@ class BinParserGUI(QMainWindow):
         self.progress_bar.setVisible(True)
         QApplication.processEvents()
     
-    def update_progress(self, increment=1, message="Loading"):
+    def update_progress(self, increment=1, message=None):
         """Update progress bar - increment by 1 and show X/Y format"""
+        if message is None:
+            message = self.translations.get("loading", "Loading")
         self.progress_current += increment
         self.progress_bar.setValue(self.progress_current)
         self.progress_bar.setFormat(f"{message} {self.progress_current}/{self.progress_total}")
@@ -1832,7 +1838,19 @@ class BinParserGUI(QMainWindow):
         self.progress_total = 0
         self.statusBar().showMessage(self.translations.get("ready", "Ready"))
         QApplication.processEvents()
-    
+
+    def load_steam_app_list(self):
+        """Load Steam app list from local cache"""
+        if os.path.exists(STEAM_APP_LIST_CACHE):
+            try:
+                with open(STEAM_APP_LIST_CACHE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Convert list to dict for O(1) lookup: {appid: name}
+                    return {str(app['appid']): app['name'] for app in data.get('applist', {}).get('apps', [])}
+            except Exception:
+                pass
+        return {}
+
     def fetch_game_name_from_api(self, appid, progress_callback=None, is_cancelled=None):
         """Fetch game name from Steam Store API"""
         try:
@@ -1853,8 +1871,11 @@ class BinParserGUI(QMainWindow):
             if str(appid) in data and data[str(appid)]['success']:
                 return data[str(appid)]['data']['name']
             return None
-        except Exception as e:
-            print(f"Failed to fetch game name from API for {appid}: {e}")
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                return "RATE_LIMITED"
+            return None
+        except Exception:
             return None
     
     def save_game_name_to_cache(self, appid, name):
@@ -1868,51 +1889,61 @@ class BinParserGUI(QMainWindow):
         cache_key = f"GameNameCache/{appid}"
         return self.settings.value(cache_key, None)
     
-    def get_steam_game_name(self, appid):
-        """Get game name from Steam API with caching (no local database)"""
+    def get_steam_game_name(self, appid, show_progress=True):
+        """Get game name from Steam API with caching and local database fallback"""
         if not appid:
             return None
         
-        # 1. Check cache first
-        cached_name = self.get_game_name_from_cache(appid)
+        appid_str = str(appid)
+        
+        # 1. Check QSettings cache first (most specific/recent)
+        cached_name = self.get_game_name_from_cache(appid_str)
         if cached_name:
             return cached_name
+            
+        # 2. Check local full app list (bulk cache)
+        if hasattr(self, 'steam_app_names') and appid_str in self.steam_app_names:
+            name = self.steam_app_names[appid_str]
+            # Save to QSettings cache for faster future access
+            self.save_game_name_to_cache(appid_str, name)
+            return name
         
-        # 2. Fetch from Steam API (no local database fallback)
-        # Show progress bar for API call
-        self.show_progress("Loading", total=1)
+        # 3. Fetch from Steam API (individual request for new/missing games)
+        if show_progress:
+            self.show_progress(self.translations.get("loading", "Loading"), total=1)
         
         try:
             api_name = self.fetch_game_name_from_api(appid)
             if api_name:
                 # Save to cache for future use
                 self.save_game_name_to_cache(appid, api_name)
-                self.update_progress(increment=1, message="Loading")
+                if show_progress:
+                    self.update_progress(increment=1, message="Loading")
                 return api_name
         finally:
-            # Always hide progress bar when done
-            self.hide_progress()
+            if show_progress:
+                self.hide_progress()
         
         return None
+
+    def get_game_name_for_id(self, appid, raw_data=None, show_progress=True):
+        """
+        Centralized procedure to get game name.
+        1. If raw_data is provided, extract from binary.
+        2. If UseSteamName is enabled, try Steam (cache -> bulk -> API).
+        """
+        name = None
+        if raw_data:
+            name = self.binary_parser.get_gamename(raw_data)
+            
+        if self.settings.value("UseSteamName", False, type=bool):
+            steam_name = self.get_steam_game_name(appid, show_progress=show_progress)
+            if steam_name:
+                name = steam_name
+                
+        return name if name else self.translations.get("unknown", "Unknown")
     
-    def get_steam_game_name_without_progress(self, appid):
-        """Get game name from Steam API without showing progress bar (for batch operations)"""
-        if not appid:
-            return None
-        
-        # 1. Check cache first
-        cached_name = self.get_game_name_from_cache(appid)
-        if cached_name:
-            return cached_name
-        
-        # 2. Fetch from Steam API (no local database fallback)
-        api_name = self.fetch_game_name_from_api(appid)
-        if api_name:
-            # Save to cache for future use
-            self.save_game_name_to_cache(appid, api_name)
-            return api_name
-        
-        return None
+    
 
     
     def on_steam_name_toggle(self, checked):
@@ -1927,19 +1958,11 @@ class BinParserGUI(QMainWindow):
                 self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
             return None
 
-        # Use binary parser plugin
-        name = self.binary_parser.get_gamename(self.raw_data)
-        
-        # Check if we should use Steam API name instead
-        if self.settings.value("UseSteamName", False, type=bool):
-            game_id = self.current_game_id()  # Use current_game_id() to respect manual mode
-            if game_id:
-                steam_name = self.get_steam_game_name(game_id)
-                if steam_name:
-                    name = steam_name
+        game_id = self.current_game_id()
+        name = self.get_game_name_for_id(game_id, raw_data=self.raw_data)
 
         if hasattr(self, "gamename_label"):
-            self.gamename_label.setText(f"{self.translations.get('gamename')}{name if name else self.translations.get('unknown')}")
+            self.gamename_label.setText(f"{self.translations.get('gamename')}{name}")
 
         return name
 
@@ -2005,80 +2028,39 @@ class BinParserGUI(QMainWindow):
             QMessageBox.warning(self, "Error", f"Stats directory not found:\n{stats_dir}")
             return
         stats_files = [f for f in os.listdir(stats_dir) if f.startswith("UserGameStatsSchema_") and f.endswith(".bin")]
-        stats_list = []
-        orig_game_id = self.game_id_edit.text()
-        orig_steam_folder = self.steam_folder
         
-        # Calculate total count if using Steam API names
-        use_steam_api = self.settings.value("UseSteamName", False, type=bool)
-        if use_steam_api:
-            # Count how many games need API loading (not in cache)
-            games_to_load = []
-            for fname in stats_files:
-                m = re.match(r"UserGameStatsSchema_(\d+)\.bin", fname)
-                if m:
-                    game_id = m.group(1)
-                    if not self.get_game_name_from_cache(game_id):
-                        games_to_load.append(game_id)
-            
-            # Show progress bar with total count
-            if games_to_load:
-                self.show_progress("Loading", total=len(games_to_load))
+        if not stats_files:
+            QMessageBox.information(self, self.translations.get("info"), self.translations.get("no_stats_files", "No stats files found."))
+            return
+
+        # Show progress bar
+        self.show_progress(total=len(stats_files))
         
-        for fname in stats_files:
-            m = re.match(r"UserGameStatsSchema_(\d+)\.bin", fname)
-            game_id = m.group(1) if m else "?"
-            file_path = os.path.join(stats_dir, fname)
-            try:
-                with open(file_path, "rb") as f:
-                    file_data = f.read()
-                chunks = self.binary_parser.split_chunks(file_data)
-                achievement_count = sum(1 for chunk in chunks if chunk.count(b'\x01english\x00') >= 2)
-            except Exception:
-                achievement_count = "?"
-            # Temporarily set game ID and steam folder to load version and name
-            self.game_id_edit.setText(game_id)
-            self.steam_folder = self.steam_folder_path.text().strip()
-            
-            # Read version and gamename directly from the file instead of using manual path
-            version = UserGameStatsListDialog.get_version_from_file(file_path)
-            gamename = UserGameStatsListDialog.get_gamename_from_file(file_path)
-            
-            # Check if we should use Steam API name
-            if use_steam_api:
-                m = re.search(r'UserGameStatsSchema_(\d+)\.bin$', file_path)
-                if m:
-                    game_id = m.group(1)
-                    # Check if not in cache before loading
-                    if not self.get_game_name_from_cache(game_id):
-                        steam_name = self.get_steam_game_name_without_progress(game_id)
-                        if steam_name:
-                            gamename = steam_name
-                        # Update progress after loading
-                        self.update_progress(increment=1, message="Loading")
-                    else:
-                        # Use cached name
-                        cached_name = self.get_game_name_from_cache(game_id)
-                        if cached_name:
-                            gamename = cached_name
-            
-            stats_list.append((
-                gamename if gamename else self.translations.get("unknown"),
-                str(version) if version else self.translations.get("unknown"),
-                game_id,
-                achievement_count
-            ))
+        # Create and start worker
+        self.worker = GameNameFetchWorker(stats_files, stats_dir, self)
+        self.worker.progress.connect(lambda current, total, msg: self.update_progress(message=msg))
+        self.worker.api_error.connect(self.on_api_error)
+        self.worker.finished.connect(self.on_stats_loading_finished)
+        self.worker.start()
+
+    def on_api_error(self, error_type):
+        """Handle Steam API errors (blocks/rate limits)"""
+        if error_type in ["RATE_LIMITED", "TOO_MANY_FAILURES"]:
+            # Store instance to prevent garbage collection for non-modal dialog
+            self.api_error_dialog = QMessageBox(self)
+            self.api_error_dialog.setIcon(QMessageBox.Icon.Warning)
+            self.api_error_dialog.setWindowTitle(self.translations.get("api_block_warning_title", "Steam API Block Detected"))
+            self.api_error_dialog.setText(self.translations.get("api_block_warning_message", "Steam API seems to be blocking requests..."))
+            self.api_error_dialog.setWindowFlags(self.api_error_dialog.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+            self.api_error_dialog.show()
+
+    def on_stats_loading_finished(self, stats_list):
+        self.hide_progress()
         
-        # Hide progress bar when done
-        if use_steam_api and games_to_load:
-            self.hide_progress()
-        
-        # Restore original values
-        self.game_id_edit.setText(orig_game_id)
-        self.steam_folder = orig_steam_folder
         # Restore original UI labels
         self.version()
         self.gamename()
+        
         # Show dialog
         dlg = UserGameStatsListDialog(self, stats_list, self.steam_game_names, self.settings)
         dlg.exec()

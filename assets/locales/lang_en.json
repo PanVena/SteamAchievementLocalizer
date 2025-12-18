@@ -23,7 +23,7 @@
     "unknown": "UNKNOWN",
     "translation_lang": "Translate to:",
     "use_steam_name": "Use Steam API Name",
-    "use_steam_name_hint": "If you can't find your game - check this option, as developers may have named the game differently in the files",
+    "use_steam_name_hint": "If you can't find needed game - check this option, as developers may have named the game differently in the files.<br>WARNING: This option requires internet connection.<br>If you have big amount of games and huge steam library, it may take a long time to load all names and it even can be blocked by Steam servers.",
     "lang_sel": "Language selection:",
     "lang_sel_dia": "Language selection",
     "in_column_search": "Search:",
@@ -186,5 +186,11 @@
     "file_search_section_collapsed": "▶ File Search (collapsed)",
     "drag_drop_hint": "Drop .bin file here",
     "file_dropped_msg": "File dropped: {path}",
-    "tooltip_use_steam_name": "Use Steam API to fetch game names (requires internet connection for new games)"
+    "tooltip_use_steam_name": "Use Steam API to fetch game names (requires internet connection for new games)",
+    "loading": "Loading...",
+    "processing": "Processing {game_id} ",
+    "api_block_warning_title": "Steam API Block Detected",
+    "api_block_warning_message": "Steam API seems to be blocking requests (Too Many Requests). Loading game names has been paused to avoid further blocking. You can try again later.",
+    "update_steam_app_list": "Update Steam App List",
+    "tooltip_update_steam_app_list": "Download the full list of Steam games for faster offline lookup"
 }

@@ -28,6 +28,7 @@ DATA_FILES = [
         'assets/themes/femboy.json',
         'assets/themes/light.json',
         'assets/themes/system.json',
+        'assets/steam.api.allgamenames.json',
     ]),
 ]
 
@@ -74,7 +75,7 @@ OPTIONS = {
         'plugins.context_menu',
         'plugins.steam_lang_codes',
         'plugins.drag_drop_overlay',
-        'plugins.progress_dialog',
+        'plugins.game_name_fetch_worker',
     ],
     'excludes': [
         'tkinter',
