@@ -18,6 +18,7 @@ from plugins import (
     DragDropPlugin, GameNameFetchWorker, get_available_languages_for_selection,
     get_display_name, get_code_from_display_name
 )
+from plugins.auto_updater import AutoUpdater
 
 if sys.platform == "win32":
     import winreg
@@ -527,6 +528,9 @@ class BinParserGUI(QMainWindow):
         # Initialize theme manager
         self.theme_manager = ThemeManager(self, resource_path)
 
+        # Initialize auto-updater
+        self.auto_updater = AutoUpdater(APP_VERSION, self.translations, self)
+
         # Create menubar
         self.create_menubar()
         
@@ -889,6 +893,10 @@ class BinParserGUI(QMainWindow):
         """Show the help dialog"""
         dialog = HelpDialog(self, self.translations)
         dialog.exec()
+
+    def check_for_updates_manual(self):
+        """Manually check for updates (triggered from Help menu)"""
+        self.auto_updater.check_for_updates(manual=True)
 
     # =================================================================
     # FILE OPERATIONS AND STEAM INTEGRATION
@@ -2200,6 +2208,10 @@ def main():
     theme = settings.value("theme", "System")
     window.theme_manager.set_theme(theme)
     window.show()
+
+    # Check for updates automatically (non-blocking)
+    window.auto_updater.check_for_updates(manual=False)
+
     sys.exit(app.exec())
 
 

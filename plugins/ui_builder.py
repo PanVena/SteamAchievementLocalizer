@@ -536,11 +536,19 @@ class UIBuilder:
        ## help_menu.addAction(help_action)
         
        ## help_menu.addSeparator()
-        
+
+        # Check for Updates action
+        update_action = QAction(self.translations.get("check_for_updates", "Check for Updates..."), self.parent)
+        self._connect_status_tip(update_action, "tooltip_check_for_updates")
+        update_action.triggered.connect(self.parent.check_for_updates_manual)
+        help_menu.addAction(update_action)
+
+        help_menu.addSeparator()
+
         # About action
         about_action = self._create_about_action()
         help_menu.addAction(about_action)
-        
+
         return help_menu
     
     def _create_theme_submenu(self) -> QMenu:
