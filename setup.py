@@ -61,7 +61,7 @@ OPTIONS = {
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
         'PyQt6.sip',
-        'urllib.request',
+        'certifi',
         'plugins.highlight_delegate',
         'plugins.find_replace_dialog',
         'plugins.user_game_stats_list_dialog',
