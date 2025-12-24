@@ -14,6 +14,7 @@ build/
 .idea
 *.egg-info
 .eggs/
+SteamAchievementLocalizer.AppDir/
 
 # macOS
 .DS_Store
@@ -21,3 +22,4 @@ assets/icon.iconset/
 
 # PyInstaller auto-generated
 *.spec
+appimagetool

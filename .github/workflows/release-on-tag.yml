@@ -304,6 +304,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            ca-certificates \
             xvfb \
             libgl1-mesa-dev \
             libglib2.0-0 \
@@ -338,6 +339,8 @@ jobs:
           python -m pip install --upgrade nuitka ordered-set zstandard
           python -c "import PyQt6; print('PyQt6 successfully imported')"
           python -c "from PyQt6 import QtCore; print(f'Qt version: {QtCore.QT_VERSION_STR}')"
+          python -c "import certifi; print(f'certifi CA bundle: {certifi.where()}')"
+          python -c "import os, certifi; print(f'CA bundle exists: {os.path.exists(certifi.where())}')"
 
       - name: Verify version matches tag
         id: ver
@@ -370,6 +373,7 @@ jobs:
             --include-data-dir=assets=assets \
             --include-package=certifi \
             --include-package-data=certifi \
+            --include-package=requests \
             --assume-yes-for-downloads \
             --show-progress
 

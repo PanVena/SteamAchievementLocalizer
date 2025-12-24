@@ -2,7 +2,13 @@ from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt
 import os
 import re
+import sys
+import glob
+import webbrowser
+import subprocess
 from plugins.highlight_delegate import HighlightDelegate
+
+
 
 class NumericTableWidgetItem(QTableWidgetItem):
     """Custom QTableWidgetItem that sorts numerically instead of alphabetically"""
@@ -73,6 +79,8 @@ class UserGameStatsListDialog(QDialog):
 
         # --- Buttons and selected game display ---
         btn_box = QHBoxLayout()
+        
+        # Get achievements button (left side)
         self.select_btn = QPushButton(translations.get("get_ach"))
         self.select_btn.setEnabled(False)
         self.select_btn.clicked.connect(self.select_game)
@@ -83,12 +91,27 @@ class UserGameStatsListDialog(QDialog):
         self.selected_gamename_label.setMinimumWidth(350)  
         btn_box.addWidget(self.selected_gamename_label)
         btn_box.addStretch(1)
+        
+        # Open in Steam Store button (right side)
+        self.open_steam_store_btn = QPushButton(translations.get("open_in_steam_store", "Open in Steam Store"))
+        self.open_steam_store_btn.setEnabled(False)
+        self.open_steam_store_btn.setToolTip(translations.get("tooltip_open_in_steam_store", ""))
+        self.open_steam_store_btn.clicked.connect(self.open_in_steam_store)
+        btn_box.addWidget(self.open_steam_store_btn)
+        
+        # Open in File Manager button (right side)
+        self.open_file_manager_btn = QPushButton(translations.get("open_in_file_manager", "Open in File Manager"))
+        self.open_file_manager_btn.setEnabled(False)
+        self.open_file_manager_btn.setToolTip(translations.get("tooltip_open_in_file_manager", ""))
+        self.open_file_manager_btn.clicked.connect(self.open_in_file_manager)
+        btn_box.addWidget(self.open_file_manager_btn)
 
         close_btn = QPushButton(translations.get("close"))
         close_btn.clicked.connect(self.accept)
         btn_box.addWidget(close_btn)
 
         layout.addLayout(btn_box)
+
 
         self.setLayout(layout)
         self.stretch_columns() 
@@ -146,12 +169,15 @@ class UserGameStatsListDialog(QDialog):
         self.fill_table(filtered)
         self.selected_row = None
         self.select_btn.setEnabled(False)
+        self.open_steam_store_btn.setEnabled(False)
+        self.open_file_manager_btn.setEnabled(False)
         self.selected_gamename_label.setText("")
 
         # Update highlighting
         self.highlight_delegate.set_highlight(text)
         self.highlight_delegate.highlight_column = -1  
         self.table.viewport().update()
+
 
     def stretch_columns(self):
         header = self.table.horizontalHeader()
@@ -172,6 +198,9 @@ class UserGameStatsListDialog(QDialog):
         self.selected_gamename_label.setText(gamename)
         self.selected_row = row
         self.select_btn.setEnabled(True)
+        self.open_steam_store_btn.setEnabled(True)
+        self.open_file_manager_btn.setEnabled(True)
+
 
     def select_game(self):
         if self.selected_row is None:
@@ -199,3 +228,55 @@ class UserGameStatsListDialog(QDialog):
         if hasattr(parent, "show_user_game_stats_list"):
             self.accept()  # Close current dialog
             parent.show_user_game_stats_list()  # Reopen with updated names
+    
+    def open_in_steam_store(self):
+        """Open the selected game's Steam Store page in the default browser"""
+        if self.selected_row is None:
+            return
+        item_id = self.table.item(self.selected_row, 2)
+        if not item_id:
+            return
+        game_id = item_id.text()
+        
+        # Open Steam Store page in browser
+        steam_url = f"https://store.steampowered.com/app/{game_id}/"
+        webbrowser.open(steam_url)
+    
+    def open_in_file_manager(self):
+        """Open the achievements file folder in the file manager"""
+        if self.selected_row is None:
+            return
+        item_id = self.table.item(self.selected_row, 2)
+        if not item_id:
+            return
+        game_id = item_id.text()
+        
+        # Get the parent window to access steam folder path and steam_integration
+        parent = self.parent()
+        if not hasattr(parent, 'steam_folder') or not hasattr(parent, 'steam_integration'):
+            return
+        
+        # Construct the path to the stats file
+        stats_folder = os.path.join(parent.steam_folder, "appcache", "stats")
+        
+        # Find the actual file for this game
+        pattern = os.path.join(stats_folder, f"UserGameStatsSchema_{game_id}.bin")
+        files = glob.glob(pattern)
+        
+        if files and os.path.isfile(files[0]):
+            # Use existing steam_integration method to open file in explorer
+            parent.steam_integration.open_file_in_explorer(files[0])
+        elif os.path.exists(stats_folder):
+            # If file not found, just open the stats folder
+            if sys.platform == "win32":
+                os.startfile(stats_folder)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", stats_folder])
+            else:  # Linux
+                env = os.environ.copy()
+                if "LD_LIBRARY_PATH" in env:
+                    del env["LD_LIBRARY_PATH"]
+                subprocess.Popen(["xdg-open", stats_folder], env=env)
+
+
+

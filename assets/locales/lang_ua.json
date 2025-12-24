@@ -33,7 +33,7 @@
     "save_bin_known": "Зберегти бінарник для себе",
     "tools": "Інструменти",
     "export_import": "Експорт/Імпорт",
-    "export_bin": "Відкрити поточний бінарник у провіднику",
+    "export_bin": "Відкрити поточний бінарник у файловому менеджері",
     "export_all": "Експорт у CSV (усі мови)",
     "export_for_translate": "Експорт у CSV для перекладу",
     "import_csv": "Імпорт з CSV",
@@ -153,7 +153,6 @@
     "auto": "Авто",
     "ach_number": "Досягнень: ",
     "ready": "Готово",
-    "help": "Поміч",
     "help_title": "Довідка",
     "help_topics": "Розділи",
     "help_general": "Загальне",
@@ -178,7 +177,7 @@
     "main_window_group": "Головне вікно",
     "help_tooltips": "Підказки",
     "help_tooltips_desc": "<p>Опис усіх спливаючих підказок, які ви можете побачити в програмі.</p>",
-    "tooltip_man_select_file": "Натисніть, щоб обрати файл UserGameStatsSchema_*.bin вручну через провідник",
+    "tooltip_man_select_file": "Натисніть, щоб обрати файл UserGameStatsSchema_*.bin вручну через файловий менеджер",
     "tooltip_get_ach_manual": "Завантажити досягнення з обраного вручну файлу",
     "tooltip_steam_folder": "Шлях до кореневої теки Steam",
     "tooltip_steam_auto": "Спробувати автоматично знайти теку Steam",
@@ -262,5 +261,9 @@
     "update_no_download": "Завантаження для вашої платформи недоступне.",
     "update_check": "Перевірка оновлень",
     "update_up_to_date": "Ви використовуєте останню версію.",
-    "update_check_failed": "Не вдалося перевірити оновлення"
+    "update_check_failed": "Не вдалося перевірити оновлення",
+    "open_in_steam_store": "Відкрити у крамниці Стіму",
+    "open_in_file_manager": "Відкрити у файловому менеджері",
+    "tooltip_open_in_steam_store": "Відкрити сторінку гри у крамниці Steam у браузері",
+    "tooltip_open_in_file_manager": "Відкрити теку з файлом досягнень у файловому менеджері"
 }
