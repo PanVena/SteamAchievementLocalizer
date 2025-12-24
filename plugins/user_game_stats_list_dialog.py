@@ -32,21 +32,20 @@ class UserGameStatsListDialog(QDialog):
         self.setMinimumSize(720, 600)
         layout = QVBoxLayout()
 
-        # --- Steam API name toggle with hint ---
-        from PyQt6.QtWidgets import QCheckBox
-        toggle_layout = QVBoxLayout()
-        self.use_steam_name_checkbox = QCheckBox(translations.get("use_steam_name", "Use Steam API Name"))
-        if self.settings:
-            self.use_steam_name_checkbox.setChecked(self.settings.value("UseSteamName", False, type=bool))
-        self.use_steam_name_checkbox.stateChanged.connect(self.on_steam_name_toggle)
+        # --- Fetch missing names button ---
+        button_layout = QHBoxLayout()
+        self.fetch_names_btn = QPushButton(translations.get("fetch_missing_names", "Fetch Missing Names from Steam API"))
+        self.fetch_names_btn.setToolTip(translations.get("tooltip_fetch_missing_names", ""))
+        self.fetch_names_btn.clicked.connect(self.fetch_missing_names)
         
-        hint_label = QLabel(translations.get("use_steam_name_hint", "If you can't find your game - check this option"))
+        hint_label = QLabel(translations.get("fetch_missing_names_hint", "Click to fetch game names from Steam API for all games showing 'UNKNOWN'."))
         hint_label.setWordWrap(True)
         hint_label.setStyleSheet("color: gray; font-size: 10px;")
         
-        toggle_layout.addWidget(self.use_steam_name_checkbox)
-        toggle_layout.addWidget(hint_label)
-        layout.addLayout(toggle_layout)
+        button_layout.addWidget(self.fetch_names_btn)
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
+        layout.addWidget(hint_label)
 
         # --- In-column search ---
         search_layout = QHBoxLayout()
@@ -219,15 +218,111 @@ class UserGameStatsListDialog(QDialog):
                 parent.load_steam_game_stats()
         self.accept()
     
-    def on_steam_name_toggle(self, checked):
-        """Handle Steam API name toggle - save setting and notify parent to refresh"""
-        if self.settings:
-            self.settings.setValue("UseSteamName", bool(checked))
-        # Notify parent to refresh the dialog
+    
+    def fetch_missing_names(self):
+        """Fetch missing game names from Steam API for all unknown games"""
         parent = self.parent()
-        if hasattr(parent, "show_user_game_stats_list"):
-            self.accept()  # Close current dialog
-            parent.show_user_game_stats_list()  # Reopen with updated names
+        if not hasattr(parent, 'get_steam_game_name'):
+            return
+        
+        # Get unknown text
+        unknown_text = parent.translations.get("unknown", "Unknown")
+        
+        # Collect games to fetch (Unknown or code names marked with *)
+        games_to_fetch = []
+        for row in range(self.table.rowCount()):
+            name_item = self.table.item(row, 0)
+            id_item = self.table.item(row, 2)
+            if name_item and id_item:
+                name = name_item.text()
+                # Fetch if Unknown or starts with * (code name from binary)
+                if name == unknown_text or name.startswith("*"):
+                    games_to_fetch.append((row, id_item.text()))
+        
+        if not games_to_fetch:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                parent.translations.get("info", "Info"),
+                parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=0)
+            )
+            return
+        
+        # Disable button and show progress
+        self.fetch_names_btn.setEnabled(False)
+        original_text = self.fetch_names_btn.text()
+        
+        # Show progress using parent's progress bar
+        if hasattr(parent, 'show_progress'):
+            parent.show_progress(
+                parent.translations.get("fetching_names_progress", "Fetching game names..."),
+                total=len(games_to_fetch)
+            )
+        
+        # Track errors
+        updated_count = 0
+        error_count = 0
+        rate_limited = False
+        
+        # Fetch names for unknown games with delay between requests
+        for i, (row, game_id) in enumerate(games_to_fetch):
+            # Update progress
+            if hasattr(parent, 'update_progress'):
+                parent.update_progress(
+                    increment=1,
+                    message=parent.translations.get("processing", "Processing {game_id}").format(game_id=game_id)
+                )
+            
+            # Add delay between requests to avoid rate limiting (except for first request)
+            if i > 0:
+                import time
+                time.sleep(0.5)  # 500ms delay between requests
+            
+            # Fetch from Steam API
+            name = parent.get_steam_game_name(game_id, show_progress=False)
+            if name and name != unknown_text:
+                # Update table
+                self.table.item(row, 0).setText(name)
+                updated_count += 1
+                # Also update stats_list for filtering
+                for j, stat in enumerate(self.stats_list):
+                    if stat[2] == game_id:  # Match by game_id
+                        self.stats_list[j] = (name, stat[1], stat[2], stat[3])
+                        break
+            else:
+                error_count += 1
+                # Check if we hit rate limit
+                if hasattr(parent, 'get_game_name_from_cache'):
+                    cached = parent.get_game_name_from_cache(game_id)
+                    if cached == "RATE_LIMITED":
+                        rate_limited = True
+                        print(f"[Fetch] Rate limited at game {i+1}/{len(games_to_fetch)}, stopping...")
+                        break
+        
+        # Hide progress
+        if hasattr(parent, 'hide_progress'):
+            parent.hide_progress()
+        
+        # Re-enable button
+        self.fetch_names_btn.setEnabled(True)
+        self.fetch_names_btn.setText(original_text)
+        
+        # Show completion message with details
+        from PyQt6.QtWidgets import QMessageBox
+        if rate_limited:
+            message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
+            message += f"\n\n⚠️ Rate limited by Steam after {i+1} requests. Try again later for remaining games."
+        elif error_count > 0:
+            message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
+            message += f"\n\n{error_count} games could not be fetched (errors logged to console)."
+        else:
+            message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
+        
+        QMessageBox.information(
+            self,
+            parent.translations.get("success", "Success"),
+            message
+        )
     
     def open_in_steam_store(self):
         """Open the selected game's Steam Store page in the default browser"""

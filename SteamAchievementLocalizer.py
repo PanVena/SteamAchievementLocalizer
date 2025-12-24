@@ -1865,7 +1865,7 @@ class BinParserGUI(QMainWindow):
         return {}
 
     def fetch_game_name_from_api(self, appid, progress_callback=None, is_cancelled=None):
-        """Fetch game name from Steam Store API"""
+        """Fetch game name from Steam Store API with error handling"""
         try:
             if progress_callback:
                 progress_callback(0, f"Fetching game {appid}...")
@@ -1875,7 +1875,7 @@ class BinParserGUI(QMainWindow):
                 return None
             
             url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-            response = requests.get(url, timeout=5, verify=True)
+            response = requests.get(url, timeout=10, verify=True)
             response.raise_for_status()
             data = response.json()
             
@@ -1884,13 +1884,26 @@ class BinParserGUI(QMainWindow):
                 
             if str(appid) in data and data[str(appid)]['success']:
                 return data[str(appid)]['data']['name']
-            return None
+            else:
+                # Game exists but API returned success=false (delisted, region-locked, etc.)
+                print(f"[API] Game {appid}: API returned success=false")
+                return "API_FAILED"
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
+                print(f"[API] Game {appid}: Rate limited (429)")
                 return "RATE_LIMITED"
-            return None
-        except Exception:
-            return None
+            else:
+                print(f"[API] Game {appid}: HTTP error {e.response.status_code}")
+                return "API_ERROR"
+        except requests.exceptions.Timeout:
+            print(f"[API] Game {appid}: Request timeout")
+            return "TIMEOUT"
+        except requests.exceptions.RequestException as e:
+            print(f"[API] Game {appid}: Network error - {str(e)}")
+            return "NETWORK_ERROR"
+        except Exception as e:
+            print(f"[API] Game {appid}: Unexpected error - {str(e)}")
+            return "UNKNOWN_ERROR"
     
     def save_game_name_to_cache(self, appid, name):
         """Save game name to QSettings cache"""
@@ -1927,7 +1940,9 @@ class BinParserGUI(QMainWindow):
         # 1. Check QSettings cache first (most specific/recent)
         cached_name = self.get_game_name_from_cache(appid_str)
         if cached_name:
-            return cached_name
+            # Don't return error codes from cache, treat them as not cached
+            if cached_name not in ["RATE_LIMITED", "API_FAILED", "API_ERROR", "TIMEOUT", "NETWORK_ERROR", "UNKNOWN_ERROR"]:
+                return cached_name
             
         # 2. Check local full app list (bulk cache from JSON - works offline)
         if hasattr(self, 'steam_app_names') and appid_str in self.steam_app_names:
@@ -1941,108 +1956,89 @@ class BinParserGUI(QMainWindow):
             self.show_progress(self.translations.get("loading", "Loading"), total=1)
         
         try:
-            api_name = self.fetch_game_name_from_api(appid)
-            if api_name:
-                # Save to cache for future use
-                self.save_game_name_to_cache(appid, api_name)
-                # Sync settings immediately for consistency
+            api_result = self.fetch_game_name_from_api(appid)
+            if api_result and not api_result.startswith("RATE_LIMITED") and not api_result.startswith("API_") and not api_result.endswith("_ERROR"):
+                # Success - got a real game name
+                self.save_game_name_to_cache(appid, api_result)
                 self.settings.sync()
                 if show_progress:
                     self.update_progress(increment=1, message="Loading")
-                return api_name
+                return api_result
+            elif api_result in ["RATE_LIMITED", "API_FAILED", "API_ERROR", "TIMEOUT", "NETWORK_ERROR", "UNKNOWN_ERROR"]:
+                # Error occurred - cache the error to avoid retrying immediately
+                # But don't save permanently, so next app restart can try again
+                if show_progress:
+                    self.update_progress(increment=1, message="Error")
+                return None
+            else:
+                # API returned None or empty
+                if show_progress:
+                    self.update_progress(increment=1, message="Not found")
+                return None
         finally:
             if show_progress:
                 self.hide_progress()
         
         return None
 
-    def get_game_name_for_id(self, appid, raw_data=None, show_progress=True):
+    def get_game_name_for_id(self, appid, raw_data=None, show_progress=False):
         """
-        Centralized procedure to get game name with stateful caching.
+        Get game name using game ID only (cache-first approach).
         
-        Behavior depends on UseSteamName checkbox state:
-        - First check: Fetch from all sources and cache
-        - While checked: Use cache only (instant, no API)
-        - Uncheck: Clear cache state
-        - Re-check: Re-fetch everything
+        Lookup order:
+        1. Session memory cache
+        2. QSettings cache
+        3. JSON file (steam_app_names)
+        4. Binary file (marked with * as code name)
+        5. Return "Unknown"
+        
+        Never makes API calls automatically.
         
         Args:
             appid: Steam App ID
-            raw_data: Binary file data (optional)
-            show_progress: Whether to show progress bar
+            raw_data: Binary file data (optional, for fallback)
+            show_progress: Ignored (kept for compatibility)
         """
+        if not appid:
+            return self.translations.get("unknown", "Unknown")
+            
         appid_str = str(appid)
-        use_steam_name = self.settings.value("UseSteamName", False, type=bool)
-        fetch_completed = self.settings.value("SteamNamesFetchCompleted", False, type=bool)
         
-        # 1. If UseSteamName is ON and fetch was completed → use cache only (NO API)
-        if use_steam_name and fetch_completed:
-            # Check session memory cache first
-            if appid_str in self.steam_game_names:
-                return self.steam_game_names[appid_str]
-            # Check QSettings cache
-            cached = self.get_game_name_from_cache(appid_str)
-            if cached:
-                self.steam_game_names[appid_str] = cached
-                return cached
-            # Check JSON as fallback (still no API)
-            if appid_str in self.steam_app_names:
-                name = self.steam_app_names[appid_str]
-                self.steam_game_names[appid_str] = name
-                self.save_game_name_to_cache(appid_str, name)
-                return name
-            # If nothing found in cache, use binary or return unknown (NO API)
-            if raw_data:
-                name = self.binary_parser.get_gamename(raw_data)
-                if name and name != self.translations.get("unknown", "Unknown"):
-                    self.steam_game_names[appid_str] = name
-                    return name
-            # Return unknown without API call
-            unknown = self.translations.get("unknown", "Unknown")
-            self.steam_game_names[appid_str] = unknown
-            return unknown
+        # 1. Check session memory cache
+        if appid_str in self.steam_game_names:
+            return self.steam_game_names[appid_str]
         
-        # 2. If UseSteamName is ON but fetch not completed → full resolution (with API)
-        if use_steam_name:
-            steam_name = self.get_steam_game_name(appid, show_progress=show_progress)
-            if steam_name:
-                self.steam_game_names[appid_str] = steam_name
-                return steam_name
+        # 2. Check QSettings cache
+        cached = self.get_game_name_from_cache(appid_str)
+        if cached:
+            self.steam_game_names[appid_str] = cached
+            return cached
         
-        # 3. Fallback to binary file
-        name = None
+        # 3. Check JSON file
+        if appid_str in self.steam_app_names:
+            name = self.steam_app_names[appid_str]
+            self.steam_game_names[appid_str] = name
+            self.save_game_name_to_cache(appid_str, name)
+            return name
+        
+        # 4. Fallback to binary file (mark as code name with *)
         if raw_data:
-            name = self.binary_parser.get_gamename(raw_data)
+            binary_name = self.binary_parser.get_gamename(raw_data)
+            if binary_name and binary_name != self.translations.get("unknown", "Unknown"):
+                # Mark as code name from binary
+                marked_name = f"*{binary_name}"
+                self.steam_game_names[appid_str] = marked_name
+                # Don't save to QSettings cache - we want to try API next time
+                return marked_name
         
-        # 4. Last resort: check JSON even if UseSteamName is OFF
-        if not name or name == self.translations.get("unknown", "Unknown"):
-            if appid_str in self.steam_app_names:
-                name = self.steam_app_names[appid_str]
-        
-        final_name = name if name else self.translations.get("unknown", "Unknown")
-        self.steam_game_names[appid_str] = final_name
-        return final_name
+        # 5. Return unknown
+        unknown = self.translations.get("unknown", "Unknown")
+        self.steam_game_names[appid_str] = unknown
+        return unknown
     
     
 
     
-    def on_steam_name_toggle(self, checked):
-        """Handle toggle for Steam API name with cache management"""
-        self.settings.setValue("UseSteamName", bool(checked))
-        
-        # Sync checkbox state in File menu if it exists (block signals to prevent loop)
-        if hasattr(self, 'ui_builder') and hasattr(self.ui_builder, 'use_steam_name_action'):
-            self.ui_builder.use_steam_name_action.blockSignals(True)
-            self.ui_builder.use_steam_name_action.setChecked(bool(checked))
-            self.ui_builder.use_steam_name_action.blockSignals(False)
-        
-        if not checked:
-            # Checkbox turned OFF - clear cache state for fresh fetch next time
-            self.settings.setValue("SteamNamesFetchCompleted", False)
-            self.steam_game_names.clear()  # Clear session cache
-        
-        self.gamename()
-
     def gamename(self):
         # Use already loaded data instead of re-reading file
         if not hasattr(self, 'raw_data') or not self.raw_data:
