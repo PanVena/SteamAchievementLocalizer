@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.14] - 2025-12-24
+
+### Added
+- **Auto-Updater**: Added automatic update check on application startup
+
+### Fixed
+- **Auto-Updater**: Fixed AppImage path detection using `APPIMAGE` environment variable (was showing "Not running as AppImage" error)
+
 ## [0.8.13] - 2025-12-24
 
 ### Added

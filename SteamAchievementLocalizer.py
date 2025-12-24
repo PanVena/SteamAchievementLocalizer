@@ -22,7 +22,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.13" 
+APP_VERSION = "0.8.14" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
@@ -541,6 +541,10 @@ class BinParserGUI(QMainWindow):
         # This is important for first run when language is selected
         if hasattr(self, 'translations') and self.translations:
             self.refresh_ui_texts(update_menubar=False)  # Menu already created above
+        
+        # Check for updates automatically on startup (if enabled in settings)
+        if hasattr(self, 'auto_updater'):
+            self.auto_updater.check_for_updates(manual=False)
 
     def create_menubar(self):
         """Create menubar using ui_builder plugin"""

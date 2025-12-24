@@ -226,6 +226,11 @@ class UpdateInstaller:
                 return os.path.dirname(sys.executable)
             return os.path.dirname(os.path.abspath(__file__))
         else:  # Linux
+            # Check if running as AppImage (APPIMAGE env var is set by AppImage runtime)
+            appimage_path = os.environ.get('APPIMAGE')
+            if appimage_path and os.path.exists(appimage_path):
+                return appimage_path
+            # Fallback to sys.executable for non-AppImage builds
             if getattr(sys, 'frozen', False):
                 return sys.executable
             return sys.executable
