@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.13] - 2025-12-24
+
+### Added
+- **Game List Dialog**: Added "Open in Steam Store" button to open game's Steam Store page in browser
+- **Game List Dialog**: Added "Open in File Manager" button to open achievements file folder
+- **Translations**: Added new UI strings for Steam Store and File Manager buttons (English, Ukrainian, Polish)
+- **Translations**: Added tooltips for new buttons in all supported languages
+
+### Fixed
+- **Linux Build**: Fixed `ModuleNotFoundError: No module named 'requests'` in Nuitka builds by adding `--include-package=requests` to build configuration
+- **SSL Certificates**: Fixed SSL certificate verification errors in Linux builds by ensuring `certifi` package data is properly bundled
+- **GitHub Actions**: Added `ca-certificates` to system dependencies for reliable SSL support in CI builds
+- **Localization**: Fixed merge conflict errors in `lang_en.json` (incorrect "Pomoc" translation)
+- **Localization**: Removed duplicate keys and tooltip entries in `lang_pl.json`
+
+### Changed
+- **Build System**: Updated local Linux build script (`build_linux_local.sh`) to use Python 3.12 explicitly
+- **CI/CD**: Enhanced GitHub Actions workflow with certifi verification checks
+- **Build System**: Added `.gitignore` entry for `SteamAchievementLocalizer.AppDir/` temporary build directory
+
 ## [0.8.12] - 2025-12-18
 
 ### Added
