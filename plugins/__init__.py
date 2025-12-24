@@ -18,6 +18,7 @@ from .steam_lang_codes import (
     get_code_from_display_name
 )
 from .auto_updater import AutoUpdater
+from .icon_loader import IconLoader
 
 __all__ = [
     'HighlightDelegate',
@@ -37,5 +38,6 @@ __all__ = [
     'get_available_languages_for_selection',
     'get_display_name',
     'get_code_from_display_name',
-    'AutoUpdater'
+    'AutoUpdater',
+    'IconLoader'
 ]

@@ -75,7 +75,8 @@ class FileManager:
                                   data_rows: List[Dict[str, str]]) -> bytes:
         """Replace language data in binary format"""
         try:
-            lang_columns = [col for col in data_rows[0].keys() if col != "key"]
+            ignored_cols = {"key", "icon", "icon_gray"}
+            lang_columns = [col for col in data_rows[0].keys() if col not in ignored_cols]
             cleaned = bytearray(data)
             
             for selected_column in lang_columns:

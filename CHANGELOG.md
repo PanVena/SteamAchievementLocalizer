@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.15] - 2025-12-24
+
+### Added
+- **Icons**: Added achievement icon support with local caching and display in table.
+- **Icons**: Added "Load achievement icons" toggle in File menu and startup dialog.
+- **UI**: Added dynamic window title showing the currently loaded game name.
+- **Game List**: Added "Open in Steam Store" and "Open in File Manager" buttons to game list dialog.
+
+### Changed
+- **UI**: Enhanced "Get Achievements" buttons visibility (bold, default action).
+- **UI**: Implemented theme-aware zebra striping for achievement rows to improve readability.
+- **UX**: Improved progress bar text formatting to eliminate duplicate counters.
+
+### Fixed
+- **Safety**: Binary file saving now prevents overwriting of `icon` and `icon_gray` columns, preserving original file hashes.
+- **Performance**: Optimized icon loading to prioritize local cache and skip network requests when possible.
+
 ## [0.8.14] - 2025-12-24
 
 ### Added

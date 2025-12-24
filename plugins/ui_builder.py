@@ -131,6 +131,19 @@ class UIBuilder:
             )
         )
         
+        
+        # Toggle Icon Loading
+        toggle_icons_action = QAction(
+            self.translations.get("load_icons_option", "Load achievement icons"),
+            self.parent
+        )
+        toggle_icons_action.setCheckable(True)
+        if hasattr(self.parent, 'settings'):
+            toggle_icons_action.setChecked(self.parent.settings.value("LoadIcons", True, type=bool))
+        
+        if hasattr(self.parent, 'on_load_icons_toggled'):
+            toggle_icons_action.triggered.connect(self.parent.on_load_icons_toggled)
+            
         # Export bin action
         export_bin_action = QAction(
             self.translations.get("export_bin", "Open bin file in explorer"), 
@@ -152,6 +165,8 @@ class UIBuilder:
         self._connect_status_tip(exit_action, "tooltip_exit")
         exit_action.triggered.connect(self.parent._on_exit_action)
         
+        file_menu.addAction(toggle_icons_action)
+        file_menu.addSeparator()
         file_menu.addAction(export_bin_action)
         file_menu.addAction(delete_file_action)
         file_menu.addSeparator()
@@ -283,6 +298,10 @@ class UIBuilder:
             self.parent.column_actions = {}
             
             for header in self.parent.headers:
+                # Skip icon column (always visible, like key)
+                if header == 'icon':
+                    continue
+                    
                 checkbox = QCheckBox(header)
                 
                 # Check actual column visibility state
@@ -298,29 +317,36 @@ class UIBuilder:
                 checkbox.setChecked(is_visible)
                 
                 # Try specific column tooltip first, then generic toggle format
-                tooltip = self.translations.get(f"tooltip_col_{header}")
+                tooltip_key = f"tooltip_toggle_{header}"
+                tooltip = self.translations.get(tooltip_key, "")
                 if not tooltip:
-                    tooltip = self.translations.get("tooltip_toggle_column", "Toggle {} column").format(header)
-                
+                    # Get the template and format it
+                    template = self.translations.get("tooltip_toggle_column", "Toggle {column} column visibility")
+                    # Handle both old format {} and new format {column}
+                    if '{column}' in template:
+                        tooltip = template.format(column=header)
+                    else:
+                        # Old format with positional argument
+                        tooltip = template.format(header)
                 checkbox.setToolTip(tooltip)
                 
-                # Disable mandatory columns (key and current translation language)
+                # Determine if column is mandatory
                 mandatory_columns = self.parent.get_mandatory_columns() if hasattr(self.parent, 'get_mandatory_columns') else {'key'}
-                if header in mandatory_columns:
+                is_mandatory = header in mandatory_columns
+                
+                # Disable checkbox for mandatory columns
+                if is_mandatory:
                     checkbox.setEnabled(False)
-                else:
-                    checkbox.toggled.connect(
-                        lambda state, h=header: self.parent.set_column_visible(h, state)
-                    )
-                    if hasattr(self.parent, 'stretch_columns'):
-                        checkbox.toggled.connect(self.parent.stretch_columns)
+                    checkbox.setToolTip(self.translations.get("tooltip_mandatory_column", "This column is always visible"))
+                
+                checkbox.stateChanged.connect(
+                    lambda state, h=header: self.parent.set_column_visible(h, state == Qt.CheckState.Checked.value)
+                )
                 
                 action = QWidgetAction(self.parent)
                 action.setDefaultWidget(checkbox)
-                # For QWidgetAction, we might need to set tooltip on the action itself too, 
-                # though it's the widget that receives events.
-                action.setToolTip(checkbox.toolTip())
                 columns_menu.addAction(action)
+                
                 self.parent.column_actions[header] = checkbox
         
         return columns_menu

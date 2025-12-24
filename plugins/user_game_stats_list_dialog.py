@@ -6,7 +6,7 @@ import sys
 import glob
 import webbrowser
 import subprocess
-from plugins.highlight_delegate import HighlightDelegate
+from plugins import HighlightDelegate
 
 
 
@@ -82,6 +82,10 @@ class UserGameStatsListDialog(QDialog):
         # Get achievements button (left side)
         self.select_btn = QPushButton(translations.get("get_ach"))
         self.select_btn.setEnabled(False)
+        self.select_btn.setDefault(True)
+        self.select_btn.setAutoDefault(True)
+        # Make the button stand out (accent color depending on theme, but generally highlighted)
+        self.select_btn.setStyleSheet("padding: 5px;")
         self.select_btn.clicked.connect(self.select_game)
         btn_box.addWidget(self.select_btn)
 

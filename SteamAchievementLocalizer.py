@@ -4,19 +4,19 @@ import os
 import json
 import time
 import requests
-from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor
+from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QEvent
+from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor, QPalette
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QProgressBar
+    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QProgressBar, QCheckBox
 )
 from plugins import (
     HighlightDelegate, FindReplacePanel, UserGameStatsListDialog,
     ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
     CSVHandler, FileManager, UIBuilder, HelpDialog, ContextMenuManager,
     DragDropPlugin, GameNameFetchWorker, get_available_languages_for_selection,
-    get_display_name, get_code_from_display_name, AutoUpdater
+    get_display_name, get_code_from_display_name, AutoUpdater, IconLoader
 )
 
 if sys.platform == "win32":
@@ -230,6 +230,10 @@ class BinParserGUI(QMainWindow):
         
 
         self.settings = QSettings("Vena", "Steam Achievement Localizer")
+        
+        # Initialize IconLoader after settings
+        self.icon_loader = IconLoader(self.settings)
+        
         self.default_steam_path = self.detect_steam_path()
         
         self.force_manual_path = False
@@ -258,6 +262,9 @@ class BinParserGUI(QMainWindow):
         self.stats_bin_path_btn.clicked.connect(self.stats_bin_path_search)
         self.select_stats_bin_path_btn = QPushButton(self.translations.get("get_ach"))
         self.select_stats_bin_path_btn.setToolTip(self.translations.get("tooltip_get_ach_manual", ""))
+        self.select_stats_bin_path_btn.setDefault(True)
+        self.select_stats_bin_path_btn.setAutoDefault(True)
+        self.select_stats_bin_path_btn.setStyleSheet("padding: 5px;")
         self.select_stats_bin_path_btn.clicked.connect(self.select_stats_bin_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_path)
         stats_bin_path_layout.addWidget(self.stats_bin_path_btn)
@@ -325,6 +332,9 @@ class BinParserGUI(QMainWindow):
         self.game_id_edit.textChanged.connect(lambda text: self.settings.setValue("LastEnteredID", text))
         self.load_game_btn = QPushButton(self.translations.get("get_ach"))
         self.load_game_btn.setToolTip(self.translations.get("tooltip_get_ach_steam", ""))
+        self.load_game_btn.setDefault(True)
+        self.load_game_btn.setAutoDefault(True)
+        self.load_game_btn.setStyleSheet("padding: 5px;")
         self.load_game_btn.clicked.connect(self.load_steam_game_stats)
         self.clear_game_id = QPushButton(self.translations.get("clear_and_paste"))
         self.clear_game_id.setToolTip(self.translations.get("tooltip_clear_paste", ""))
@@ -591,48 +601,138 @@ class BinParserGUI(QMainWindow):
 
     def stretch_columns(self):
         """Stretch columns to fill available width while respecting minimum widths"""
-        if not self.table or self.table.columnCount() == 0:
+        """Stretch columns to fill table width"""
+        if self.table.columnCount() == 0:
             return
-
-        header = self.table.horizontalHeader()
-        total_width = self.table.viewport().width()
-        visible_columns = [col for col in range(self.table.columnCount()) if not self.table.isColumnHidden(col)]
+            
+        header_width = self.table.viewport().width()
+        total_width = header_width
+        
+        # Determine visible columns
+        visible_columns = []
+        for i in range(self.table.columnCount()):
+            if not self.table.isColumnHidden(i):
+                visible_columns.append(i)
         
         if not visible_columns:
             return
-
-        # Calculate minimum width for each column based on header text
-        font_metrics = header.fontMetrics()
+            
+        # Calculate minimum widths
         min_widths = []
-        for col in visible_columns:
-            header_text = self.table.horizontalHeaderItem(col).text() if self.table.horizontalHeaderItem(col) else ""
-            # Add padding (20px for margins/padding)
-            text_width = font_metrics.horizontalAdvance(header_text) + 20
-            # Use maximum of 120px or header width
-            min_widths.append(max(text_width, 120))
-
-        total_min_width = sum(min_widths)
+        total_min_width = 0
         
+        for col in visible_columns:
+            header_text = self.table.horizontalHeaderItem(col).text()
+            # Special width for icon column
+            if header_text == 'icon':
+                # Fixed width for icon column (64px icon + padding)
+                width = 80 
+            else:
+                # Text columns
+                width = 150  # Minimum width for text columns
+                
+            min_widths.append(width)
+            total_min_width += width
+            
+        # If we have extra space, distribute it
         if total_width > total_min_width:
             # Distribute extra space proportionally
+            # Don't stretch icon column too much
             extra_space = total_width - total_min_width
-            space_per_column = extra_space // len(visible_columns)
             
+            # Count flexible columns (exclude icon from major stretching)
+            flexible_columns_count = 0
             for i, col in enumerate(visible_columns):
-                new_width = min_widths[i] + space_per_column
-                self.table.setColumnWidth(col, new_width)
+                header_text = self.table.horizontalHeaderItem(col).text()
+                if header_text != 'icon':
+                    flexible_columns_count += 1
+            
+            if flexible_columns_count > 0:
+                space_per_flexible = extra_space // flexible_columns_count
+                
+                for i, col in enumerate(visible_columns):
+                    header_text = self.table.horizontalHeaderItem(col).text()
+                    if header_text == 'icon':
+                        # Icon column gets only small stretch or nothing
+                        self.table.setColumnWidth(col, min_widths[i])
+                    else:
+                        # Other columns get stretched
+                        self.table.setColumnWidth(col, min_widths[i] + space_per_flexible)
+            else:
+                # All columns are fixed/icon? Just distribute evenly
+                space_per_column = extra_space // len(visible_columns)
+                for i, col in enumerate(visible_columns):
+                    self.table.setColumnWidth(col, min_widths[i] + space_per_column)
         else:
             # Just use minimum widths
             for i, col in enumerate(visible_columns):
                 self.table.setColumnWidth(col, min_widths[i])
         
-        # Set resize mode for all columns (visible and hidden)
-        for i in range(self.table.columnCount()):
-            self.header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+        # Set resize mode to make sure user can still resize manually
+        self.header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
 
     def resizeEvent(self, event):
         self.stretch_columns()
         super().resizeEvent(event)
+
+    def get_row_pair_colors(self):
+        """Get background colors for row pairs with guaranteed contrast"""
+        palette = QApplication.instance().palette()
+        bg_color_1 = palette.color(QPalette.ColorRole.Base)
+        bg_color_2 = palette.color(QPalette.ColorRole.AlternateBase)
+        
+        # Calculate contrast
+        diff = abs(bg_color_1.lightness() - bg_color_2.lightness())
+        
+        # If contrast is too low (unclear separation), force it
+        # Increased threshold and intensity for better visibility
+        if diff < 25:
+            if bg_color_1.lightness() > 128:
+                # Light theme -> make alternate darker (e.g. from white to light gray)
+                bg_color_2 = bg_color_1.darker(112) 
+            else:
+                # Dark theme -> make alternate lighter (e.g. from dark gray to lighter gray)
+                bg_color_2 = bg_color_1.lighter(125) 
+                
+        return bg_color_1, bg_color_2
+
+    def update_row_colors(self):
+        """Update row/icon background colors based on current theme palette"""
+        if not hasattr(self, 'table') or self.table.rowCount() == 0:
+            return
+            
+        bg_color_1, bg_color_2 = self.get_row_pair_colors()
+                
+        self.table.blockSignals(True)
+        # Disable sorting temporarily
+        is_sorting_enabled = self.table.isSortingEnabled()
+        self.table.setSortingEnabled(False)
+        
+        try:
+            for row_i in range(self.table.rowCount()):
+                # Determine background color for this row pair
+                pair_index = row_i // 2
+                row_bg_color = bg_color_1 if pair_index % 2 == 0 else bg_color_2
+                
+                for col_i in range(self.table.columnCount()):
+                    item = self.table.item(row_i, col_i)
+                    if item:
+                        item.setBackground(row_bg_color)
+                    
+                    # Check for cell widgets (labels for icons)
+                    widget = self.table.cellWidget(row_i, col_i)
+                    if widget and isinstance(widget, QLabel):
+                        hex_color = row_bg_color.name()
+                        widget.setStyleSheet(f"background-color: {hex_color}; border: none;")
+        finally:
+            self.table.setSortingEnabled(is_sorting_enabled)
+            self.table.blockSignals(False)
+
+    def changeEvent(self, event):
+        """Handle theme/palette changes"""
+        if event.type() == QEvent.Type.PaletteChange:
+            self.update_row_colors()
+        super().changeEvent(event)
 
     def set_steam_folder_path(self, force=False):
         path = self.settings.value("UserSteamPath", "") or ""
@@ -690,8 +790,8 @@ class BinParserGUI(QMainWindow):
                 # For other languages, use the language mapping or default to ukrainian
                 translation_lang = ui_to_steam_lang.get(self.language, 'ukrainian')
         
-        # Always include 'key' and the current translation language (if available)
-        mandatory = {'key'}
+        # Always include 'icon', 'key' and the current translation language (if available)
+        mandatory = {'icon', 'key'}
         if translation_lang:
             mandatory.add(translation_lang)
         
@@ -717,6 +817,9 @@ class BinParserGUI(QMainWindow):
             
             self.settings.setValue("VisibleColumns", visible_cols)
             self.settings.sync()
+            
+            # Stretch columns after visibility change
+            self.stretch_columns()
         except ValueError:
             pass
     
@@ -953,7 +1056,7 @@ class BinParserGUI(QMainWindow):
         self.version()
         self.gamename()
 
-    def parse_and_fill_table(self):
+    def parse_and_fill_table(self, show_success_msg=True):
         # Check if we have data to parse
         if not hasattr(self, 'raw_data') or not self.raw_data:
             return
@@ -981,6 +1084,11 @@ class BinParserGUI(QMainWindow):
         all_rows, headers = self.binary_parser.parse_binary_data(self.raw_data)
         self.chunks = self.binary_parser.chunks
         self.headers = self.prioritize_headers(headers)  # Prioritize headers
+        
+        # Check if icons should be loaded
+        load_icons = self.settings.value("LoadIcons", True, type=bool)
+        if not load_icons and 'icon' in self.headers:
+            self.headers.remove('icon')
         
         self.data_rows = all_rows
         self.table.clear()
@@ -1010,15 +1118,116 @@ class BinParserGUI(QMainWindow):
         
         # Fill table with data
         self.table.blockSignals(True)
+        
+        # Get current game ID for icon URLs
+        game_id = self.current_game_id() if hasattr(self, 'current_game_id') else None
+        
+        # Count icons to load for progress bar
+        icons_to_load = 0
+        if 'icon' in self.headers:
+             icons_to_load = sum(1 for row in self.data_rows if row.get('icon', ''))
+        icons_loaded = 0
+        
+        # Show progress for icon loading if there are icons
+        if icons_to_load > 0:
+            self.show_progress(self.translations.get("loading", "Loading icons..."), total=icons_to_load)
+        
+        # Track which rows have icons to merge later
+        icon_rows_to_merge = []
+        
+        # Colors for alternating row pairs (zebra striping for achievements)
+        # Use centralized logic with enhanced contrast
+        bg_color_1, bg_color_2 = self.get_row_pair_colors()
+        
         for row_i, row in enumerate(self.data_rows):
+            # Determine background color for this row pair
+            # We assume rows come in pairs: key, key_opis
+            pair_index = row_i // 2
+            row_bg_color = bg_color_1 if pair_index % 2 == 0 else bg_color_2
+            
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
 
-                item = QTableWidgetItem(value)
-                if col_name == 'key':
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                # Special handling for icon column
+                if col_name == 'icon' and value:
+                    # Check if this is a key row (not _opis)
+                    key_value = row.get('key', '')
+                    is_main_row = not key_value.endswith('_opis')
+                    
+                    if is_main_row:
+                        # This is the main achievement row, create icon
+                        icon_label = QLabel()
+                        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        
+                        # Set background for the label too to match row
+                        # Using style sheet for QLabel background
+                        hex_color = row_bg_color.name()
+                        icon_label.setStyleSheet(f"background-color: {hex_color}; border: none;")
+                        
+                        # Update progress
+                        icons_loaded += 1
+                        if icons_to_load > 0:
+                            self.update_progress(
+                                increment=1,
+                                message=f"{self.translations.get('loading', 'Loading icons')}..."
+                            )
+                        
+                        try:
+                            # Load icon with game_id for correct URL (64x64 for better visibility)
+                            pixmap = self.icon_loader.load_icon(value, app_id=str(game_id) if game_id else None, size=(64, 64))
+                            if pixmap:
+                                icon_label.setPixmap(pixmap)
+                            else:
+                                # Use placeholder
+                                placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+                                icon_label.setPixmap(placeholder)
+                        except Exception as e:
+                            # On error, use placeholder
+                            print(f"[Icon] Failed to load icon for {value}: {e}")
+                            placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+                            icon_label.setPixmap(placeholder)
+                        
+                        # Set widget in cell
+                        self.table.setCellWidget(row_i, col_i, icon_label)
+                        
+                        # Also set an empty item so cell is selectable
+                        item = QTableWidgetItem('')
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        item.setBackground(row_bg_color) # Set background
+                        self.table.setItem(row_i, col_i, item)
+                        
+                        # Mark this row for merging if next row is _opis
+                        if row_i + 1 < len(self.data_rows):
+                            next_key = self.data_rows[row_i + 1].get('key', '')
+                            if next_key == f"{key_value}_opis":
+                                icon_rows_to_merge.append(row_i)
+                    else:
+                        # This is _opis row, just set empty item (will be merged)
+                        item = QTableWidgetItem('')
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        item.setBackground(row_bg_color) # Set background
+                        self.table.setItem(row_i, col_i, item)
+                else:
+                    # Normal text item
+                    item = QTableWidgetItem(value)
+                    item.setBackground(row_bg_color) # Set background
+                    
+                    if col_name == 'key':
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
-                self.table.setItem(row_i, col_i, item)
+                    self.table.setItem(row_i, col_i, item)
+        
+        # Merge icon cells for key and key_opis rows
+        if 'icon' in self.headers:
+            icon_col = self.headers.index('icon')
+            for row_i in icon_rows_to_merge:
+                # Merge current row with next row (key + key_opis)
+                self.table.setSpan(row_i, icon_col, 2, 1)
+        
+        # Hide progress bar after loading
+        if icons_to_load > 0:
+            self.hide_progress()
+        
         self.table.blockSignals(False)
         
         # Глобальний режим видимості колонок (мов)
@@ -1045,7 +1254,8 @@ class BinParserGUI(QMainWindow):
                 self.table.setColumnHidden(i, True)
             else:
                 self.table.setColumnHidden(i, False)
-
+                
+        # Stretch columns initially to fill width
         self.stretch_columns()
         self.update_row_heights()
         self.create_menubar()
@@ -1058,8 +1268,18 @@ class BinParserGUI(QMainWindow):
         if hasattr(self, 'file_search_section'):
             self.file_search_section.setChecked(False)
 
-        msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
-        QMessageBox.information(self, self.translations.get("success"), msg)
+        if show_success_msg:
+            msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
+            QMessageBox.information(self, self.translations.get("success"), msg)
+
+    def on_load_icons_toggled(self, checked):
+        """Handle toggling of icon loading option"""
+        self.settings.setValue("LoadIcons", checked)
+        self.settings.sync()
+        
+        # If we have data loaded, reload the table to apply changes
+        if hasattr(self, 'raw_data') and self.raw_data:
+             self.parse_and_fill_table(show_success_msg=False)
 
     def replace_lang_in_bin(self):
         """Replace language data in binary using file_manager plugin"""
@@ -1629,13 +1849,18 @@ class BinParserGUI(QMainWindow):
     def prioritize_headers(self, headers):
         """
         Prioritize headers with translation column after key:
-        - Ukrainian UI: key > ukrainian > english > others
-        - Polish UI: key > polish > english > others  
-        - Other UI: key > selected translation language > english > others
+        - icon (if exists) > key > translation language > english > others
         The translation column will use existing data if available.
         """
-        headers = [h for h in headers if h != 'key']
-        prioritized = ['key']
+        # Separate icon and key from other headers
+        has_icon = 'icon' in headers
+        headers = [h for h in headers if h not in ['icon', 'key']]
+        
+        # Start with icon (if exists) and key
+        if has_icon:
+            prioritized = ['icon', 'key']
+        else:
+            prioritized = ['key']
         
         # Determine translation language based on UI or user selection
         # Automatically build mapping from UI language to Steam language code from available locales
@@ -2044,6 +2269,7 @@ class BinParserGUI(QMainWindow):
         if not hasattr(self, 'raw_data') or not self.raw_data:
             if hasattr(self, "gamename_label"):
                 self.gamename_label.setText(f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
+            self.update_window_title()
             return None
 
         game_id = self.current_game_id()
@@ -2052,7 +2278,16 @@ class BinParserGUI(QMainWindow):
         if hasattr(self, "gamename_label"):
             self.gamename_label.setText(f"{self.translations.get('gamename')}{name}")
 
+        self.update_window_title(name)
         return name
+
+    def update_window_title(self, game_name=None):
+        """Update window title with app name, version and optional game name"""
+        title = f"{self.translations.get('app_title')}{APP_VERSION}"
+        if game_name:
+             # Use a separator, e.g., " - Game Name"
+             title += f" - {game_name}"
+        self.setWindowTitle(title)
 
     def current_game_id(self):
         # Return game ID based on current mode (manual or steam path)
@@ -2281,11 +2516,22 @@ def main():
     warning_message = translations.get("warning_message", "Possible bugs, for questions please refer to the GitHub page, or write in private on Telegram: @Pan_Vena or Discord: pan_vena<br> Other my contact details can be found in 'About App'")
 
     if last_version != APP_VERSION:
-        QMessageBox.information(
-            None,
-            warning_title,
-            warning_message
-        )
+        # Create custom message box with checkbox
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle(warning_title)
+        msg_box.setText(warning_message)
+        
+        # Add checkbox for icon loading
+        cb = QCheckBox(translations.get("load_icons_option", "Load achievement icons"))
+        cb.setChecked(settings.value("LoadIcons", True, type=bool))
+        msg_box.setCheckBox(cb)
+        
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg_box.exec()
+        
+        # Save settings
+        settings.setValue("LoadIcons", cb.isChecked())
         settings.setValue("last_version", APP_VERSION)
         settings.sync()
 

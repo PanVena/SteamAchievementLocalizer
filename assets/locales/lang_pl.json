@@ -9,6 +9,7 @@
     "app_title": "Steam Achievement Localizer by Vena ver ",
     "warning_title_achtung": "Achtung",
     "warning_message": "Możliwe błędy, prosimy o zgłaszanie ich na stronie GitHub lub pisanie do mnie na Telegramie: <b>@Pan_Vena</b>, Discordzie: <b>pan_vena</b><br>lub e-mail: <b>pan.vena@ukr.net</b><br> Inne dane kontaktowe znajdziesz w 'O programie'",
+    "load_icons_option": "Wczytaj ikony osiągnięć",
     "man_select_file_label": "Wybierz ścieżkę do UserGameStatsSchema_XXXXX.bin",
     "man_select_file": "Wybierz plik",
     "get_ach": "Pobierz osiągnięcia!!!",
