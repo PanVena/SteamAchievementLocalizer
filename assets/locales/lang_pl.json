@@ -270,5 +270,7 @@
     "update_check": "Sprawdzanie aktualizacji",
     "update_up_to_date": "Używasz najnowszej wersji.",
     "update_check_failed": "Nie udało się sprawdzić aktualizacji",
+    "fetch_rate_limited": "\n\n⚠️ Limit zapytań Steam po {count} próbach. Spróbuj później.",
+    "fetch_error_count": "\n\nNie udało się pobrać {count} gier (prawdopodobnie usunięte ze Steam).",
     "loading_icons": "Ładowanie ikon..."
 }

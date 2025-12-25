@@ -28,7 +28,7 @@ from PyQt6.QtGui import QFont
 
 GITHUB_REPO = "PanVena/SteamAchievementLocalizer"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-CHECK_INTERVAL_HOURS = 4
+CHECK_INTERVAL_HOURS = 0
 
 
 def compare_versions(current: str, latest: str) -> int:

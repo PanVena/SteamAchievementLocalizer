@@ -223,5 +223,7 @@
     "update_check": "Update Check",
     "update_up_to_date": "You are using the latest version.",
     "update_check_failed": "Failed to check for updates",
+    "fetch_rate_limited": "\n\n⚠️ Rate limited by Steam after {count} requests. Try again later for remaining games.",
+    "fetch_error_count": "\n\n{count} games could not be fetched (likely removed from Steam).",
     "loading_icons": "Loading icons..."
 }

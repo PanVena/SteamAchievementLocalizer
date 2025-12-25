@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.17] - 2025-12-25
+
+### Fixed
+- **Auto-Updater**: Fixed an issue where the auto-updater would not initialize or show update notifications on startup.
+- **Icon Loader**: Fixed a bug where the icon loading progress bar would not disappear, and issues with loading icons and game names.
+- **Localization**: Added Polish and Ukrainian translations for "games could not be fetched" and rate limit messages in `UserGameStatsListDialog`.
+- **Safety**: Added fallback for `requests` import in `game_name_fetch_worker.py` and `user_game_stats_list_dialog.py` to prevent crashes on systems with missing dependencies.
+
 ## [0.8.16] - 2025-12-25
 
 ### Fixed

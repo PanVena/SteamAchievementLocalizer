@@ -270,5 +270,7 @@
     "open_in_file_manager": "Відкрити у файловому менеджері",
     "tooltip_open_in_steam_store": "Відкрити сторінку гри у крамниці Steam у браузері",
     "tooltip_open_in_file_manager": "Відкрити теку з файлом досягнень у файловому менеджері",
+    "fetch_rate_limited": "\n\n⚠️ Обмеження запитів Steam після {count} запитів. Спробуйте пізніше.",
+    "fetch_error_count": "\n\nНе вдалося завантажити {count} ігор (ймовірно видалені з крамниці Steam).",
     "loading_icons": "Завантаження іконок..."
 }

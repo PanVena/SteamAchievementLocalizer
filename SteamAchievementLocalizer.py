@@ -11,6 +11,12 @@ from PyQt6.QtWidgets import (
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
     QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QProgressBar, QCheckBox
 )
+import certifi
+import os
+
+# Set environment variable for requests to find CA bundle in frozen apps
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+
 from plugins import (
     HighlightDelegate, FindReplacePanel, UserGameStatsListDialog,
     ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
@@ -22,7 +28,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.16" 
+APP_VERSION = "0.8.15" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
@@ -573,6 +579,10 @@ class BinParserGUI(QMainWindow):
 
         # Initialize auto-updater
         self.auto_updater = AutoUpdater(APP_VERSION, self.translations, self)
+        self.auto_updater_enabled = self.settings.value("auto_update_enabled", True, type=bool)
+        # Check for updates automatically on startup (if enabled in settings)
+        if self.auto_updater_enabled:
+            self.auto_updater.check_for_updates()
 
         # Create menubar
         self.create_menubar()
@@ -584,10 +594,6 @@ class BinParserGUI(QMainWindow):
         # This is important for first run when language is selected
         if hasattr(self, 'translations') and self.translations:
             self.refresh_ui_texts(update_menubar=False)  # Menu already created above
-        
-        # Check for updates automatically on startup (if enabled in settings)
-        if hasattr(self, 'auto_updater'):
-            self.auto_updater.check_for_updates(manual=False)
 
     def create_menubar(self):
         """Create menubar using ui_builder plugin"""
@@ -1250,6 +1256,7 @@ class BinParserGUI(QMainWindow):
         if icon_tasks:
             self.icon_worker = IconWorker(icon_tasks, self.icon_loader, str(game_id) if game_id else None)
             self.icon_worker.icon_loaded.connect(self.update_icon_cell)
+            self.icon_worker.finished.connect(self.hide_progress)
             self.icon_worker.start()
             
 
@@ -2585,8 +2592,7 @@ def main():
     window.theme_manager.set_theme(theme)
     window.show()
 
-    # Check for updates automatically (non-blocking)
-    window.auto_updater.check_for_updates(manual=False)
+
 
     sys.exit(app.exec())
 

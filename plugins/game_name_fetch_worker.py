@@ -1,5 +1,10 @@
 import os
 import re
+try:
+    import requests
+except ImportError:
+    requests = None
+    
 from PyQt6.QtCore import QThread, pyqtSignal
 
 class GameNameFetchWorker(QThread):

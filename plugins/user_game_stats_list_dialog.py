@@ -7,7 +7,10 @@ import glob
 import webbrowser
 import subprocess
 from plugins import HighlightDelegate
-
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
 class NumericTableWidgetItem(QTableWidgetItem):
@@ -315,10 +318,14 @@ class UserGameStatsListDialog(QDialog):
         from PyQt6.QtWidgets import QMessageBox
         if rate_limited:
             message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
-            message += f"\n\n⚠️ Rate limited by Steam after {i+1} requests. Try again later for remaining games."
+            # Use format for localized string insertion
+            rate_limit_msg = parent.translations.get("fetch_rate_limited", "\n\n⚠️ Rate limited by Steam after {count} requests. Try again later for remaining games.").format(count=i+1)
+            message += rate_limit_msg
         elif error_count > 0:
             message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
-            message += f"\n\n{error_count} games could not be fetched (errors logged to console)."
+            # Use format for localized string insertion
+            error_msg = parent.translations.get("fetch_error_count", "\n\n{count} games could not be fetched (errors logged to console).").format(count=error_count)
+            message += error_msg
         else:
             message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
         
