@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.16] - 2025-12-25
+
+### Fixed
+- **Performance**: Resolved an issue causing excessively long loading times for achievement icons.
+- **Icons**: Optimized asynchronous icon loading to prevent UI delays.
+
 ## [0.8.15] - 2025-12-24
 
 ### Added

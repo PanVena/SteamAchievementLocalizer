@@ -269,5 +269,6 @@
     "update_no_download": "Pobieranie dla Twojej platformy jest niedostępne.",
     "update_check": "Sprawdzanie aktualizacji",
     "update_up_to_date": "Używasz najnowszej wersji.",
-    "update_check_failed": "Nie udało się sprawdzić aktualizacji"
+    "update_check_failed": "Nie udało się sprawdzić aktualizacji",
+    "loading_icons": "Ładowanie ikon..."
 }

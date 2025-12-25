@@ -222,5 +222,6 @@
     "update_no_download": "No download available for your platform.",
     "update_check": "Update Check",
     "update_up_to_date": "You are using the latest version.",
-    "update_check_failed": "Failed to check for updates"
+    "update_check_failed": "Failed to check for updates",
+    "loading_icons": "Loading icons..."
 }

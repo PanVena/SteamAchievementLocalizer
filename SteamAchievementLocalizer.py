@@ -5,7 +5,7 @@ import json
 import time
 import requests
 from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QEvent
-from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor, QPalette
+from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor, QPalette, QPixmap, QImage
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
@@ -175,6 +175,39 @@ def load_translations_for_language(language):
     # Return empty dict if nothing works
     return {}
     
+class IconWorker(QThread):
+    """Worker thread for loading icons in background"""
+    icon_loaded = pyqtSignal(int, int, object) # row, col, QImage
+
+    def __init__(self, tasks, icon_loader, game_id):
+        super().__init__()
+        self.tasks = tasks
+        self.icon_loader = icon_loader
+        self.game_id = game_id
+        self._is_running = True
+
+    def run(self):
+        print(f"[IconWorker] Starting with {len(self.tasks)} tasks. Game ID: {self.game_id}", flush=True)
+        for row, col, icon_hash in self.tasks:
+            if not self._is_running:
+                break
+            image = None
+            try:
+                # Load QImage (thread-safe)
+                image = self.icon_loader.load_icon_image(icon_hash, self.game_id, size=(64, 64))
+            except Exception as e:
+                print(f"[IconWorker] Error loading hash {icon_hash}: {e}", flush=True)
+            
+            # Emit signal regardless of success to update progress
+            if self._is_running:
+                self.icon_loaded.emit(row, col, image)
+
+        print("[IconWorker] Finished", flush=True)
+
+    def stop(self):
+        self._is_running = False
+        self.wait()
+
 class BinParserGUI(QMainWindow):
 
     # =================================================================
@@ -1122,26 +1155,32 @@ class BinParserGUI(QMainWindow):
         # Get current game ID for icon URLs
         game_id = self.current_game_id() if hasattr(self, 'current_game_id') else None
         
-        # Count icons to load for progress bar
-        icons_to_load = 0
-        if 'icon' in self.headers:
-             icons_to_load = sum(1 for row in self.data_rows if row.get('icon', ''))
-        icons_loaded = 0
-        
-        # Show progress for icon loading if there are icons
-        if icons_to_load > 0:
-            self.show_progress(self.translations.get("loading", "Loading icons..."), total=icons_to_load)
-        
-        # Track which rows have icons to merge later
-        icon_rows_to_merge = []
-        
         # Colors for alternating row pairs (zebra striping for achievements)
-        # Use centralized logic with enhanced contrast
         bg_color_1, bg_color_2 = self.get_row_pair_colors()
+        
+        # Prepare for icon loading
+        icon_tasks = []
+        placeholder = None
+        self.icons_to_load_total = 0
+        self.icons_loaded_count = 0
+        
+        if 'icon' in self.headers:
+            placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+            self.icons_to_load_total = sum(1 for row in self.data_rows if row.get('icon', ''))
+            
+        # Show progress bar for icons
+        if self.icons_to_load_total > 0:
+            self.show_progress(self.translations.get("loading", "Loading icons..."), total=self.icons_to_load_total)
+            
+        icon_rows_to_merge = []
+
+        # Stop existing worker if any
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+             self.icon_worker.stop()
+             self.icon_worker = None
         
         for row_i, row in enumerate(self.data_rows):
             # Determine background color for this row pair
-            # We assume rows come in pairs: key, key_opis
             pair_index = row_i // 2
             row_bg_color = bg_color_1 if pair_index % 2 == 0 else bg_color_2
             
@@ -1155,37 +1194,20 @@ class BinParserGUI(QMainWindow):
                     is_main_row = not key_value.endswith('_opis')
                     
                     if is_main_row:
-                        # This is the main achievement row, create icon
+                        # This is the main achievement row, create icon label
                         icon_label = QLabel()
                         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         
-                        # Set background for the label too to match row
-                        # Using style sheet for QLabel background
+                        # Set background
                         hex_color = row_bg_color.name()
                         icon_label.setStyleSheet(f"background-color: {hex_color}; border: none;")
                         
-                        # Update progress
-                        icons_loaded += 1
-                        if icons_to_load > 0:
-                            self.update_progress(
-                                increment=1,
-                                message=f"{self.translations.get('loading', 'Loading icons')}..."
-                            )
-                        
-                        try:
-                            # Load icon with game_id for correct URL (64x64 for better visibility)
-                            pixmap = self.icon_loader.load_icon(value, app_id=str(game_id) if game_id else None, size=(64, 64))
-                            if pixmap:
-                                icon_label.setPixmap(pixmap)
-                            else:
-                                # Use placeholder
-                                placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
-                                icon_label.setPixmap(placeholder)
-                        except Exception as e:
-                            # On error, use placeholder
-                            print(f"[Icon] Failed to load icon for {value}: {e}")
-                            placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+                        # Set placeholder initially
+                        if placeholder:
                             icon_label.setPixmap(placeholder)
+                        
+                        # Add to task list for background loading
+                        icon_tasks.append((row_i, col_i, value))
                         
                         # Set widget in cell
                         self.table.setCellWidget(row_i, col_i, icon_label)
@@ -1223,10 +1245,14 @@ class BinParserGUI(QMainWindow):
             for row_i in icon_rows_to_merge:
                 # Merge current row with next row (key + key_opis)
                 self.table.setSpan(row_i, icon_col, 2, 1)
-        
-        # Hide progress bar after loading
-        if icons_to_load > 0:
-            self.hide_progress()
+
+        # Start icon worker if tasks exist
+        if icon_tasks:
+            self.icon_worker = IconWorker(icon_tasks, self.icon_loader, str(game_id) if game_id else None)
+            self.icon_worker.icon_loaded.connect(self.update_icon_cell)
+            self.icon_worker.start()
+            
+
         
         self.table.blockSignals(False)
         
@@ -1280,6 +1306,23 @@ class BinParserGUI(QMainWindow):
         # If we have data loaded, reload the table to apply changes
         if hasattr(self, 'raw_data') and self.raw_data:
              self.parse_and_fill_table(show_success_msg=False)
+
+    def update_icon_cell(self, row, col, image):
+        """Slot to update icon cell when loaded from background thread"""
+        if row < self.table.rowCount() and col < self.table.columnCount():
+            if image and not image.isNull():
+                widget = self.table.cellWidget(row, col)
+                if isinstance(widget, QLabel):
+                    pixmap = QPixmap.fromImage(image)
+                    widget.setPixmap(pixmap)
+        
+        # Update progress bar
+        if self.icons_to_load_total > 0:
+            self.update_progress(increment=1, message=self.translations.get("loading_icons", "Loading icons"))
+            
+            # Hide when done
+            if self.icons_loaded_count >= self.icons_to_load_total:
+                self.hide_progress()
 
     def replace_lang_in_bin(self):
         """Replace language data in binary using file_manager plugin"""
@@ -2491,6 +2534,8 @@ class BinParserGUI(QMainWindow):
         return False
 
     def closeEvent(self, event):
+        if hasattr(self, 'icon_worker') and self.icon_worker:
+            self.icon_worker.stop()
         if self.maybe_save_before_exit():
             event.accept()
         else:

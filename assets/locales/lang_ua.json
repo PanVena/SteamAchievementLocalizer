@@ -269,5 +269,6 @@
     "open_in_steam_store": "Відкрити у крамниці Стіму",
     "open_in_file_manager": "Відкрити у файловому менеджері",
     "tooltip_open_in_steam_store": "Відкрити сторінку гри у крамниці Steam у браузері",
-    "tooltip_open_in_file_manager": "Відкрити теку з файлом досягнень у файловому менеджері"
+    "tooltip_open_in_file_manager": "Відкрити теку з файлом досягнень у файловому менеджері",
+    "loading_icons": "Завантаження іконок..."
 }

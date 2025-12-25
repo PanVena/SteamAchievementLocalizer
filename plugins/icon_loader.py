@@ -1,12 +1,15 @@
-"""
-Icon Loader Plugin for Steam Achievement Localizer
-Handles downloading and caching achievement icons
-"""
 import os
 import requests
+import shutil
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import QSettings, QStandardPaths
-from typing import Optional
+from PyQt6.QtCore import QSettings, QStandardPaths, Qt
+from typing import Optional, Any
+
+try:
+    import certifi
+    CA_BUNDLE = certifi.where()
+except ImportError:
+    CA_BUNDLE = True # Fallback to default system store
 
 
 class IconLoader:
@@ -90,6 +93,78 @@ class IconLoader:
             print(f"[IconLoader] Failed to load icon {icon_hash}: {e}")
             return None
         
+        return None
+
+    def ensure_icon_cached(self, icon_hash: str, app_id: str = None) -> Optional[str]:
+        """
+        Ensure icon is in cache (download if needed). Thread-safe.
+        Returns path to cached file or None if failed.
+        """
+        if not icon_hash:
+            return None
+            
+        cache_path = self.get_cache_path(icon_hash)
+        
+        # If already exists and valid size, return path
+        if os.path.exists(cache_path):
+            if os.path.getsize(cache_path) > 0:
+                return cache_path
+            else:
+                # Remove empty file
+                try:
+                    os.remove(cache_path)
+                except OSError:
+                    pass
+            
+        # Download if not exists
+        icon_url = self.get_steam_icon_url(icon_hash, app_id)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        
+        try:
+            # Use CA_BUNDLE determined at module level
+            response = requests.get(icon_url, timeout=10, verify=CA_BUNDLE) 
+            response.raise_for_status()
+
+            # Save to temporary file first to avoid partial writes
+            temp_path = cache_path + ".tmp"
+            with open(temp_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Rename to final path
+            os.replace(temp_path, cache_path)
+            return cache_path
+        except requests.exceptions.SSLError:
+            # Fallback for SSL errors - try without verification if strictly necessary
+            # (User might be on a system with outdated certs)
+            print(f"[IconLoader] SSL Error for {icon_hash}, trying unverified...")
+            try:
+                response = requests.get(icon_url, timeout=10, verify=False)
+                response.raise_for_status()
+                temp_path = cache_path + ".tmp"
+                with open(temp_path, 'wb') as f:
+                    f.write(response.content)
+                os.replace(temp_path, cache_path)
+                return cache_path
+            except Exception as e2:
+                print(f"[IconLoader] Failed to download {icon_hash} (Unverified): {e2}")
+                return None
+        except Exception as e:
+            print(f"[IconLoader] Failed to download {icon_hash}: {e}")
+            return None
+
+    def load_icon_image(self, icon_hash: str, app_id: str = None, size: tuple = (48, 48)) -> Optional[Any]: # Returns QImage
+        """
+        Load icon as QImage (thread-safe).
+        """
+        from PyQt6.QtGui import QImage
+        
+        path = self.ensure_icon_cached(icon_hash, app_id)
+        if path:
+            image = QImage(path)
+            if not image.isNull():
+                return image.scaled(size[0], size[1], Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         return None
     
     def get_placeholder_icon(self, size: tuple = (48, 48)) -> QPixmap:
