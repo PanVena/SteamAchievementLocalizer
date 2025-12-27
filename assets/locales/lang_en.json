@@ -6,6 +6,10 @@
         "priority": 10
     },
     "app_title": "Steam Achievement Localizer by Pan_Vena ver ",
+    "restart_steam": "Restart Steam",
+    "tooltip_restart_steam": "Close and restart the Steam client",
+    "q_restart_steam": "Restart Steam?",
+    "msg_restart_steam": "Do you want to restart Steam to apply changes?",
     "warning_title_achtung": "Achtung",
     "warning_message": "Possible bugs, for questions please refer to the GitHub page, or write in private on Telegram: <b>@Pan_Vena</b>, Discord: <b>pan_vena</b><br>or just E-mail: <b>pan.vena@ukr.net</b><br> Other my contact details can be found in 'About App'",
     "load_icons_option": "Load achievement icons",

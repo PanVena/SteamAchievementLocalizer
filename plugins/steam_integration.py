@@ -198,3 +198,52 @@ class SteamIntegration:
                 user_dirs.append(item_path)
         
         return user_dirs
+
+    def restart_steam(self) -> bool:
+        """
+        Restarts the Steam client.
+        Returns True if the restart command was successfully initiated.
+        """
+        import time
+
+        try:
+            if sys.platform == "win32":
+                # Shutdown Steam
+                subprocess.run(["start", "steam://exit"], shell=True)
+                
+                # Wait for it to close (max 10 seconds)
+                for _ in range(20):
+                    time.sleep(0.5)
+                    # For simplicity, we just wait a bit and then launch
+                
+                # Launch Steam
+                steam_path = self.steam_path
+                if not steam_path:
+                    steam_path = self.detect_steam_path()
+                
+                steam_exe = os.path.join(steam_path, "steam.exe") if steam_path else "steam"
+                subprocess.Popen([steam_exe])
+                return True
+                
+            elif sys.platform == "darwin":
+                # macOS
+                subprocess.run(["osascript", "-e", 'quit app "Steam"'])
+                time.sleep(3)
+                subprocess.run(["open", "-a", "Steam"])
+                return True
+                
+            else:
+                # Linux
+                # Try graceful shutdown first
+                subprocess.run(["steam", "-shutdown"], check=False)
+                
+                # Give it time to close
+                time.sleep(3)
+                
+                # Start in background
+                subprocess.Popen(["steam"], start_new_session=True)
+                return True
+                
+        except Exception as e:
+            print(f"Failed to restart Steam: {e}")
+            return False

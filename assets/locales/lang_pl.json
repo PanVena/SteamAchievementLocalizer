@@ -7,6 +7,10 @@
         "steam_lang_code": "polish"
     },
     "app_title": "Steam Achievement Localizer by Vena ver ",
+    "restart_steam": "Uruchom ponownie Steam",
+    "tooltip_restart_steam": "Zamknij i uruchom ponownie klienta Steam",
+    "q_restart_steam": "Zrestartować Steam?",
+    "msg_restart_steam": "Czy chcesz zrestartować Steam, aby zastosować zmiany?",
     "warning_title_achtung": "Achtung",
     "warning_message": "Możliwe błędy, prosimy o zgłaszanie ich na stronie GitHub lub pisanie do mnie na Telegramie: <b>@Pan_Vena</b>, Discordzie: <b>pan_vena</b><br>lub e-mail: <b>pan.vena@ukr.net</b><br> Inne dane kontaktowe znajdziesz w 'O programie'",
     "load_icons_option": "Wczytaj ikony osiągnięć",

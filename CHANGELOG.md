@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.8.18] - 2025-12-27
+
+### Added
+- **Restart Steam**: Added functionality to restart the Steam client directly from the application via the File menu or Save confirmation dialog.
+- **Localization**: Added translation keys for the new restart functionality in English, Ukrainian, and Polish.
+
+### Fixed
+- **AppImage**: Fixed "Open in Steam Store" button functionality on Linux AppImage builds by sanitizing the environment variables before launching the browser.
+
 ## [0.8.17] - 2025-12-25
 
 ### Fixed

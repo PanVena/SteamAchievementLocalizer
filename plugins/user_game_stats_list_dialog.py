@@ -346,6 +346,20 @@ class UserGameStatsListDialog(QDialog):
         
         # Open Steam Store page in browser
         steam_url = f"https://store.steampowered.com/app/{game_id}/"
+
+        if sys.platform == "linux":
+            # On Linux (especially AppImage), we need to clean environment variables
+            # to avoid library conflicts when launching external browser
+            try:
+                env = os.environ.copy()
+                if "LD_LIBRARY_PATH" in env:
+                    del env["LD_LIBRARY_PATH"]
+                subprocess.Popen(["xdg-open", steam_url], env=env)
+                return
+            except Exception as e:
+                print(f"Failed to open URL with xdg-open: {e}")
+                # Fallback to standard method if xdg-open fails
+        
         webbrowser.open(steam_url)
     
     def open_in_file_manager(self):

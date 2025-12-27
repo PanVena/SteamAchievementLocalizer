@@ -1397,8 +1397,15 @@ class BinParserGUI(QMainWindow):
             msg_box.setIcon(QMessageBox.Icon.Information)
             msg_box.setWindowTitle(self.translations.get("success"))
             msg_box.setText(self.translations.get("in_steam_folder_saved"))
+            
+            # Add Restart Steam button
+            restart_btn = msg_box.addButton(self.translations.get("restart_steam"), QMessageBox.ButtonRole.ActionRole)
             ok_button = msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+            
             msg_box.exec()
+            
+            if msg_box.clickedButton() == restart_btn:
+                self.restart_steam(confirm=False)
             
             self.set_modified(False)
         except Exception as e:
@@ -2548,6 +2555,31 @@ class BinParserGUI(QMainWindow):
         else:
             event.ignore()
 
+    def restart_steam(self, confirm=True):
+        """
+        Restart Steam client.
+        :param confirm: If True, asks for confirmation before restarting.
+        """
+        if confirm:
+            # Ask for confirmation first
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Question)
+            msg_box.setWindowTitle(self.translations.get("q_restart_steam"))
+            msg_box.setText(self.translations.get("msg_restart_steam"))
+            yes_button = msg_box.addButton(self.translations.get("button_yes"), QMessageBox.ButtonRole.YesRole)
+            no_button = msg_box.addButton(self.translations.get("button_no"), QMessageBox.ButtonRole.NoRole)
+            msg_box.exec()
+            
+            if msg_box.clickedButton() != yes_button:
+                return
+
+        if self.steam_integration.restart_steam():
+            # Close app if successful restart initiated?
+            # Or just let it be. Steam restart will kill Steam, but this app is independent.
+            # Maybe show a fast message "Restarting..."
+            self.statusBar().showMessage("Restarting Steam...", 5000)
+        else:
+            QMessageBox.warning(self, self.translations.get("error"), "Failed to restart Steam")
 
 def main():
     global window

@@ -7,6 +7,10 @@
         "steam_lang_code": "ukrainian"
     },
     "app_title": "Локалізатор досягнень Стіму від Вени ver ",
+    "restart_steam": "Перезавантажити Steam",
+    "tooltip_restart_steam": "Закрити та запустити клієнт Steam знову",
+    "q_restart_steam": "Перезавантажити Steam?",
+    "msg_restart_steam": "Бажаєте перезавантажити Steam щоб зміни вступили в силу?",
     "warning_title_achtung": "Ахтунґ",
     "warning_message": "Можливі баги, щодо них прошу звертатися на сторінку Ґітхабу, або писати у приватні у телеґрамі: <b>@Pan_Vena</b>, дискорді: <b>pan_vena</b><br>або пишіть на пошту: <b>pan.vena@ukr.net</b><br> Інші мої контактні дані знайдете у 'Про програму'",
     "load_icons_option": "Завантажувати іконки досягнень",

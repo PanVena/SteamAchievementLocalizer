@@ -165,10 +165,20 @@ class UIBuilder:
         self._connect_status_tip(exit_action, "tooltip_exit")
         exit_action.triggered.connect(self.parent._on_exit_action)
         
+        # Restart Steam action
+        restart_steam_action = QAction(
+            self.translations.get("restart_steam", "Restart Steam"),
+            self.parent
+        )
+        self._connect_status_tip(restart_steam_action, "tooltip_restart_steam")
+        restart_steam_action.triggered.connect(lambda: self.parent.restart_steam(confirm=True))
+
         file_menu.addAction(toggle_icons_action)
         file_menu.addSeparator()
         file_menu.addAction(export_bin_action)
         file_menu.addAction(delete_file_action)
+        file_menu.addSeparator()
+        file_menu.addAction(restart_steam_action)
         file_menu.addSeparator()
         file_menu.addAction(exit_action)
         
