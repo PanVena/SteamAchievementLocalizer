@@ -208,6 +208,12 @@ jobs:
           $notesContent = @"
           ## Steam Achievement Localizer v$version
 
+          ---
+          
+          $changelogContent
+
+          ---
+
           ### Downloads
           - **Windows**: SteamAchievementLocalizer-win64.zip
           - **Linux**: SteamAchievementLocalizer-linux64.AppImage
@@ -232,9 +238,6 @@ jobs:
           - **Windows**: Windows 10 or later
           - **Linux**: Modern Linux distribution with FUSE support (for AppImage)
           - **macOS**: macOS 10.13 (High Sierra) or later
-
-          ---
-          $changelogContent
           "@
 
           $notesContent | Out-File -FilePath "release-notes.md" -Encoding UTF8
