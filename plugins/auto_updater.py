@@ -534,26 +534,34 @@ class UpdateDialog(QDialog):
         self.progress_label.setText(self.get_text("update_installing", "Installing update..."))
         self.progress_bar.setRange(0, 0)  # Indeterminate
 
-        # Install update
-        success, message = UpdateInstaller.install(file_path)
+        # Ask user for confirmation to restart
+        reply = QMessageBox.question(
+            self,
+            self.get_text("update_ready_title", "Update Ready"),
+            self.get_text("update_restart_confirm", "Update downloaded. Restart application now to install?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
 
-        if success:
-            QMessageBox.information(
-                self,
-                self.get_text("update_success", "Update"),
-                self.get_text("update_restart_message", "The application will now restart to complete the update.")
-            )
-            # Exit the application
-            if self.parent():
-                self.parent().close()
-            sys.exit(0)
+        if reply == QMessageBox.StandardButton.Yes:
+            # Install update
+            success, message = UpdateInstaller.install(file_path)
+
+            if success:
+                # Exit the application
+                if self.parent():
+                    self.parent().close()
+                sys.exit(0)
+            else:
+                QMessageBox.critical(
+                    self,
+                    self.get_text("error", "Error"),
+                    f"{self.get_text('update_install_failed', 'Failed to install update')}: {message}"
+                )
+                self.reset_ui()
         else:
-            QMessageBox.critical(
-                self,
-                self.get_text("error", "Error"),
-                f"{self.get_text('update_install_failed', 'Failed to install update')}: {message}"
-            )
-            self.reset_ui()
+            # User chose not to restart now
+            self.reject()
 
     def on_download_error(self, error: str):
         QMessageBox.critical(

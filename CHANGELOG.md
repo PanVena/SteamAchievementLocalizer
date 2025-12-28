@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.20] - 2025-12-28
+### Changed
+- **Auto-Updater**: The application now explicitly asks for confirmation ("Yes" to restart and install, "No" to wait) after downloading an update, preventing premature installation attempts.
+### Added
+- **Localization**: Added English, Ukrainian, and Polish translations for the new update confirmation dialog.
+
 ## [0.8.19] - 2025-12-28
 
 ### Changed

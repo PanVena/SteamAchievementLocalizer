@@ -229,5 +229,7 @@
     "update_check_failed": "Failed to check for updates",
     "fetch_rate_limited": "\n\n⚠️ Rate limited by Steam after {count} requests. Try again later for remaining games.",
     "fetch_error_count": "\n\n{count} game names could not be fetched (likely removed from Steam).",
-    "loading_icons": "Loading icons..."
+    "loading_icons": "Loading icons...",
+    "update_ready_title": "Update Ready",
+    "update_restart_confirm": "Update downloaded. Restart application now to install?"
 }

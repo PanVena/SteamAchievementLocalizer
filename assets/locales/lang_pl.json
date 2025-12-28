@@ -276,5 +276,7 @@
     "update_check_failed": "Nie udało się sprawdzić aktualizacji",
     "fetch_rate_limited": "\n\n⚠️ Limit zapytań Steam po {count} próbach. Spróbuj później.",
     "fetch_error_count": "\n\nNie udało się pobrać {count} nazw gier (prawdopodobnie usunięte ze Steam).",
-    "loading_icons": "Ładowanie ikon..."
+    "loading_icons": "Ładowanie ikon...",
+    "update_ready_title": "Aktualizacja gotowa",
+    "update_restart_confirm": "Aktualizacja pobrana. Zrestartować aplikację teraz, aby zainstalować?"
 }
