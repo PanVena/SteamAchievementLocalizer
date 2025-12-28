@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.21] - 2025-12-28
 ### Added
 - **Shortcuts**: Added keyboard shortcuts for saving: `Ctrl+S` (Save to Steam) and `Ctrl+Shift+S` (Save As / Manual Save).
+### Fixed
+- **Auto-Updater**: Restored proper changelog fetching logic and fixed the issue where the release body was being used incorrectly.
 
 ## [0.8.20] - 2025-12-28
 ### Changed
