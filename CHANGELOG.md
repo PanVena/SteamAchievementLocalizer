@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.19] - 2025-12-28
+
+### Changed
+- **Steam Logic**: Improved restart functionality to check if Steam is running before attempting to restart.
+- **Localization**: Updated binary deletion confirmation dialog to explicitly show the game name.
+- **Localization**: Refined error messages for rate limits and failed fetches to be more precise ("game names" instead of "games").
+
 ## [0.8.18] - 2025-12-27
 
 ### Added

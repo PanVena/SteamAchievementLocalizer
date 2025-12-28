@@ -1540,7 +1540,7 @@ class BinParserGUI(QMainWindow):
 
         confirm_text = self.translations.get(
             "delete_stats_file_confirm"
-        ).format(path=path)
+        ).format(gamename=self.gamename())
         
         done_msg = self.translations.get(
             "delete_stats_file_done"

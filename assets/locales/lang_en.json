@@ -129,7 +129,7 @@
     "achievements_count": "Achievements",
     "choose_export": "Choose context language for export:",
     "choose_import": "Choose language to replace:",
-    "delete_stats_file_confirm": "Are you sure you want to delete this bin file?<br>{path}<br>Do you want to save a CSV backup and then delete it?",
+    "delete_stats_file_confirm": "You are about to delete the bin file with achievements names for game <b>{gamename}</b>. Do you want to save a CSV backup and then delete it?",
     "delete_stats_file": "Delete bin file(if there is a problem)",
     "CSV": "Don't save CSV",
     "delete_stats_file_done": "Bin file with <b>{gamename}</b> achievements names deleted.",
@@ -228,6 +228,6 @@
     "update_up_to_date": "You are using the latest version.",
     "update_check_failed": "Failed to check for updates",
     "fetch_rate_limited": "\n\n⚠️ Rate limited by Steam after {count} requests. Try again later for remaining games.",
-    "fetch_error_count": "\n\n{count} games could not be fetched (likely removed from Steam).",
+    "fetch_error_count": "\n\n{count} game names could not be fetched (likely removed from Steam).",
     "loading_icons": "Loading icons..."
 }

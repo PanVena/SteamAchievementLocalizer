@@ -127,7 +127,7 @@
     "achievements_count": "Osiągnięcia",
     "choose_export": "Wybierz język kontekstu do eksportu:",
     "choose_import": "Wybierz kolumnę do zastąpienia:",
-    "delete_stats_file_confirm": "Czy na pewno chcesz usunąć wybraną binarkę?<br>{path}<br>Czy chcesz zapisać kopię zapasową w CSV, а następnie ją usunąć?",
+    "delete_stats_file_confirm": "Usuwasz plik binarki z nazwami osiągnięć gry <b>{gamename}</b>. Czy chcesz zapisać kopię zapasową w CSV, a następnie ją usunąć?",
     "delete_stats_file": "Usuń binarkę (w razie problemów)",
     "CSV": "Nie zapisuj CSV",
     "delete_stats_file_done": "Binarka z nazwami osiągnięć dla gry <b>{gamename}</b> została usunięta.",
@@ -275,6 +275,6 @@
     "update_up_to_date": "Używasz najnowszej wersji.",
     "update_check_failed": "Nie udało się sprawdzić aktualizacji",
     "fetch_rate_limited": "\n\n⚠️ Limit zapytań Steam po {count} próbach. Spróbuj później.",
-    "fetch_error_count": "\n\nNie udało się pobrać {count} gier (prawdopodobnie usunięte ze Steam).",
+    "fetch_error_count": "\n\nNie udało się pobrać {count} nazw gier (prawdopodobnie usunięte ze Steam).",
     "loading_icons": "Ładowanie ikon..."
 }

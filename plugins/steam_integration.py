@@ -199,22 +199,50 @@ class SteamIntegration:
         
         return user_dirs
 
+    def is_steam_running(self) -> bool:
+        """Check if Steam is currently running"""
+        try:
+            if sys.platform == "win32":
+                try:
+                    output = subprocess.check_output('tasklist /FI "IMAGENAME eq steam.exe" /NH', shell=True).decode()
+                    return "steam.exe" in output.lower()
+                except Exception:
+                    pass
+            else:
+                # Linux/macOS
+                process_name = "Steam" if sys.platform == "darwin" else "steam"
+                try:
+                    return subprocess.call(["pgrep", "-x", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+                except FileNotFoundError:
+                    try:
+                        return subprocess.call(["pidof", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return False
+
     def restart_steam(self) -> bool:
         """
         Restarts the Steam client.
+        If Steam is not currently running, it just starts it.
         Returns True if the restart command was successfully initiated.
         """
         import time
 
         try:
+            is_running = self.is_steam_running()
+            
             if sys.platform == "win32":
-                # Shutdown Steam
-                subprocess.run(["start", "steam://exit"], shell=True)
-                
-                # Wait for it to close (max 10 seconds)
-                for _ in range(20):
-                    time.sleep(0.5)
-                    # For simplicity, we just wait a bit and then launch
+                if is_running:
+                    # Shutdown Steam
+                    subprocess.run(["start", "steam://exit"], shell=True)
+                    
+                    # Wait for it to close (max 10 seconds)
+                    for _ in range(20):
+                        time.sleep(0.5)
+                        if not self.is_steam_running():
+                            break
                 
                 # Launch Steam
                 steam_path = self.steam_path
@@ -226,22 +254,26 @@ class SteamIntegration:
                 return True
                 
             elif sys.platform == "darwin":
-                # macOS
-                subprocess.run(["osascript", "-e", 'quit app "Steam"'])
-                time.sleep(3)
+                if is_running:
+                    # macOS
+                    subprocess.run(["osascript", "-e", 'quit app "Steam"'])
+                    time.sleep(3)
+                
                 subprocess.run(["open", "-a", "Steam"])
                 return True
                 
             else:
                 # Linux
-                # Try graceful shutdown first
-                subprocess.run(["steam", "-shutdown"], check=False)
-                
-                # Give it time to close
-                time.sleep(3)
+                if is_running:
+                    # Try graceful shutdown first
+                    subprocess.run(["steam", "-shutdown"], check=False)
+                    
+                    # Give it time to close
+                    time.sleep(3)
                 
                 # Start in background
-                subprocess.Popen(["steam"], start_new_session=True)
+                subprocess.Popen(["steam"], start_new_session=True, 
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return True
                 
         except Exception as e:
