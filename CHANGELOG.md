@@ -8,9 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.22] - 2026-01-01
+### Changed
+- **Export**: Export dialogs now automatically suggest a filename based on the current game name (e.g., "Cyberpunk 2077.csv").
+- **UI**: Removed the 'icon' column from the Export/Import combination dialogs to prevent accidental selection.
+### Fixed
+- **Icons**: Fixed an issue where achievement icons were replaced by their file hash string after CSV imports or language changes.
+- **Safety**: Added a safeguard to strictly prevent the 'icon' column from being overwritten during CSV imports.
+
 ## [0.8.21] - 2025-12-28
 ### Added
 - **Shortcuts**: Added keyboard shortcuts for saving: `Ctrl+S` (Save to Steam) and `Ctrl+Shift+S` (Save As / Manual Save).
+### Fixed
+- **Auto-Updater**: Restored proper changelog fetching logic and fixed the issue where the release body was being used incorrectly.
 
 ## [0.8.20] - 2025-12-28
 ### Changed

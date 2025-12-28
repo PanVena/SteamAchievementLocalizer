@@ -1305,6 +1305,19 @@ class BinParserGUI(QMainWindow):
             msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
             QMessageBox.information(self, self.translations.get("success"), msg)
 
+    def _setup_icon_worker(self, icon_tasks):
+        """Helper to stop existing worker and start a new one if needed"""
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+             self.icon_worker.stop()
+             self.icon_worker = None
+        
+        if icon_tasks:
+            game_id = self.current_game_id() if hasattr(self, 'current_game_id') else None
+            self.icon_worker = IconWorker(icon_tasks, self.icon_loader, str(game_id) if game_id else None)
+            self.icon_worker.icon_loaded.connect(self.update_icon_cell)
+            self.icon_worker.finished.connect(self.hide_progress)
+            self.icon_worker.start()
+
     def on_load_icons_toggled(self, checked):
         """Handle toggling of icon loading option"""
         self.settings.setValue("LoadIcons", checked)
@@ -1605,9 +1618,23 @@ class BinParserGUI(QMainWindow):
     # CSV OPERATIONS
     # =================================================================
 
+    def _get_default_export_name(self, suffix=""):
+        game_name = self.gamename()
+        # Check against None or the localized "Unknown" string
+        if not game_name or game_name == self.translations.get("unknown", "Unknown"):
+            return f"export{suffix}.csv"
+        
+        # Sanitize filename: keep alphanumerics, spaces, dashes, underscores
+        safe_name = "".join([c for c in game_name if c.isalpha() or c.isdigit() or c in (' ', '-', '_')]).strip()
+        if not safe_name:
+            return f"export{suffix}.csv"
+            
+        return f"{safe_name}{suffix}.csv"
+
     def export_csv_all(self):
         """Export all data to CSV using csv_handler plugin"""
-        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), '', 'CSV Files (*.csv)')
+        default_name = self._get_default_export_name()
+        fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), default_name, 'CSV Files (*.csv)')
         if not fname:
             return
         
@@ -1631,7 +1658,8 @@ class BinParserGUI(QMainWindow):
         params = dlg.get_selected()
         context_col = params["context_col"]
 
-        fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), "", "CSV Files (*.csv)")
+        default_name = self._get_default_export_name("_all_table")
+        fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), default_name, "CSV Files (*.csv)")
         if not fname:
             return
         
@@ -1969,6 +1997,90 @@ class BinParserGUI(QMainWindow):
         # Sort remaining headers alphabetically
         return prioritized + sorted(headers)
     
+    def save_column_widths(self):
+        """Save current column widths"""
+        self.column_widths = {}
+        for i in range(self.table.columnCount()):
+            self.column_widths[i] = self.table.columnWidth(i)
+
+    def restore_column_widths(self):
+        """Restore saved column widths"""
+        if hasattr(self, 'column_widths'):
+            for i, width in self.column_widths.items():
+                if i < self.table.columnCount():
+                    self.table.setColumnWidth(i, width)
+
+    def refresh_table(self):
+        """Update table content from data structure without recreating everything"""
+        self.save_column_widths()
+        self.table.blockSignals(True)
+        
+        # Colors for alternating row pairs
+        bg_color_1, bg_color_2 = self.get_row_pair_colors()
+        
+        # Prepare for icon loading
+        icon_tasks = []
+        placeholder = None
+        self.icons_to_load_total = 0
+        self.icons_loaded_count = 0
+        
+        if 'icon' in self.headers:
+             placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+             self.icons_to_load_total = sum(1 for row in self.data_rows if row.get('icon', ''))
+        
+        # Show progress bar for icons
+        if self.icons_to_load_total > 0:
+            self.show_progress(self.translations.get("loading", "Loading icons..."), total=self.icons_to_load_total)
+            
+        for row_i, row in enumerate(self.data_rows):
+            # Determine background color for this row pair
+            pair_index = row_i // 2
+            row_bg_color = bg_color_1 if pair_index % 2 == 0 else bg_color_2
+            
+            for col_i, col_name in enumerate(self.headers):
+                value = row.get(col_name, '')
+                
+                # Special handling for icon column
+                if col_name == 'icon' and value:
+                    # Check if this is a key row (not _opis)
+                    key_value = row.get('key', '')
+                    is_main_row = not key_value.endswith('_opis')
+                    
+                    if is_main_row:
+                        icon_label = QLabel()
+                        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        hex_color = row_bg_color.name()
+                        icon_label.setStyleSheet(f"background-color: {hex_color}; border: none;")
+                        
+                        if placeholder:
+                            icon_label.setPixmap(placeholder)
+                        
+                        icon_tasks.append((row_i, col_i, value))
+                        self.table.setCellWidget(row_i, col_i, icon_label)
+                        
+                        # Set empty text item so cell is selectable but doesn't show hash
+                        item = QTableWidgetItem('')
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        item.setBackground(row_bg_color)
+                        self.table.setItem(row_i, col_i, item)
+                        continue
+
+                # Standard text item
+                if self.table.item(row_i, col_i):
+                    self.table.item(row_i, col_i).setText(value)
+                    self.table.item(row_i, col_i).setBackground(row_bg_color)
+                else:
+                    item = QTableWidgetItem(value)
+                    if col_name == 'key':
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    item.setBackground(row_bg_color)
+                    self.table.setItem(row_i, col_i, item)
+        
+        self._setup_icon_worker(icon_tasks)
+        
+        self.table.blockSignals(False)
+        self.restore_column_widths()
+
     def on_translation_language_changed(self):
         """Handle translation language change"""
         if not hasattr(self, 'data_rows') or not self.data_rows:
@@ -1994,43 +2106,87 @@ class BinParserGUI(QMainWindow):
             self.refresh_table_with_new_headers()
 
     def refresh_table_with_new_headers(self):
-        """Refresh table when headers change"""
-        if not hasattr(self, 'data_rows') or not self.data_rows:
-            return
-            
+        """Recreate table with new headers (used when changing language, so data doesn't change but headers do)"""
+        # Save current widths before resetting
+        self.save_column_widths()
+        
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
         
-        # Create header labels with Steam language display names
+        # Updated header labels
         header_labels = []
         for header in self.headers:
             if header == 'key':
                 header_labels.append(header.upper())
             else:
                 display_name = get_display_name(header)
+                if '(' in display_name:
+                    display_name = display_name.replace(' (', '\\n(')
                 header_labels.append(display_name)
-        
+                
         self.table.setHorizontalHeaderLabels(header_labels)
         self.table.setRowCount(len(self.data_rows))
         
-        # Ensure all rows have columns for our headers
-        for row in self.data_rows:
-            for header in self.headers:
-                if header not in row:
-                    row[header] = ''
+        # Colors for alternating row pairs
+        bg_color_1, bg_color_2 = self.get_row_pair_colors()
         
-        # Fill table with data
+        # Prepare for icon loading
+        icon_tasks = []
+        placeholder = None
+        self.icons_to_load_total = 0
+        self.icons_loaded_count = 0
+        
+        if 'icon' in self.headers:
+             placeholder = self.icon_loader.get_placeholder_icon(size=(64, 64))
+             self.icons_to_load_total = sum(1 for row in self.data_rows if row.get('icon', ''))
+             
+        # Show progress bar for icons
+        if self.icons_to_load_total > 0:
+            self.show_progress(self.translations.get("loading", "Loading icons..."), total=self.icons_to_load_total)
+            
+        self.table.blockSignals(True)
         for row_i, row in enumerate(self.data_rows):
+            # Determine background color for this row pair
+            pair_index = row_i // 2
+            row_bg_color = bg_color_1 if pair_index % 2 == 0 else bg_color_2
+            
             for col_i, col_name in enumerate(self.headers):
                 value = row.get(col_name, '')
+                
+                # Special handling for icon column
+                if col_name == 'icon' and value:
+                    key_value = row.get('key', '')
+                    is_main_row = not key_value.endswith('_opis')
+                    
+                    if is_main_row:
+                        icon_label = QLabel()
+                        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        hex_color = row_bg_color.name()
+                        icon_label.setStyleSheet(f"background-color: {hex_color}; border: none;")
+                        
+                        if placeholder:
+                            icon_label.setPixmap(placeholder)
+                        
+                        icon_tasks.append((row_i, col_i, value))
+                        self.table.setCellWidget(row_i, col_i, icon_label)
+                        
+                        item = QTableWidgetItem('')
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        item.setBackground(row_bg_color)
+                        self.table.setItem(row_i, col_i, item)
+                        continue
+
                 item = QTableWidgetItem(value)
                 if col_name == 'key':
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-
+                
+                item.setBackground(row_bg_color)
                 self.table.setItem(row_i, col_i, item)
         
-        self.stretch_columns()
-        self.update_row_heights()
+        self._setup_icon_worker(icon_tasks)
+        
+        self.table.blockSignals(False)
+        self.restore_column_widths()
 
     def remove_empty_columns(self):
         """Remove columns that are completely empty (except for key column)"""

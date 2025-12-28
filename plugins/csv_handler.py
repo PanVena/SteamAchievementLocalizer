@@ -96,6 +96,10 @@ class CSVHandler:
             # Check if import_column exists in data_rows
             if data_rows and import_column not in data_rows[0]:
                 return False, 0, 0, 0, "error_no_target_column"
+
+            # explicitly prevent importing into icon column
+            if import_column == 'icon':
+                return False, 0, 0, 0, "error_cannot_import_icon"
             
             # Create mapping for fast lookup
             key_to_row = {row['key']: row for row in data_rows}

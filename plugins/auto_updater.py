@@ -85,6 +85,9 @@ def parse_changelog(content: str, current_version: str) -> str:
     return '\n'.join(output).strip()
 
 
+
+
+
 class UpdateChecker(QThread):
     """Thread for checking updates from GitHub"""
     update_available = pyqtSignal(dict)  # Emits release info if update available
@@ -145,7 +148,9 @@ class UpdateChecker(QThread):
                 release_info = {
                     'version': latest_version,
                     'tag_name': data.get('tag_name', ''),
-                    'body': data.get('body', ''),
+                    'version': latest_version,
+                    'tag_name': data.get('tag_name', ''),
+                    'body': '',  # Ignore release body, use only changelog
                     'html_url': data.get('html_url', ''),
                     'assets': []
                 }
@@ -168,6 +173,8 @@ class UpdateChecker(QThread):
                 except Exception:
                     # If fetching changelog fails, silently fall back to release body
                     pass
+                
+
 
                 self.update_available.emit(release_info)
             else:
@@ -604,15 +611,18 @@ class UpdateDialog(QDialog):
         self.progress_bar.setRange(0, 0)  # Indeterminate
 
         # Ask user for confirmation to restart
-        reply = QMessageBox.question(
-            self,
-            self.get_text("update_ready_title", "Update Ready"),
-            self.get_text("update_restart_confirm", "Update downloaded. Restart application now to install?"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
-        )
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(self.get_text("update_ready_title", "Update Ready"))
+        msg_box.setText(self.get_text("update_restart_confirm", "Update downloaded. Restart application now to install?"))
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        
+        yes_btn = msg_box.addButton(self.get_text("button_yes", "Yes"), QMessageBox.ButtonRole.YesRole)
+        no_btn = msg_box.addButton(self.get_text("button_no", "No"), QMessageBox.ButtonRole.NoRole)
+        
+        msg_box.setDefaultButton(yes_btn)
+        msg_box.exec()
 
-        if reply == QMessageBox.StandardButton.Yes:
+        if msg_box.clickedButton() == yes_btn:
             # Install update
             success, message = UpdateInstaller.install(file_path)
 

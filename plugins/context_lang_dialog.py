@@ -15,7 +15,7 @@ class ContextLangDialog(QDialog):
             layout.addWidget(info_label)
 
         self.combo = QComboBox()
-        header_items = [h for h in headers if h != "key"]
+        header_items = [h for h in headers if h != "key" and h != "icon"]
         
         # Store mapping between display names and original headers
         self.header_mapping = {}
