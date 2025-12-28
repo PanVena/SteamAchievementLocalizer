@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.21] - 2025-12-28
+### Added
+- **Shortcuts**: Added keyboard shortcuts for saving: `Ctrl+S` (Save to Steam) and `Ctrl+Shift+S` (Save As / Manual Save).
+
 ## [0.8.20] - 2025-12-28
 ### Changed
 - **Auto-Updater**: The application now explicitly asks for confirmation ("Yes" to restart and install, "No" to wait) after downloading an update.

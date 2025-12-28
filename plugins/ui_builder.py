@@ -420,6 +420,7 @@ class UIBuilder:
             self.translations.get("save_bin_known", "Save bin file for yourself"),
             self.parent
         )
+        save_known_action.setShortcut(QKeySequence("Ctrl+Shift+S"))
         self._connect_status_tip(save_known_action, "tooltip_save_bin_known")
         save_known_action.triggered.connect(self.parent.save_bin_know)
 
@@ -428,6 +429,7 @@ class UIBuilder:
             self.translations.get("save_bin_unknown", "Save bin file to Steam folder"),
             self.parent
         )
+        save_unknown_action.setShortcut(QKeySequence("Ctrl+S"))
         self._connect_status_tip(save_unknown_action, "tooltip_save_bin_unknown")
         save_unknown_action.triggered.connect(self.parent.save_bin_unknow)
 
