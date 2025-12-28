@@ -26,8 +26,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 
 
+import re
+
 GITHUB_REPO = "PanVena/SteamAchievementLocalizer"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+CHANGELOG_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/CHANGELOG.md"
 CHECK_INTERVAL_HOURS = 0
 
 
@@ -52,6 +55,34 @@ def compare_versions(current: str, latest: str) -> int:
         elif c > l:
             return 1
     return 0
+
+
+def parse_changelog(content: str, current_version: str) -> str:
+    """
+    Extracts changelog entries for versions newer than current_version.
+    """
+    lines = content.split('\n')
+    output = []
+    capture = False
+    
+    # Regex to match version headers: ## [0.8.20] - 2025-12-28
+    version_pattern = re.compile(r'^## \[(.*?)\]')
+    
+    for line in lines:
+        match = version_pattern.match(line)
+        if match:
+            version = match.group(1)
+            if compare_versions(current_version, version) < 0:
+                capture = True
+                output.append(line)
+            else:
+                # Reached a version <= current, stop capturing
+                capture = False
+                break
+        elif capture:
+            output.append(line)
+            
+    return '\n'.join(output).strip()
 
 
 class UpdateChecker(QThread):
@@ -87,6 +118,7 @@ class UpdateChecker(QThread):
             return
 
         try:
+            # 1. Fetch latest release info
             headers = {
                 'User-Agent': 'SteamAchievementLocalizer',
                 'Accept': 'application/vnd.github.v3+json'
@@ -124,6 +156,18 @@ class UpdateChecker(QThread):
                         'size': asset.get('size', 0),
                         'download_url': asset.get('browser_download_url', '')
                     })
+                
+                # 2. Try to fetch full changelog from repo
+                try:
+                    changelog_response = requests.get(CHANGELOG_URL, timeout=5, verify=True)
+                    if changelog_response.status_code == 200:
+                        full_changelog = changelog_response.text
+                        relevant_notes = parse_changelog(full_changelog, self.current_version)
+                        if relevant_notes:
+                            release_info['body'] = relevant_notes
+                except Exception:
+                    # If fetching changelog fails, silently fall back to release body
+                    pass
 
                 self.update_available.emit(release_info)
             else:
@@ -396,10 +440,31 @@ class UpdateDialog(QDialog):
         """Get translated text"""
         return self.translations.get(key, default)
 
+    def extract_changelog(self, body: str) -> str:
+        """
+        Extracts the changelog content from the release body.
+        The workflow generates the body with header and footer separated by '---'.
+        We want only the middle part.
+        """
+        if not body:
+            return "No release notes available."
+            
+        parts = body.split('---')
+        if len(parts) >= 3:
+            # Format is: Header --- Changelog --- Footer
+            # We want the middle part (index 1)
+            return parts[1].strip()
+            
+        # Fallback: if "Downloads" section exists, cut everything after it
+        if "### Downloads" in body:
+            return body.split("### Downloads")[0].strip()
+            
+        return body
+
     def setup_ui(self):
         self.setWindowTitle(self.get_text("update_available", "Update Available"))
         self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
+        self.setMinimumHeight(600)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
@@ -434,8 +499,12 @@ class UpdateDialog(QDialog):
 
         notes_edit = QTextEdit()
         notes_edit.setReadOnly(True)
-        notes_edit.setPlainText(self.release_info.get('body', 'No release notes available.'))
-        notes_edit.setMaximumHeight(150)
+        
+        raw_body = self.release_info.get('body', '')
+        clean_notes = self.extract_changelog(raw_body)
+        notes_edit.setMarkdown(clean_notes)
+        
+        notes_edit.setMinimumHeight(300)
         layout.addWidget(notes_edit)
 
         # Progress section (hidden initially)
