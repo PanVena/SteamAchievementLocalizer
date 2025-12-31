@@ -6,7 +6,7 @@ from setuptools import setup
 import os
 
 # Get version from source
-VERSION = "0.8.21"
+VERSION = "0.8.22"
 with open("SteamAchievementLocalizer.py", "r", encoding="utf-8") as f:
     for line in f:
         if "APP_VERSION" in line:
