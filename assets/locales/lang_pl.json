@@ -8,7 +8,7 @@
     },
     "app_title": "Steam Achievement Localizer by Vena ver ",
     "restart_steam": "Uruchom ponownie Steam",
-    "tooltip_restart_steam": "Zamknij i uruchom ponownie klienta Steam",
+    "tooltip_restart_steam": "Zamknij i uruchom ponownie klienta Steam (Ctrl+R)",
     "q_restart_steam": "Zrestartować Steam?",
     "msg_restart_steam": "Czy chcesz zrestartować Steam, aby zastosować zmiany?",
     "warning_title_achtung": "Achtung",
@@ -211,7 +211,7 @@
     "tooltip_import_csv": "Importuj tłumaczenia z pliku CSV",
     "tooltip_save_bin_known": "Zapisz plik osiągnięć w wybranej lokalizacji",
     "tooltip_save_bin_unknown": "Zapisz plik osiągnięć bezpośrednio w folderze Steam",
-    "tooltip_show_user_game_stats": "Pokaż listę wszystkich dostępnych plików osiągnięć",
+    "tooltip_show_user_game_stats": "Pokaż listę wszystkich dostępnych plików osiągnięć (Ctrl+O)",
     "tooltip_help_dialog": "Otwórz okno pomocy z opisami funkcji",
     "tooltip_copy": "Kopiuj zaznaczone do schowka",
     "tooltip_paste": "Wklej ze schowka",
@@ -278,5 +278,8 @@
     "fetch_error_count": "\n\nNie udało się pobrać {count} nazw gier (prawdopodobnie usunięte ze Steam).",
     "loading_icons": "Ładowanie ikon...",
     "update_ready_title": "Aktualizacja gotowa",
-    "update_restart_confirm": "Aktualizacja pobrana. Zrestartować aplikację teraz, aby zainstalować?"
+    "update_restart_confirm": "Aktualizacja pobrana. Zrestartować aplikację teraz, aby zainstalować?",
+    "get_ach_UI": "Znajdź za nazwą",
+    "tooltip_get_ach_UI": "Wybierz z listy, lub znajdź za nazwą gry. (Ctrl+O)",
+    "total_files_count": "Łącznie plików: {count}"
 }

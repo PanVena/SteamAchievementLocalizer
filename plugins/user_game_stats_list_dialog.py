@@ -47,6 +47,13 @@ class UserGameStatsListDialog(QDialog):
         
         button_layout.addWidget(self.fetch_names_btn)
         button_layout.addStretch()
+        
+        # Total files count label
+        total_count = len(stats_list)
+        count_label = QLabel(translations.get("total_files_count", "Total files: {count}").format(count=total_count))
+        count_label.setStyleSheet("color: gray; font-size: 11px; margin-right: 10px;")
+        button_layout.addWidget(count_label)
+        
         layout.addLayout(button_layout)
         layout.addWidget(hint_label)
 
@@ -74,6 +81,7 @@ class UserGameStatsListDialog(QDialog):
         self.fill_table(stats_list)
         self.table.resizeColumnsToContents()
         self.table.cellClicked.connect(self.on_table_cell_clicked)
+        self.table.cellDoubleClicked.connect(self.on_table_cell_double_clicked)
         layout.addWidget(self.table)
 
         self.highlight_delegate = HighlightDelegate(self.table)
@@ -207,6 +215,10 @@ class UserGameStatsListDialog(QDialog):
         self.open_steam_store_btn.setEnabled(True)
         self.open_file_manager_btn.setEnabled(True)
 
+
+    def on_table_cell_double_clicked(self, row, col):
+        self.on_table_cell_clicked(row, col)
+        self.select_game()
 
     def select_game(self):
         if self.selected_row is None:

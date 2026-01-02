@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.23] - 2026-01-02
+### Added
+- **UI**: Added "Find by name" button to the main window for quick access to the game list.
+- **UI**: Added total file count display in the game list dialog.
+- **UX**: Added support for double-clicking a game row to select it immediately.
+- **Shortcuts**: Added keyboard shortcuts: `Ctrl+O` for game list and `Ctrl+R` for restarting Steam.
+- **Localization**: Added translations for new UI elements (English, Ukrainian, Polish).
+
 ## [0.8.22] - 2026-01-01
 ### Changed
 - **Export**: Export dialogs now automatically suggest a filename based on the current game name (e.g., "Cyberpunk 2077.csv").

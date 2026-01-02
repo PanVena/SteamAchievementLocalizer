@@ -7,7 +7,7 @@
     },
     "app_title": "Steam Achievement Localizer by Pan_Vena ver ",
     "restart_steam": "Restart Steam",
-    "tooltip_restart_steam": "Close and restart the Steam client",
+    "tooltip_restart_steam": "Close and restart the Steam client (Ctrl+R)",
     "q_restart_steam": "Restart Steam?",
     "msg_restart_steam": "Do you want to restart Steam to apply changes?",
     "warning_title_achtung": "Achtung",
@@ -35,6 +35,8 @@
     "in_column_search_placeholder": "Enter text to search...",
     "save": "Save",
     "save_bin_unknown": "Save bin file to Steam folder",
+    "tooltip_save_bin_unknown": "Save bin file directly to Steam folder",
+    "tooltip_show_user_game_stats": "Show list of all available achievement files (Ctrl+O)",
     "save_bin_known": "Save bin file for yourself",
     "tools": "Tools",
     "export_import": "Export/Import",
@@ -231,5 +233,8 @@
     "fetch_error_count": "\n\n{count} game names could not be fetched (likely removed from Steam).",
     "loading_icons": "Loading icons...",
     "update_ready_title": "Update Ready",
-    "update_restart_confirm": "Update downloaded. Restart application now to install?"
+    "update_restart_confirm": "Update downloaded. Restart application now to install?",
+    "get_ach_UI": "Find by name",
+    "tooltip_get_ach_UI": "Choose from list, or find by game name. (Ctrl+O)",
+    "total_files_count": "Total files: {count}"
 }

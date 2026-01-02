@@ -8,7 +8,7 @@
     },
     "app_title": "Локалізатор досягнень Стіму від Вени ver ",
     "restart_steam": "Перезавантажити Steam",
-    "tooltip_restart_steam": "Закрити та запустити клієнт Steam знову",
+    "tooltip_restart_steam": "Закрити та запустити клієнт Steam знову (Ctrl+R)",
     "q_restart_steam": "Перезавантажити Steam?",
     "msg_restart_steam": "Бажаєте перезавантажити Steam щоб зміни вступили в силу?",
     "warning_title_achtung": "Ахтунґ",
@@ -211,7 +211,7 @@
     "tooltip_import_csv": "Імпортувати переклади з CSV файлу",
     "tooltip_save_bin_known": "Зберегти файл досягнень у вибране місце",
     "tooltip_save_bin_unknown": "Зберегти файл досягнень безпосередньо у теку Steam",
-    "tooltip_show_user_game_stats": "Показати список усіх доступних файлів досягнень",
+    "tooltip_show_user_game_stats": "Показати список усіх доступних файлів досягнень. (Ctrl+O)",
     "tooltip_help_dialog": "Відкрити діалог довідки з описом функцій програми",
     "tooltip_copy": "Копіювати виділене в буфер обміну",
     "tooltip_paste": "Вставити з буферу обміну",
@@ -278,5 +278,8 @@
     "fetch_error_count": "\n\nНе вдалося завантажити {count} назв ігор (ймовірно видалені з крамниці Steam).",
     "loading_icons": "Завантаження іконок...",
     "update_ready_title": "Оновлення готове",
-    "update_restart_confirm": "Оновлення завантажено. Перезапустити програму зараз для встановлення?"
+    "update_restart_confirm": "Оновлення завантажено. Перезапустити програму зараз для встановлення?",
+    "get_ach_UI": "Знайти за назвою",
+    "tooltip_get_ach_UI": "Обери зі списку, або знайди за назвою гри. (Ctrl+O)",
+    "total_files_count": "Всього файлів: {count}"
 }

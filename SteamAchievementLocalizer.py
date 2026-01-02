@@ -386,9 +386,22 @@ class BinParserGUI(QMainWindow):
         game_id_layout.addWidget(self.load_game_btn)
         game_id_layout.addWidget(self.clear_game_id)
 
-        
+        # --- User game stats dialog ---
+        user_game_stats_layout = QHBoxLayout()
+        self.user_game_stats_btn = QPushButton(self.translations.get("get_ach_UI", "Find by name"))
+        self.user_game_stats_btn.setToolTip(self.translations.get("tooltip_get_ach_UI", "Choose from list, or find by game name."))
+        self.user_game_stats_btn.setDefault(True)
+        self.user_game_stats_btn.setAutoDefault(True)
+        self.user_game_stats_btn.setStyleSheet("padding: 5px;")
+        self.user_game_stats_btn.setStyleSheet("padding: 5px;")
+        self.user_game_stats_btn.clicked.connect(self.show_user_game_stats_list)
+        # Add Ctrl+O shortcut for opening the game list dialog
+        self.user_game_stats_btn.setShortcut(QKeySequence("Ctrl+O"))
+        user_game_stats_layout.addWidget(self.user_game_stats_btn)
+
         # --- Frame ---
         steam_group_layout = QVBoxLayout()
+        steam_group_layout.addLayout(user_game_stats_layout)
         steam_group_layout.addLayout(steam_folder_layout)
         steam_group_layout.addLayout(game_id_layout)
         self.steam_group = QGroupBox(self.translations.get("indirect_file_sel_label"))

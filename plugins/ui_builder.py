@@ -171,6 +171,7 @@ class UIBuilder:
             self.parent
         )
         self._connect_status_tip(restart_steam_action, "tooltip_restart_steam")
+        restart_steam_action.setShortcut(QKeySequence("Ctrl+R"))
         restart_steam_action.triggered.connect(lambda: self.parent.restart_steam(confirm=True))
 
         file_menu.addAction(toggle_icons_action)
