@@ -393,7 +393,6 @@ class BinParserGUI(QMainWindow):
         self.user_game_stats_btn.setDefault(True)
         self.user_game_stats_btn.setAutoDefault(True)
         self.user_game_stats_btn.setStyleSheet("padding: 5px;")
-        self.user_game_stats_btn.setStyleSheet("padding: 5px;")
         self.user_game_stats_btn.clicked.connect(self.show_user_game_stats_list)
         # Add Ctrl+O shortcut for opening the game list dialog
         self.user_game_stats_btn.setShortcut(QKeySequence("Ctrl+O"))
@@ -990,6 +989,8 @@ class BinParserGUI(QMainWindow):
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
+        self.user_game_stats_btn.setText(self.translations.get("get_ach_UI"))
+        self.user_game_stats_btn.setToolTip(self.translations.get("tooltip_get_ach_UI"))
         
         # Update file search section title based on state
         if hasattr(self, 'file_search_section'):
