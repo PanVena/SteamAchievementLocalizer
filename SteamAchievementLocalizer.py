@@ -1314,6 +1314,9 @@ class BinParserGUI(QMainWindow):
         if hasattr(self, 'file_search_section'):
             self.file_search_section.setChecked(False)
 
+        if hasattr(self, 'dlg') and self.dlg:
+             self.dlg.close()
+
         if show_success_msg:
             msg = self.translations.get("records_loaded").format(count=len(all_rows), countby2=self.countby2)
             QMessageBox.information(self, self.translations.get("success"), msg)
@@ -1418,6 +1421,9 @@ class BinParserGUI(QMainWindow):
             with open(save_path, "wb") as f:
                 f.write(datas)
             
+            # Update raw_data to reflect the saved state
+            self.raw_data = datas
+            
             # Create custom message box with proper button text
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Information)
@@ -1468,6 +1474,9 @@ class BinParserGUI(QMainWindow):
         try:
             with open(save_path, "wb") as f:
                 f.write(datas)
+            
+            # Update raw_data to reflect the saved state
+            self.raw_data = datas
             
             # Create custom success message box
             msg_box = QMessageBox(self)
@@ -2096,6 +2105,9 @@ class BinParserGUI(QMainWindow):
 
     def on_translation_language_changed(self):
         """Handle translation language change"""
+        # Ensure any pending edits are committed before rebuilding table
+        self.sync_table_to_data_rows()
+        
         if not hasattr(self, 'data_rows') or not self.data_rows:
             return
             
@@ -2616,8 +2628,9 @@ class BinParserGUI(QMainWindow):
         self.gamename()
         
         # Show dialog
-        dlg = UserGameStatsListDialog(self, stats_list, self.steam_game_names, self.settings)
-        dlg.exec()
+        # Show dialog
+        self.dlg = UserGameStatsListDialog(self, stats_list, self.steam_game_names, self.settings)
+        self.dlg.exec()
 
     def show_accent_color_picker(self):
         """Show color picker dialog for accent color selection"""

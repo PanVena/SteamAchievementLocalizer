@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.24] - 2026-01-02
+### Added
+- **UI**: Added a context menu to the game list dialog with a "Copy" option.
+
+### Changed
+- **UI**: The game list in the "Find by name" dialog is now read-only to prevent accidental edits.
+
+### Fixed
+- **File Manager**: Fixed a bug that caused the application to freeze when opening a file in the file manager.
+- **Data Integrity**: Fixed an issue where old data was restored after changing the interface language.
+- **UI**: Optimized the "Find by name" dialog behavior to close immediately after selection, preventing window focus confusion.
+- **Themes**: Fixed the alignment of group box titles in the "Dark Femboy" theme.
+
 ## [0.8.23] - 2026-01-02
 ### Added
 - **UI**: Added "Find by name" button to the main window for quick access to the game list.

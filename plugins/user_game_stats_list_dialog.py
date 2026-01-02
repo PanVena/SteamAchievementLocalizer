@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QLabel, QPushButton, QHBoxLayout, QLineEdit, QSizePolicy, QSpacerItem, QCheckBox
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QLabel, QPushButton, QHBoxLayout, QLineEdit, QSizePolicy, QSpacerItem, QCheckBox, QMessageBox, QAbstractItemView, QMenu
+from PyQt6.QtGui import QAction, QCursor
 from PyQt6.QtCore import Qt
 import os
 import re
@@ -80,6 +81,8 @@ class UserGameStatsListDialog(QDialog):
         self.stats_list = stats_list
         self.fill_table(stats_list)
         self.table.resizeColumnsToContents()
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
         self.table.cellClicked.connect(self.on_table_cell_clicked)
         self.table.cellDoubleClicked.connect(self.on_table_cell_double_clicked)
         layout.addWidget(self.table)
@@ -138,6 +141,9 @@ class UserGameStatsListDialog(QDialog):
         self.table.setSortingEnabled(False)
         
         self.table.setRowCount(len(stats_list))
+        # Set table to read-only but selectable
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        
         for row, (gamename, version, game_id, achievement_count) in enumerate(stats_list):
 
             # Version column with numeric sorting
@@ -147,10 +153,13 @@ class UserGameStatsListDialog(QDialog):
                 version_num = -1
             item_version = NumericTableWidgetItem(str(version), version_num)
             item_version.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item_version.setFlags(item_version.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 1, item_version)
 
             # Game name column (text sorting is fine)
-            self.table.setItem(row, 0, QTableWidgetItem(str(gamename)))
+            item_name = QTableWidgetItem(str(gamename))
+            item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.table.setItem(row, 0, item_name)
 
             # Game ID column with numeric sorting
             try:
@@ -159,6 +168,7 @@ class UserGameStatsListDialog(QDialog):
                 game_id_num = -1
             item_id = NumericTableWidgetItem(str(game_id), game_id_num)
             item_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item_id.setFlags(item_id.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 2, item_id)
 
             # Achievement count column with numeric sorting
@@ -168,6 +178,7 @@ class UserGameStatsListDialog(QDialog):
                 ach_count_num = -1
             item_ach = NumericTableWidgetItem(str(achievement_count), ach_count_num)
             item_ach.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item_ach.setFlags(item_ach.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 3, item_ach)
         
         # Re-enable sorting after filling
@@ -327,7 +338,7 @@ class UserGameStatsListDialog(QDialog):
         self.fetch_names_btn.setText(original_text)
         
         # Show completion message with details
-        from PyQt6.QtWidgets import QMessageBox
+
         if rate_limited:
             message = parent.translations.get("fetch_complete", "Fetching complete. {count} names updated.").format(count=updated_count)
             # Use format for localized string insertion
@@ -408,7 +419,26 @@ class UserGameStatsListDialog(QDialog):
                 env = os.environ.copy()
                 if "LD_LIBRARY_PATH" in env:
                     del env["LD_LIBRARY_PATH"]
+                if "LD_LIBRARY_PATH" in env:
+                    del env["LD_LIBRARY_PATH"]
                 subprocess.Popen(["xdg-open", stats_folder], env=env)
+
+    def show_context_menu(self, position):
+        """Show context menu with only Copy option"""
+        menu = QMenu()
+        copy_action = QAction(self.parent().translations.get("copy", "Copy"), self)
+        copy_action.triggered.connect(self.copy_selection)
+        menu.addAction(copy_action)
+        menu.exec(QCursor.pos())
+
+    def copy_selection(self):
+        """Copy selected cell text to clipboard"""
+        selected_items = self.table.selectedItems()
+        if selected_items:
+            # Copy text from the first selected item
+            text = selected_items[0].text()
+            from PyQt6.QtWidgets import QApplication
+            QApplication.clipboard().setText(text)
 
 
 

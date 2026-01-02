@@ -128,10 +128,10 @@ class SteamIntegration:
         
         try:
             if sys.platform == "win32":
-                subprocess.run(f'explorer /select,"{filepath}"', shell=True)
+                subprocess.Popen(f'explorer /select,"{filepath}"', shell=True)
                 return True
             elif sys.platform == "darwin":
-                subprocess.run(["open", "-R", filepath])
+                subprocess.Popen(["open", "-R", filepath])
                 return True
             else:
                 # Linux - try various file managers
@@ -150,14 +150,15 @@ class SteamIntegration:
                 for cmd in candidates:
                     if shutil.which(cmd[0]):
                         try:
-                            subprocess.run(cmd, check=True, env=env)
+                            # Use Popen instead of run to avoid blocking
+                            subprocess.Popen(cmd, env=env)
                             return True
                         except Exception:
                             continue
                 
                 # Fallback - just open folder
                 try:
-                    subprocess.run(["xdg-open", folder], env=env)
+                    subprocess.Popen(["xdg-open", folder], env=env)
                     return True
                 except Exception:
                     pass
