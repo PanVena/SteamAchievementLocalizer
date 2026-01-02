@@ -28,7 +28,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.23" 
+APP_VERSION = "0.8.24" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
