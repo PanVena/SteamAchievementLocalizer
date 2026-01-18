@@ -191,7 +191,7 @@
     "file_search_section": "File Search",
     "file_search_section_expanded": "▼ File Search (expanded)",
     "file_search_section_collapsed": "▶ File Search (collapsed)",
-    "drag_drop_hint": "Drop .bin file here",
+    "drag_drop_hint": "Drop .bin or .csv file here",
     "file_dropped_msg": "File dropped: {path}",
     "tooltip_fetch_missing_names": "Scan all achievement files and fetch missing game names from Steam API (requires internet connection)",
     "fetching_names_progress": "Fetching game names...",
@@ -236,5 +236,10 @@
     "update_restart_confirm": "Update downloaded. Restart application now to install?",
     "get_ach_UI": "Find by name",
     "tooltip_get_ach_UI": "Choose from list, or find by game name. (Ctrl+O)",
-    "total_files_count": "Total files: {count}"
+    "total_files_count": "Total files: {count}",
+    "drag_drop_csv_hint": "Drop lines to: ",
+    "imported_to": "Imported to {lang_name}",
+    "csv_load_game_needed": "Please load a game first or use a CSV with game id",
+    "import_csv_auto_load": "Auto-loading game {game_id}...",
+    "drag_drop_open_game_hint": "Open game {gamename} ({game_id}) and import to: "
 }

@@ -22,7 +22,8 @@ from plugins import (
     ContextLangDialog, ThemeManager, BinaryParser, SteamIntegration,
     CSVHandler, FileManager, UIBuilder, HelpDialog, ContextMenuManager,
     DragDropPlugin, GameNameFetchWorker, get_available_languages_for_selection,
-    get_display_name, get_code_from_display_name, AutoUpdater, IconLoader
+    get_display_name, get_code_from_display_name, AutoUpdater, IconLoader,
+    HTTPClient
 )
 
 if sys.platform == "win32":
@@ -1077,7 +1078,7 @@ class BinParserGUI(QMainWindow):
             self.settings.setValue("UserSteamPath", real_path)
             self.settings.sync()  
 
-    def load_steam_game_stats(self):
+    def load_steam_game_stats(self, show_success_msg=True):
         # Trigger saving if needed
         if not self.check_unsaved_changes():
             return
@@ -1105,7 +1106,7 @@ class BinParserGUI(QMainWindow):
             QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
         
-        self.parse_and_fill_table()
+        self.parse_and_fill_table(show_success_msg=show_success_msg)
         self.version()
         self.gamename()
 
@@ -1656,7 +1657,7 @@ class BinParserGUI(QMainWindow):
 
     def export_csv_all(self):
         """Export all data to CSV using csv_handler plugin"""
-        default_name = self._get_default_export_name()
+        default_name = self._get_default_export_name("_whole_table")
         fname, _ = QFileDialog.getSaveFileName(self, self.translations.get("export_csv_all_file_dialog"), default_name, 'CSV Files (*.csv)')
         if not fname:
             return
@@ -1681,13 +1682,14 @@ class BinParserGUI(QMainWindow):
         params = dlg.get_selected()
         context_col = params["context_col"]
 
-        default_name = self._get_default_export_name("_all_table")
+        default_name = self._get_default_export_name("_for_translate")
         fname, _ = QFileDialog.getSaveFileName(self,self.translations.get("export_csv_all_file_dialog"), default_name, "CSV Files (*.csv)")
         if not fname:
             return
         
         try:
-            self.csv_handler.export_for_translation(self.data_rows, context_col, fname)
+            game_id = self.game_id()
+            self.csv_handler.export_for_translation(self.data_rows, context_col, fname, game_id=game_id)
             QMessageBox.information(self, self.translations.get("success"), self.translations.get("csv_saved"))
         except Exception as e:
             QMessageBox.warning(self, self.translations.get("error"), str(e))
@@ -1731,6 +1733,110 @@ class BinParserGUI(QMainWindow):
                 error_msg = self.translations.get("import_failed", "Import failed")
                 if reason:
                     error_msg += f"\n{reason}"
+                QMessageBox.warning(self, self.translations.get("error"), error_msg)
+        except Exception as e:
+            QMessageBox.warning(self, self.translations.get("error"), 
+                              f"{self.translations.get('import_failed', 'Import failed')}\n{str(e)}")
+
+    def import_dropped_csv(self, file_path):
+        """Import dropped CSV file into current target language"""
+        # Check if we need to auto-load game
+        game_auto_loaded = False
+        loaded_game_id = None
+        
+        if not self.data_rows:
+            # Try to peek at CSV to find game_id in header
+            preview = self.csv_handler.get_column_preview(file_path, max_rows=1)
+            game_id = None
+            if preview['valid'] and preview['header']:
+                # User puts game_id as last element in header row without column Label
+                potential_id = preview['header'][-1].strip()
+                if potential_id.isdigit():
+                    game_id = potential_id
+
+            if game_id:
+                # Auto-load game
+                self.show_progress(self.translations.get("import_csv_auto_load", "Auto-loading game {game_id}...").format(game_id=game_id))
+                self.game_id_edit.setText(game_id)
+                
+                # We must call this synchronously, suppressing the success message
+                self.load_steam_game_stats(show_success_msg=False)
+                
+                self.hide_progress()
+                
+                # Check if load was successful
+                if not self.data_rows:
+                        return # valid error message already shown by load_steam_game_stats
+                        
+                game_auto_loaded = True
+                loaded_game_id = game_id
+            
+            # If still no data loaded
+            if not self.data_rows:
+                QMessageBox.warning(self, self.translations.get("error"), 
+                                   self.translations.get("csv_load_game_needed", "Please load a game first or use a CSV with game_id"))
+                return
+
+        target_lang = self.get_target_language()
+        
+        if not target_lang:
+            QMessageBox.warning(self, self.translations.get("error"), "No target language selected for import")
+            return
+            
+        try:
+            # Check if target language column exists, if not, create it
+            if self.data_rows and target_lang not in self.data_rows[0]:
+                 # Add the column to all rows
+                 for row in self.data_rows:
+                     row[target_lang] = ""
+                 
+                 # Add to headers if not present
+                 if target_lang not in self.headers:
+                     self.headers = self.prioritize_headers(self.headers + [target_lang])
+
+                     pass 
+            
+            success, imported_count, changed_count, skipped_count, reason = self.csv_handler.import_translations(
+                file_path, self.data_rows, target_lang
+            )
+            
+            if success:
+                if changed_count > 0 or (self.data_rows and target_lang in self.data_rows[0]):
+                    # If we added a column, we must refresh the table even if changed_count is 0 (though it should be >0 if we imported anything)
+                    # Use refresh_table_with_new_headers to ensure columns are correct
+                    self.refresh_table_with_new_headers()
+                    
+                    details = self.translations.get("import_details", 
+                        "Imported: {imported}, Changed: {changed}, Skipped: {skipped}").format(
+                        imported=imported_count, changed=changed_count, skipped=skipped_count
+                    )
+                    # Add language info to message
+                    lang_name = get_display_name(target_lang)
+                    msg_imported = self.translations.get("imported_to", "Imported to {lang_name}").format(lang_name=lang_name)
+                    msg = f"{msg_imported}\n\n{details}"
+                    
+                    if game_auto_loaded:
+                         # Combine loaded message
+                         loaded_msg = self.translations.get("records_loaded").format(count=len(self.data_rows), countby2=self.countby2)
+                         msg = f"{loaded_msg}\n\n{msg}"
+                    
+                    QMessageBox.information(self, self.translations.get("success"), msg)
+                    self.set_modified(True)
+                else:
+                    # No changes made
+                    msg = self.translations.get("import_no_changes", "CSV imported, but no data was changed")
+                    if reason:
+                        msg += f"\n{self.translations.get('reason', 'Reason')}: {reason}"
+                    QMessageBox.information(self, self.translations.get("info"), msg)
+            else:
+                # Import failed
+                error_msg = self.translations.get("import_failed", "Import failed")
+                if reason:
+                    error_msg += f"\n{reason}"
+                    
+                    if reason == "error_no_target_column":
+                        error_msg += f"\n\nTarget column '{target_lang}' not found in current data."
+                        
                 QMessageBox.warning(self, self.translations.get("error"), error_msg)
         except Exception as e:
             QMessageBox.warning(self, self.translations.get("error"), 
@@ -1954,6 +2060,27 @@ class BinParserGUI(QMainWindow):
     # UTILITY FUNCTIONS
     # =================================================================
 
+    def get_target_language(self):
+        """Get the currently selected target language code (e.g. 'ukrainian')"""
+        # Automatically build mapping from UI language to Steam language code from available locales
+        ui_to_steam_lang = {}
+        if hasattr(self, 'available_locales') and self.available_locales:
+            for locale_name, locale_info in self.available_locales.items():
+                steam_lang = locale_info.get('data', {}).get('_locale_info', {}).get('steam_lang_code')
+                if steam_lang:
+                    ui_to_steam_lang[locale_name] = steam_lang
+        
+        if self.language in ui_to_steam_lang:
+            return ui_to_steam_lang[self.language]
+        else:
+            # For English and other UI languages, get selected language from combo box
+            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo is not None:
+                return self.translation_lang_combo.currentData()
+            else:
+                # Fallback to ukrainian for English UI (user can change it via combo box)
+                # For other languages, use the language mapping or default to ukrainian
+                return ui_to_steam_lang.get(self.language, 'ukrainian')
+
     def prioritize_headers(self, headers):
         """
         Prioritize headers with translation column after key:
@@ -1970,25 +2097,7 @@ class BinParserGUI(QMainWindow):
         else:
             prioritized = ['key']
         
-        # Determine translation language based on UI or user selection
-        # Automatically build mapping from UI language to Steam language code from available locales
-        ui_to_steam_lang = {}
-        if hasattr(self, 'available_locales') and self.available_locales:
-            for locale_name, locale_info in self.available_locales.items():
-                steam_lang = locale_info.get('data', {}).get('_locale_info', {}).get('steam_lang_code')
-                if steam_lang:
-                    ui_to_steam_lang[locale_name] = steam_lang
-        
-        if self.language in ui_to_steam_lang:
-            translation_lang = ui_to_steam_lang[self.language]
-        else:
-            # For English and other UI languages, get selected language from combo box
-            if hasattr(self, 'translation_lang_combo') and self.translation_lang_combo:
-                translation_lang = self.translation_lang_combo.currentData()
-            else:
-                # Fallback to ukrainian for English UI (user can change it via combo box)
-                # For other languages, use the language mapping or default to ukrainian
-                translation_lang = ui_to_steam_lang.get(self.language, 'ukrainian')
+        translation_lang = self.get_target_language()
         
         # Add translation column (prefer existing data column)
         if translation_lang and translation_lang != 'english':
@@ -2133,8 +2242,19 @@ class BinParserGUI(QMainWindow):
 
     def refresh_table_with_new_headers(self):
         """Recreate table with new headers (used when changing language, so data doesn't change but headers do)"""
-        # Save current widths before resetting
-        self.save_column_widths()
+        
+        def _clean_label(text):
+            """Normalize header text for matching widths (ignore case, newlines, spaces)"""
+            if not text: return ""
+            return text.replace('\\n', '').replace('\n', '').replace(' ', '').upper()
+
+        # Save current widths by clean label
+        saved_widths = {}
+        for i in range(self.table.columnCount()):
+            item = self.table.horizontalHeaderItem(i)
+            if item:
+                # Store width for the existing content
+                saved_widths[_clean_label(item.text())] = self.table.columnWidth(i)
         
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
@@ -2147,12 +2267,21 @@ class BinParserGUI(QMainWindow):
             else:
                 display_name = get_display_name(header)
                 if '(' in display_name:
-                    display_name = display_name.replace(' (', '\\n(')
+                     # Use actual newline character, not literal \n string
+                    display_name = display_name.replace(' (', '\n(')
                 header_labels.append(display_name)
                 
         self.table.setHorizontalHeaderLabels(header_labels)
         self.table.setRowCount(len(self.data_rows))
         
+        # Restore widths by clean label
+        for i in range(self.table.columnCount()):
+            item = self.table.horizontalHeaderItem(i)
+            if item:
+                 label = _clean_label(item.text())
+                 if label in saved_widths:
+                     self.table.setColumnWidth(i, saved_widths[label])
+
         # Colors for alternating row pairs
         bg_color_1, bg_color_2 = self.get_row_pair_colors()
         
@@ -2212,7 +2341,6 @@ class BinParserGUI(QMainWindow):
         self._setup_icon_worker(icon_tasks)
         
         self.table.blockSignals(False)
-        self.restore_column_widths()
 
     def remove_empty_columns(self):
         """Remove columns that are completely empty (except for key column)"""
@@ -2338,8 +2466,9 @@ class BinParserGUI(QMainWindow):
             if is_cancelled and is_cancelled():
                 return None
             
+            
             url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-            response = requests.get(url, timeout=10, verify=True)
+            response = HTTPClient.get(url, timeout=(5, 10))
             response.raise_for_status()
             data = response.json()
             

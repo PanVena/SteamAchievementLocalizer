@@ -5,11 +5,7 @@ from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import QSettings, QStandardPaths, Qt
 from typing import Optional, Any
 
-try:
-    import certifi
-    CA_BUNDLE = certifi.where()
-except ImportError:
-    CA_BUNDLE = True # Fallback to default system store
+from plugins.http_client import HTTPClient
 
 
 class IconLoader:
@@ -77,7 +73,7 @@ class IconLoader:
         
         # Download icon
         try:
-            response = requests.get(icon_url, timeout=2)  # Reduced timeout to prevent blocking
+            response = HTTPClient.get(icon_url, timeout=(2, 5))  # Short timeout to prevent blocking
             response.raise_for_status()
             
             # Save to cache
@@ -123,8 +119,8 @@ class IconLoader:
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
         
         try:
-            # Use CA_BUNDLE determined at module level
-            response = requests.get(icon_url, timeout=10, verify=CA_BUNDLE) 
+            # HTTPClient handles SSL verification and fallback automatically
+            response = HTTPClient.get(icon_url, timeout=(5, 10))
             response.raise_for_status()
 
             # Save to temporary file first to avoid partial writes
@@ -135,21 +131,6 @@ class IconLoader:
             # Rename to final path
             os.replace(temp_path, cache_path)
             return cache_path
-        except requests.exceptions.SSLError:
-            # Fallback for SSL errors - try without verification if strictly necessary
-            # (User might be on a system with outdated certs)
-            print(f"[IconLoader] SSL Error for {icon_hash}, trying unverified...")
-            try:
-                response = requests.get(icon_url, timeout=10, verify=False)
-                response.raise_for_status()
-                temp_path = cache_path + ".tmp"
-                with open(temp_path, 'wb') as f:
-                    f.write(response.content)
-                os.replace(temp_path, cache_path)
-                return cache_path
-            except Exception as e2:
-                print(f"[IconLoader] Failed to download {icon_hash} (Unverified): {e2}")
-                return None
         except Exception as e:
             print(f"[IconLoader] Failed to download {icon_hash}: {e}")
             return None

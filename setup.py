@@ -55,7 +55,7 @@ OPTIONS = {
             }
         ],
     },
-    'packages': ['PyQt6', 'certifi', 'requests'],
+    'packages': ['PyQt6', 'certifi', 'requests', 'urllib3'],
     'includes': [
         'PyQt6.QtCore',
         'PyQt6.QtGui',
@@ -78,6 +78,7 @@ OPTIONS = {
         'plugins.drag_drop_overlay',
         'plugins.game_name_fetch_worker',
         'plugins.auto_updater',
+        'plugins.http_client',
     ],
     'excludes': [
         'tkinter',

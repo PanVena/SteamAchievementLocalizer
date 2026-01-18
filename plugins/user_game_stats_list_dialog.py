@@ -270,7 +270,6 @@ class UserGameStatsListDialog(QDialog):
                     games_to_fetch.append((row, id_item.text()))
         
         if not games_to_fetch:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(
                 self,
                 parent.translations.get("info", "Info"),

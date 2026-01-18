@@ -34,6 +34,8 @@ python3.12 -m nuitka SteamAchievementLocalizer.py --standalone \
     --include-package=certifi \
     --include-package-data=certifi \
     --include-package=requests \
+    --include-package=urllib3 \
+    --include-module=plugins.http_client \
     --assume-yes-for-downloads \
     --show-progress
 

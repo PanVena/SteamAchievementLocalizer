@@ -240,7 +240,7 @@
     "file_search_section": "Wyszukiwanie pliku",
     "file_search_section_expanded": "▼ Wyszukiwanie pliku (rozwinięte)",
     "file_search_section_collapsed": "▶ Wyszukiwanie pliku (zwinięte)",
-    "drag_drop_hint": "Upuść plik .bin tutaj",
+    "drag_drop_hint": "Upuść plik .bin lub .csv tutaj",
     "file_dropped_msg": "Upuszczono plik: {path}",
     "loading": "Ładowanie...",
     "processing": "Przetwarzanie {game_id} ",
@@ -281,5 +281,10 @@
     "update_restart_confirm": "Aktualizacja pobrana. Zrestartować aplikację teraz, aby zainstalować?",
     "get_ach_UI": "Znajdź za nazwą",
     "tooltip_get_ach_UI": "Wybierz z listy, lub znajdź za nazwą gry. (Ctrl+O)",
-    "total_files_count": "Łącznie plików: {count}"
+    "total_files_count": "Łącznie plików: {count}",
+    "drag_drop_csv_hint": "Upuść tłumaczenie do:",
+    "csv_load_game_needed": "Proszę najpierw załadować grę lub użyć pliku CSV z ID gry",
+    "import_csv_auto_load": "Automatyczne ładowanie gry {game_id}...",
+    "drag_drop_open_game_hint": "Otwórz grę {gamename} ({game_id}) i importuj do: ",
+    "imported_to": "Zaimportowano do {lang_name}"
 }

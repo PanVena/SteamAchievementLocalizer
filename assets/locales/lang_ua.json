@@ -240,7 +240,7 @@
     "file_search_section": "Пошук файлу",
     "file_search_section_expanded": "▼ Пошук файлу (розгорнуто)",
     "file_search_section_collapsed": "▶ Пошук файлу (згорнуто)",
-    "drag_drop_hint": "Відпустіть файл .bin сюди",
+    "drag_drop_hint": "Відпустіть файл .bin або .csv сюди",
     "file_dropped_msg": "Файл перетягнуто: {path}",
     "loading": "Завантаження...",
     "processing": "Обробка {game_id} ",
@@ -281,5 +281,10 @@
     "update_restart_confirm": "Оновлення завантажено. Перезапустити програму зараз для встановлення?",
     "get_ach_UI": "Знайти за назвою",
     "tooltip_get_ach_UI": "Обери зі списку, або знайди за назвою гри. (Ctrl+O)",
-    "total_files_count": "Всього файлів: {count}"
+    "total_files_count": "Всього файлів: {count}",
+    "drag_drop_csv_hint": "Рядки буде перетягнуто до: ",
+    "imported_to": "Імпортовано до {lang_name}",
+    "csv_load_game_needed": "Будь ласка, спочатку завантажте гру або використовуйте CSV з ID гри",
+    "import_csv_auto_load": "Автоматичне завантаження гри {game_id}...",
+    "drag_drop_open_game_hint": "Відкрити гру {gamename} ({game_id}) та імпортувати до: "
 }

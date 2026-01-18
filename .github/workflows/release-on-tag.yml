@@ -141,7 +141,9 @@ jobs:
             --version-file version_info.txt `
             --add-data "assets;assets" `
             --collect-all PyQt6 `
-            --hidden-import PyQt6.sip
+            --hidden-import PyQt6.sip `
+            --hidden-import plugins.http_client `
+            --collect-all urllib3
 
           Write-Host "Listing dist/:"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
@@ -377,6 +379,8 @@ jobs:
             --include-package=certifi \
             --include-package-data=certifi \
             --include-package=requests \
+            --include-package=urllib3 \
+            --include-module=plugins.http_client \
             --assume-yes-for-downloads \
             --show-progress
 

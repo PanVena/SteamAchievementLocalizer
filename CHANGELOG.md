@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.25] - 2026-01-18
+### Added
+- **Drag & Drop**: Added support for dragging and dropping CSV files to import translations or auto-load games.
+- **Networking**: Added `HttpClient` for centralized and robust HTTP handling.
+
+### Changed
+- **CSV**: Updated export format signatures (headers) to include `game_id` for better compatibility.
+- **UI**: Changed table language headers format to "**Native (English)**" (e.g., "Українська (Ukrainian)") with improved capitalization.
+- **UX**: Unified the import success message to include game loading confirmation and import statistics.
+- **UX**: Enhanced Drag & Drop overlay to display the specific game name and ID when auto-loading from CSV.
+
+### Fixed
+- **UI**: Fixed an issue where newline characters in headers were displayed as literal text (e.g., "Language\n(Native)").
+
 ## [0.8.24] - 2026-01-02
 ### Added
 - **UI**: Added a context menu to the game list dialog with a "Copy" option.

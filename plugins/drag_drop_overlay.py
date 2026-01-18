@@ -3,10 +3,13 @@ from PyQt6.QtWidgets import QWidget, QMessageBox
 from PyQt6.QtCore import Qt, QEvent, QTimer, QObject
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QCursor
 
+from .steam_lang_codes import get_display_name
+
 class DragDropOverlay(QWidget):
     def __init__(self, parent, on_file_dropped):
         super().__init__(parent)
         self.on_file_dropped = on_file_dropped
+        self.message = ""
         
         # Ensure it stays on top and covers the parent
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
@@ -21,10 +24,12 @@ class DragDropOverlay(QWidget):
         self.position_check_timer.timeout.connect(self._check_drag_position)
         self.position_check_timer.setInterval(10)  # Check every 100ms
 
-    def show_overlay(self):
+    def show_overlay(self, message=""):
+        self.message = message
         self.resize(self.parent().size())
         self.raise_()
         self.show()
+        self.update() # Ensure repaint with new message
         # Start checking position when overlay is shown
         self.position_check_timer.start()
 
@@ -72,7 +77,12 @@ class DragDropOverlay(QWidget):
         
         # Get translation from parent window
         translations = getattr(self.parent(), 'translations', {})
-        text = translations.get("drag_drop_hint", "Drop .bin file here")
+        
+        if self.message:
+            text = self.message
+        else:
+            text = translations.get("drag_drop_hint", "Drop .bin file here")
+            
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, text)
 
     def dragEnterEvent(self, event):
@@ -81,7 +91,7 @@ class DragDropOverlay(QWidget):
             urls = event.mimeData().urls()
             if urls:
                 path = urls[0].toLocalFile()
-                if path.endswith('.bin'):
+                if path.lower().endswith(('.bin', '.csv')):
                      event.acceptProposedAction()
                      return
         event.ignore()
@@ -134,12 +144,62 @@ class DragDropPlugin(QObject):
                     urls = event.mimeData().urls()
                     if urls:
                         path = urls[0].toLocalFile()
-                        if path.endswith('.bin'):
+                        lower_path = path.lower()
+                        
+                        translations = getattr(self.main_window, 'translations', {})
+                        message = ""
+                        
+                        if lower_path.endswith('.bin'):
+                             message = translations.get("drag_drop_hint", "Drop .bin file here")
                              self.main_window.activateWindow()
                              self.main_window.raise_()
-                             self.overlay.show_overlay()
+                             self.overlay.show_overlay(message)
                              event.acceptProposedAction()
                              return True
+                        elif lower_path.endswith('.csv'):
+                             # Import CSV logic
+                             translations = getattr(self.main_window, 'translations', {})
+                             target_lang_code = "english" # Default
+                             
+                             if hasattr(self.main_window, 'get_target_language'):
+                                 target_lang_code = self.main_window.get_target_language()
+                             
+                             target_lang_name = get_display_name(target_lang_code)
+                             
+                             # Check if we need to auto-load game (data_rows empty)
+                             is_empty = not hasattr(self.main_window, 'data_rows') or not self.main_window.data_rows
+                             
+                             game_id_found = None
+                             if is_empty and hasattr(self.main_window, 'csv_handler'):
+                                 # Peek at CSV to find game_id
+                                 try:
+                                     preview = self.main_window.csv_handler.get_column_preview(path, max_rows=1)
+                                     if preview['valid'] and preview['header']:
+                                         potential_id = preview['header'][-1].strip()
+                                         if potential_id.isdigit():
+                                             game_id_found = potential_id
+                                 except Exception:
+                                     pass
+
+                             if game_id_found:
+                                 gamename = "Unknown"
+                                 if hasattr(self.main_window, 'get_game_name_for_id'):
+                                     gamename = self.main_window.get_game_name_for_id(game_id_found)
+                                 
+                                 # "Open game {gamename} ({game_id}) and import to: " + Lang
+                                 msg_template = translations.get("drag_drop_open_game_hint", "Open game {gamename} ({game_id}) and import to: ")
+                                 message = msg_template.format(gamename=gamename, game_id=game_id_found) + target_lang_name
+                             elif hasattr(self.main_window, 'get_target_language'):
+                                 message = translations.get("drag_drop_csv_hint", "Drop lines to: ") + target_lang_name
+                             else:
+                                 message = "Drop CSV to import"
+                                 
+                             self.main_window.activateWindow()
+                             self.main_window.raise_()
+                             self.overlay.show_overlay(message)
+                             event.acceptProposedAction()
+                             return True
+                                 
             elif event.type() == QEvent.Type.DragLeave:
                 # Don't hide on DragLeave - it fires too often when moving between child widgets
                 # Overlay will hide on drop or when user clicks it
@@ -151,6 +211,13 @@ class DragDropPlugin(QObject):
         # Note: We don't check for unsaved changes here because select_stats_bin_path() 
         # already performs this check. Doing it here would cause a duplicate prompt.
         
+        # Check file extension
+        if file_path.lower().endswith('.csv'):
+             if hasattr(self.main_window, 'import_dropped_csv'):
+                 self.main_window.import_dropped_csv(file_path)
+             return
+        
+        # Default behavior for .bin files
         # Fill the path in the line edit
         if hasattr(self.main_window, 'stats_bin_path_path'):
              self.main_window.stats_bin_path_path.setText(file_path)

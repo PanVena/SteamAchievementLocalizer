@@ -31,20 +31,28 @@ class CSVHandler:
     def export_for_translation(self, 
                               data_rows: List[Dict[str, str]], 
                               context_column: str, 
-                              filepath: str) -> bool:
+                              filepath: str,
+                              game_id: Optional[str] = None) -> bool:
         """Export data in translation-friendly format"""
         try:
             with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(['key', 'english', 'translation', context_column])
+                
+                header = ['key', 'english', 'translation', context_column]
+                if game_id:
+                    # User requested game_id only in header, without repetition
+                    header.append(str(game_id))
+                    
+                writer.writerow(header)
                 
                 for row in data_rows:
-                    writer.writerow([
+                    row_data = [
                         row.get('key', ''),
                         row.get('english', ''),
                         row.get('ukrainian', ''),  # Default translation column
                         row.get(context_column, ''),
-                    ])
+                    ]
+                    writer.writerow(row_data)
             return True
         except Exception as e:
             raise Exception(f"Failed to export translation CSV: {e}")

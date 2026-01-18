@@ -18,6 +18,8 @@ try:
 except ImportError:
     requests = None
 
+from plugins.http_client import HTTPClient
+
 from PyQt6.QtCore import QThread, pyqtSignal, QSettings, Qt
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -123,11 +125,10 @@ class UpdateChecker(QThread):
         try:
             # 1. Fetch latest release info
             headers = {
-                'User-Agent': 'SteamAchievementLocalizer',
                 'Accept': 'application/vnd.github.v3+json'
             }
             
-            response = requests.get(GITHUB_API_URL, headers=headers, timeout=10, verify=True)
+            response = HTTPClient.get(GITHUB_API_URL, headers=headers, timeout=(5, 10))
             response.raise_for_status()
             data = response.json()
 
@@ -164,7 +165,7 @@ class UpdateChecker(QThread):
                 
                 # 2. Try to fetch full changelog from repo
                 try:
-                    changelog_response = requests.get(CHANGELOG_URL, timeout=5, verify=True)
+                    changelog_response = HTTPClient.get(CHANGELOG_URL, timeout=(3, 5))
                     if changelog_response.status_code == 200:
                         full_changelog = changelog_response.text
                         relevant_notes = parse_changelog(full_changelog, self.current_version)
@@ -211,11 +212,9 @@ class UpdateDownloader(QThread):
         try:
             temp_dir = tempfile.mkdtemp(prefix="sal_update_")
             file_path = os.path.join(temp_dir, self.filename)
-
-            headers = {'User-Agent': 'SteamAchievementLocalizer'}
             
             # Stream download with progress
-            response = requests.get(self.download_url, headers=headers, timeout=60, stream=True, verify=True)
+            response = HTTPClient.get(self.download_url, timeout=(10, 60), stream=True)
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
