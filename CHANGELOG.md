@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.8.26] - 2026-02-02
+### Added
+- **UI**: Added a "Store" button to the main window that opens the Steam store page for the currently loaded game.
+- **Localization**: Added translations for the new store button in English, Ukrainian, and Polish.
+
+### Changed
+- **UX**: Updated "Open in Steam Store" links (both in main window and game list) to use the `steam://` protocol, opening directly in the Steam client instead of the web browser.
+
 ## [0.8.25] - 2026-01-18
 ### Added
 - **Drag & Drop**: Added support for dragging and dropping CSV files to import translations or auto-load games.

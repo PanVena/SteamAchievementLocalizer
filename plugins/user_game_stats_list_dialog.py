@@ -367,7 +367,7 @@ class UserGameStatsListDialog(QDialog):
         game_id = item_id.text()
         
         # Open Steam Store page in browser
-        steam_url = f"https://store.steampowered.com/app/{game_id}/"
+        steam_url = f"steam://store/{game_id}"
 
         if sys.platform == "linux":
             # On Linux (especially AppImage), we need to clean environment variables

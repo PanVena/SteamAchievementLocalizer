@@ -3,6 +3,8 @@ import re
 import os
 import json
 import time
+import webbrowser
+import subprocess
 import requests
 from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QEvent
 from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor, QPalette, QPixmap, QImage
@@ -459,6 +461,18 @@ class BinParserGUI(QMainWindow):
         self.gamename_label = QLabel(
             f"{self.translations.get('gamename')}{self.translations.get('unknown')}")
         self.lang_layout.addWidget(self.gamename_label)
+
+        # 2.1 Store button
+        self.store_btn = QPushButton()
+        self.store_btn.setIcon(QIcon(resource_path("assets/steam_icon.png"))) # You might want to use a specific icon if available, or text
+        self.store_btn.setText(self.translations.get("store_btn", "Open in Store"))
+        self.store_btn.setToolTip(self.translations.get("tooltip_store_btn", "Open Store Page"))
+        self.store_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.store_btn.clicked.connect(self.open_store_page)
+        # Make it look like a link or small button
+        self.store_btn.setStyleSheet("padding: 2px 5px;")
+        
+        self.lang_layout.addWidget(self.store_btn)
 
         # Vertical separator
         line2 = QFrame()
@@ -986,7 +1000,13 @@ class BinParserGUI(QMainWindow):
         self.load_game_btn.setText(self.translations.get("get_ach"))
         self.load_game_btn.setToolTip(self.translations.get("tooltip_get_ach_steam", ""))
         self.clear_game_id.setText(self.translations.get("clear_and_paste"))
+        self.clear_game_id.setText(self.translations.get("clear_and_paste"))
         self.clear_game_id.setToolTip(self.translations.get("tooltip_clear_paste", ""))
+        
+        if hasattr(self, 'store_btn'):
+            self.store_btn.setText(self.translations.get("store_btn", "Open in Store"))
+            self.store_btn.setToolTip(self.translations.get("tooltip_store_btn", "Open Store Page"))
+            
         self.abo_label.setText(self.translations.get("OR"))
         self.steam_group.setTitle(self.translations.get("indirect_file_sel_label"))
         self.stats_group.setTitle(self.translations.get("man_file_sel_label"))
@@ -2892,6 +2912,27 @@ class BinParserGUI(QMainWindow):
             self.statusBar().showMessage("Restarting Steam...", 5000)
         else:
             QMessageBox.warning(self, self.translations.get("error"), "Failed to restart Steam")
+
+    def open_store_page(self):
+        """Open the current game's Steam Store page"""
+        game_id = self.current_game_id()
+        if not game_id:
+            return
+            
+        steam_url = f"steam://store/{game_id}"
+        
+        if sys.platform == "linux":
+            try:
+                env = os.environ.copy()
+                # Clean environment variables that might interfere with launching external apps from AppImage
+                if "LD_LIBRARY_PATH" in env:
+                    del env["LD_LIBRARY_PATH"]
+                subprocess.Popen(["xdg-open", steam_url], env=env)
+                return
+            except Exception as e:
+                print(f"Failed to open URL with xdg-open: {e}")
+        
+        webbrowser.open(steam_url)
 
 def main():
     global window

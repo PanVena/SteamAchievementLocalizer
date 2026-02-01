@@ -207,6 +207,8 @@
     "open_in_file_manager": "Open in File Manager",
     "tooltip_open_in_steam_store": "Open the game's Steam Store page in browser",
     "tooltip_open_in_file_manager": "Open the achievements file folder in file manager",
+    "store_btn": "Open in Store",
+    "tooltip_store_btn": "Open Store Page",
     "help": "Help",
     "check_for_updates": "Check for Updates...",
     "tooltip_check_for_updates": "Check if a new version is available",

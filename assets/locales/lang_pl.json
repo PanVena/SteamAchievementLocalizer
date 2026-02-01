@@ -252,6 +252,8 @@
     "open_in_file_manager": "Otwórz w menedżerze plików",
     "tooltip_open_in_steam_store": "Otwórz stronę gry w sklepie Steam w przeglądarce",
     "tooltip_open_in_file_manager": "Otwórz folder z plikiem osiągnięć w menedżerze plików",
+    "store_btn": "Otwórz w sklepie",
+    "tooltip_store_btn": "Otwórz stronę w sklepie Steam",
     "help": "Pomoc",
     "check_for_updates": "Sprawdź aktualizacje...",
     "tooltip_check_for_updates": "Sprawdź, czy dostępna jest nowa wersja",
