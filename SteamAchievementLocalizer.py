@@ -144,10 +144,18 @@ def choose_language():
     return default_locale
 
 def resource_path(relative_path: str) -> str:
-    """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller)"""
+    """Returns the correct path to resources for both .py and .exe (Nuitka/PyInstaller/py2app)"""
     if getattr(sys, 'frozen', False):
         # When running as a bundled exe
-        base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+        if hasattr(sys, "_MEIPASS"):
+            # PyInstaller
+            base_path = sys._MEIPASS
+        elif 'RESOURCEPATH' in os.environ:
+            # py2app on macOS
+            base_path = os.environ['RESOURCEPATH']
+        else:
+            # Nuitka or other
+            base_path = os.path.dirname(sys.executable)
     else:
         # When running as a normal .py file
         base_path = os.path.dirname(__file__)
