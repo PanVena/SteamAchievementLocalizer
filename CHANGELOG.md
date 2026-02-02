@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2026-02-02
 ### Added
-- **Binary Parser**: Added support for parsing parallel chunk structures using numeric keys (0, 1, 2...), improving compatibility with files using this alternative format.
+- **Binary Parser**: Added smart detection and support for parsing parallel chunk structures using numeric keys (0, 1, 2...) when standard 'bit' delimiters are missing, improving compatibility with various file formats.
 
 ## [0.8.26] - 2026-02-02
 ### Added

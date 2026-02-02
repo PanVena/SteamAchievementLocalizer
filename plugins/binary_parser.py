@@ -22,7 +22,15 @@ class BinaryParser:
     
     def split_chunks(self, data: bytes) -> List[bytes]:
         """Split binary data into chunks based on Steam format patterns"""
-        pattern = re.compile(b'\x00bits\x00|\x02bit\x00|(?:^|\x00)[0-9]+\x00')
+        # Determine pattern based on content
+        # If file has 'bits' section but uses numeric keys instead of 'bit' separator
+        # OR if it starts directly with a numeric key (snippet case)
+        if (b'\x00bits\x00' in data and b'\x02bit\x00' not in data) or re.match(b'^[0-9]+\x00', data):
+             pattern = re.compile(b'(?:^|\x00)[0-9]+\x00')
+        else:
+             # Standard format
+             pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
+             
         positions = [m.start() for m in pattern.finditer(data)]
         
         chunks = []
