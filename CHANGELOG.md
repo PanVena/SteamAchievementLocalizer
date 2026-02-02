@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.9.0] - 2026-02-02
+### Added
+- **Binary Parser**: Added support for parsing parallel chunk structures using numeric keys (0, 1, 2...), improving compatibility with files using this alternative format.
+
 ## [0.8.26] - 2026-02-02
 ### Added
 - **UI**: Added a "Store" button to the main window that opens the Steam store page for the currently loaded game.
@@ -16,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **UX**: Updated "Open in Steam Store" links (both in main window and game list) to use the `steam://` protocol, opening directly in the Steam client instead of the web browser.
 - **UI**: Redesigned "File Search" header, replacing the previous checkbox-style toggle with a standard push button for improved consistency and theming.
-
 
 ## [0.8.25] - 2026-01-18
 ### Added
