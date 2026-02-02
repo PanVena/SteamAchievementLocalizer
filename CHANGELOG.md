@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **UX**: Updated "Open in Steam Store" links (both in main window and game list) to use the `steam://` protocol, opening directly in the Steam client instead of the web browser.
+- **UI**: Redesigned "File Search" header, replacing the previous checkbox-style toggle with a standard push button for improved consistency and theming.
+
 
 ## [0.8.25] - 2026-01-18
 ### Added

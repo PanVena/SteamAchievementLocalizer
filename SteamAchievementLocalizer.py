@@ -11,7 +11,8 @@ from PyQt6.QtGui import QIcon, QAction, QKeySequence, QTextDocument, QColor, QPa
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QHBoxLayout,
     QLineEdit, QLabel, QTableWidget, QTableWidgetItem, QComboBox, QFrame, QGroupBox, QHeaderView,
-    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QProgressBar, QCheckBox
+    QInputDialog, QMainWindow, QColorDialog, QAbstractItemView, QProgressBar, QCheckBox, QToolButton, QSizePolicy,
+    QStyle
 )
 import certifi
 import os
@@ -31,7 +32,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.25" 
+APP_VERSION = "0.8.26" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
@@ -284,12 +285,26 @@ class BinParserGUI(QMainWindow):
 
 
         # Create collapsible section for file search inputs
-        self.file_search_section = QGroupBox()
-        self.file_search_section.setCheckable(True)
-        self.file_search_section.setChecked(True)  # Initially expanded
-        self.file_search_section.setTitle(self.translations.get("file_search_section", "▼ File Search"))
-        self.file_search_section.toggled.connect(self.on_file_search_section_toggled)
-        self.file_search_section.setFlat(False)
+        # Create collapsible section with button header
+        self.file_search_container = QWidget()
+        self.file_search_container_layout = QVBoxLayout(self.file_search_container)
+        self.file_search_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.file_search_container_layout.setSpacing(0)
+
+        # Header button
+        self.file_search_header = QPushButton(self.translations.get("file_search_section_expanded", "▼ File Search"))
+        self.file_search_header.setCheckable(True)
+        self.file_search_header.setChecked(True)
+        self.file_search_header.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.update_file_search_header_style()
+        self.file_search_header.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.file_search_header.clicked.connect(self.toggle_file_search_content)
+        
+        self.file_search_container_layout.addWidget(self.file_search_header)
+
+        # Content widget
+        self.file_search_content = QWidget()
+        # We will set layout for content later
         
         file_search_layout = QVBoxLayout()
         
@@ -412,8 +427,11 @@ class BinParserGUI(QMainWindow):
         file_search_layout.addWidget(self.steam_group)
         
         # Set layout for collapsible section
-        self.file_search_section.setLayout(file_search_layout)
-        self.layout.addWidget(self.file_search_section)
+        # Set layout for collapsible section content
+        self.file_search_content.setLayout(file_search_layout)
+        self.file_search_container_layout.addWidget(self.file_search_content)
+        
+        self.layout.addWidget(self.file_search_container)
         
 
        
@@ -1014,11 +1032,11 @@ class BinParserGUI(QMainWindow):
         self.user_game_stats_btn.setToolTip(self.translations.get("tooltip_get_ach_UI"))
         
         # Update file search section title based on state
-        if hasattr(self, 'file_search_section'):
-            if self.file_search_section.isChecked():
-                self.file_search_section.setTitle(self.translations.get("file_search_section_expanded", "▼ File Search"))
+        if hasattr(self, 'file_search_header'):
+            if self.file_search_header.isChecked():
+                self.file_search_header.setText(self.translations.get("file_search_section_expanded", "▼ File Search"))
             else:
-                self.file_search_section.setTitle(self.translations.get("file_search_section_collapsed", "▶ File Search"))
+                self.file_search_header.setText(self.translations.get("file_search_section_collapsed", "▶ File Search"))
         # Update translation language label if exists and visible
         if hasattr(self, 'translation_lang_label') and self.translation_lang_label and self.translation_lang_label.isVisible():
             self.translation_lang_label.setText(self.translations.get("translation_lang"))
@@ -1129,6 +1147,9 @@ class BinParserGUI(QMainWindow):
         self.parse_and_fill_table(show_success_msg=show_success_msg)
         self.version()
         self.gamename()
+        
+        # Auto-collapse file search section on successful load
+        self.set_file_search_expanded(False)
 
     def parse_and_fill_table(self, show_success_msg=True):
         # Check if we have data to parse
@@ -1574,6 +1595,9 @@ class BinParserGUI(QMainWindow):
         self.parse_and_fill_table()
         self.version()
         self.gamename()
+
+        # Auto-collapse file search section on successful load
+        self.set_file_search_expanded(False)
 
     def use_manual_path(self):
         self.force_manual_path = True
@@ -2698,28 +2722,61 @@ class BinParserGUI(QMainWindow):
         else:
             self.game_id_edit.clear()
 
-    def on_file_search_section_toggled(self, checked):
-        """Handle file search section collapse/expand"""
-        if checked:
-            # Expanded - show arrow down and content
-            self.file_search_section.setTitle(self.translations.get("file_search_section_expanded", "▼ File Search"))
-            # Restore normal height
-            self.file_search_section.setMaximumHeight(16777215)  # Qt default max
-            # Show all child widgets
-            for i in range(self.file_search_section.layout().count()):
-                widget = self.file_search_section.layout().itemAt(i).widget()
-                if widget:
-                    widget.setVisible(True)
+    def update_file_search_header_style(self):
+        """Update file search header style based on current theme/palette"""
+        if not hasattr(self, 'file_search_header'):
+            return
+
+        # Default style (standard center alignment)
+        header_style = ""
+
+        # Try to get theme-specific styles for QPushButton
+        if hasattr(self, 'theme_manager'):
+            current_theme = self.theme_manager.get_current_theme()
+            if current_theme in self.theme_manager.available_themes:
+                theme_data = self.theme_manager.available_themes[current_theme]
+                styles_config = theme_data.get('styles', {})
+                
+                # Handle system theme logic (light/dark split)
+                styles_to_apply = {}
+                if isinstance(styles_config, dict):
+                    if "dark" in styles_config and "light" in styles_config:
+                        # System theme - use minimal styles to preserve system appearance
+                        if self.theme_manager.is_system_dark():
+                            styles_to_apply = styles_config["dark"]
+                        else:
+                            styles_to_apply = styles_config["light"]
+                    else:
+                        styles_to_apply = styles_config
+
+                # Get base QPushButton style
+                base_style = styles_to_apply.get("QPushButton", "")
+                
+                if base_style:
+                    # Use base style directly (defaults to center text)
+                    header_style = base_style
+        
+        self.file_search_header.setStyleSheet(header_style)
+
+    def set_file_search_expanded(self, expanded: bool):
+        """Set file search section expansion state"""
+        if self.file_search_header.isChecked() != expanded:
+            self.file_search_header.setChecked(expanded)
+            self.toggle_file_search_content()
+
+    def toggle_file_search_content(self):
+        """Handle file search section collapse/expand via button"""
+        # The button is checkable, so isChecked() reflects the new state
+        is_expanded = self.file_search_header.isChecked()
+        
+        if is_expanded:
+            # Expand
+            self.file_search_header.setText(self.translations.get("file_search_section_expanded", "▼ File Search"))
+            self.file_search_content.setVisible(True)
         else:
-            # Collapsed - show arrow right and hide content
-            self.file_search_section.setTitle(self.translations.get("file_search_section_collapsed", "▶ File Search"))
-            # Hide all child widgets to free up space
-            for i in range(self.file_search_section.layout().count()):
-                widget = self.file_search_section.layout().itemAt(i).widget()
-                if widget:
-                    widget.setVisible(False)
-            # Set minimal height when collapsed
-            self.file_search_section.setMaximumHeight(35)
+            # Collapse
+            self.file_search_header.setText(self.translations.get("file_search_section_collapsed", "▶ File Search"))
+            self.file_search_content.setVisible(False)
 
     # =================================================================
     # DIALOGS AND EVENT HANDLERS
@@ -2878,6 +2935,12 @@ class BinParserGUI(QMainWindow):
              # If check passed (saved or discarded), we can close
              return True
         return False
+
+    def changeEvent(self, event):
+        """Handle system events, like theme/palette changes"""
+        if event.type() == QEvent.Type.PaletteChange or event.type() == QEvent.Type.StyleChange:
+             self.update_file_search_header_style()
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         if hasattr(self, 'icon_worker') and self.icon_worker:
