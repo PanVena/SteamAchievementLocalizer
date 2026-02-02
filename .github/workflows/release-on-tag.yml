@@ -580,8 +580,12 @@ jobs:
 
       - name: Build macOS app
         run: |
-          # Clean previous builds
-          rm -rf dist build
+          # Clean previous builds thoroughly
+          rm -rf dist build *.egg-info .eggs
+
+          # Reinstall packaging to avoid duplicate dist-info issues
+          pip uninstall -y packaging || true
+          pip install packaging
 
           # Build using py2app
           python setup.py py2app
