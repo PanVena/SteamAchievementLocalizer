@@ -84,16 +84,7 @@ OPTIONS = {
         'tkinter',
         'matplotlib',
         'numpy',
-        'pandas',
-        'packaging',
-        'setuptools',
-        'pip',
-        'wheel',
-        'pkg_resources',
-        'jaraco',
-        'more_itertools',
-        'zipp',
-        'importlib_metadata',
+        'pandas'
     ],
 }
 
