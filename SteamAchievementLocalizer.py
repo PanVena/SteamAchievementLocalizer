@@ -32,7 +32,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.8.26" 
+APP_VERSION = "0.8.27" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
