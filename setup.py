@@ -84,8 +84,11 @@ OPTIONS = {
         'tkinter',
         'matplotlib',
         'numpy',
-        'pandas'
+        'pandas',
+        'packaging',
     ],
+    'strip': True,
+    'semi_standalone': False,
 }
 
 setup(
