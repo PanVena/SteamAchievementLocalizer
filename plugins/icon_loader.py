@@ -35,8 +35,8 @@ class IconLoader:
         Returns:
             Full URL to icon on Steam CDN
         """
-        # Remove extension if present
-        icon_hash = icon_hash.replace('.jpg', '').replace('.png', '')
+        # Remove extension and invalid characters if present
+        icon_hash = icon_hash.strip().strip('\x00\x08\r\n').replace('.jpg', '').replace('.png', '')
         
         # Steam CDN URL format: http://media.steampowered.com/steamcommunity/public/images/apps/{app_id}/{hash}.jpg
         # If no app_id provided, use generic CDN (may not work for all icons)

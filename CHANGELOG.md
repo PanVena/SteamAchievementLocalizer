@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.1] - 2026-03-26
+### Fixed
+- **Icons**: Fixed an issue where the last fields in chunks using the old format were silently skipped due to lacking trailing null bytes, which caused achievement icons to not render.
+- **Icons**: Added stripping of invisible formatting characters (like `\x08` and `\r\n`) from extracted icon hashes.
+- **Networking**: Updated `HTTPClient` User-Agent to masquerade as a standard browser. This bypasses Cloudflare CDN blocks (HTTP 403 or Captchas) when downloading missing app icons in Linux builds.
 
 
 ## [0.9.0] - 2026-02-02

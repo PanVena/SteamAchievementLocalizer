@@ -83,10 +83,11 @@ class BinaryParser:
                 
             idx += len(search_pattern)
             end_idx = chunk.find(b'\x00', idx)
-            
             if end_idx == -1:
-                values.append('')
-                pos = idx
+                # If no trailing null byte found, the value extends to the end of the chunk
+                val = chunk[idx:].decode(errors='ignore')
+                values.append(val)
+                pos = len(chunk)
                 continue
                 
             val = chunk[idx:end_idx].decode(errors='ignore')
