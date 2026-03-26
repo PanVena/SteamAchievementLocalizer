@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import re
 import os
@@ -192,7 +194,19 @@ def load_translations_for_language(language):
     
     # Return empty dict if nothing works
     return {}
+
+class SteamRestartWorker(QThread):
+    """Worker thread for restarting Steam without blocking UI"""
+    finished = pyqtSignal(bool)
     
+    def __init__(self, steam_integration):
+        super().__init__()
+        self.steam_integration = steam_integration
+        
+    def run(self):
+        success = self.steam_integration.restart_steam()
+        self.finished.emit(success)
+
 class IconWorker(QThread):
     """Worker thread for loading icons in background"""
     icon_loaded = pyqtSignal(int, int, object) # row, col, QImage
@@ -2960,7 +2974,7 @@ class BinParserGUI(QMainWindow):
 
     def restart_steam(self, confirm=True):
         """
-        Restart Steam client.
+        Restart Steam client asynchronously.
         :param confirm: If True, asks for confirmation before restarting.
         """
         if confirm:
@@ -2976,11 +2990,20 @@ class BinParserGUI(QMainWindow):
             if msg_box.clickedButton() != yes_button:
                 return
 
-        if self.steam_integration.restart_steam():
-            # Close app if successful restart initiated?
-            # Or just let it be. Steam restart will kill Steam, but this app is independent.
-            # Maybe show a fast message "Restarting..."
-            self.statusBar().showMessage("Restarting Steam...", 5000)
+        # Prevent multiple concurrent restarts
+        if hasattr(self, 'steam_restart_worker') and self.steam_restart_worker.isRunning():
+            return
+            
+        self.statusBar().showMessage(self.translations.get("button_restart_steam", "Restarting Steam...") + " ⌛")
+        
+        self.steam_restart_worker = SteamRestartWorker(self.steam_integration)
+        self.steam_restart_worker.finished.connect(self._on_steam_restarted)
+        self.steam_restart_worker.start()
+
+    def _on_steam_restarted(self, success):
+        """Callback for when Steam restart finishes"""
+        if success:
+            self.statusBar().showMessage(self.translations.get("button_restart_steam", "Restarting Steam...") + " ✓", 5000)
         else:
             QMessageBox.warning(self, self.translations.get("error"), "Failed to restart Steam")
 

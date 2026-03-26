@@ -223,6 +223,26 @@ class SteamIntegration:
             pass
         return False
 
+    def _detect_linux_steam_type(self) -> str:
+        """Detect if Steam is running natively, via Flatpak, or Snap."""
+        try:
+            # Check flatpak
+            if subprocess.call(["flatpak", "info", "com.valvesoftware.Steam"], 
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
+                return "flatpak"
+        except FileNotFoundError:
+            pass
+            
+        try:
+            # Check snap
+            if subprocess.call(["snap", "list", "steam"], 
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
+                return "snap"
+        except FileNotFoundError:
+            pass
+            
+        return "native"
+
     def restart_steam(self) -> bool:
         """
         Restarts the Steam client.
@@ -231,12 +251,18 @@ class SteamIntegration:
         """
         import time
 
+        # Clean environment for AppImage (prevents library conflicts with Steam)
+        env = os.environ.copy()
+        for key in ["LD_LIBRARY_PATH", "QT_PLUGIN_PATH"]:
+            if key in env:
+                del env[key]
+
         try:
             is_running = self.is_steam_running()
             
             if sys.platform == "win32":
                 if is_running:
-                    # Shutdown Steam
+                    # Shutdown Steam gracefully
                     subprocess.run(["start", "steam://exit"], shell=True)
                     
                     # Wait for it to close (max 10 seconds)
@@ -244,6 +270,12 @@ class SteamIntegration:
                         time.sleep(0.5)
                         if not self.is_steam_running():
                             break
+                    
+                    # Force kill if still running
+                    if self.is_steam_running():
+                        subprocess.run(["taskkill", "/F", "/IM", "steam.exe"], 
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        time.sleep(1)
                 
                 # Launch Steam
                 steam_path = self.steam_path
@@ -256,25 +288,59 @@ class SteamIntegration:
                 
             elif sys.platform == "darwin":
                 if is_running:
-                    # macOS
+                    # macOS graceful quit
                     subprocess.run(["osascript", "-e", 'quit app "Steam"'])
-                    time.sleep(3)
+                    
+                    # Wait for it to close (max 10 seconds)
+                    for _ in range(20):
+                        time.sleep(0.5)
+                        if not self.is_steam_running():
+                            break
+                            
+                    # Force kill if still running
+                    if self.is_steam_running():
+                        subprocess.run(["pkill", "-9", "Steam"], 
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        time.sleep(1)
                 
                 subprocess.run(["open", "-a", "Steam"])
                 return True
                 
             else:
                 # Linux
+                steam_type = self._detect_linux_steam_type()
+                
                 if is_running:
                     # Try graceful shutdown first
-                    subprocess.run(["steam", "-shutdown"], check=False)
+                    if steam_type == "flatpak":
+                        subprocess.run(["flatpak", "run", "com.valvesoftware.Steam", "-shutdown"], check=False, env=env)
+                    elif steam_type == "snap":
+                        subprocess.run(["snap", "run", "steam", "-shutdown"], check=False, env=env)
+                    else:
+                        subprocess.run(["steam", "-shutdown"], check=False, env=env)
                     
-                    # Give it time to close
-                    time.sleep(3)
+                    # Wait for it to close (max 10 seconds)
+                    for _ in range(20):
+                        time.sleep(0.5)
+                        if not self.is_steam_running():
+                            break
+                            
+                    # Force kill if still running
+                    if self.is_steam_running():
+                        subprocess.run(["pkill", "-9", "steam"], 
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        time.sleep(1)
                 
                 # Start in background
-                subprocess.Popen(["steam"], start_new_session=True, 
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if steam_type == "flatpak":
+                    subprocess.Popen(["flatpak", "run", "com.valvesoftware.Steam"], 
+                                     start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+                elif steam_type == "snap":
+                    subprocess.Popen(["snap", "run", "steam"], 
+                                     start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+                else:
+                    subprocess.Popen(["steam"], start_new_session=True, 
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
                 return True
                 
         except Exception as e:

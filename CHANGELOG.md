@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.1] - 2026-03-26
 ### Fixed
+- **Steam Integration**: Fixed process handling for killing and starting Steam on Linux, especially within an AppImage (now properly strips `LD_LIBRARY_PATH` and `QT_PLUGIN_PATH` to prevent Steam crashes).
+- **Steam Integration**: Fixed UI freeze during Steam restart. The restart logic now runs in an asynchronous background thread (`QThread`) with a responsive UI message in the status bar.
+- **Steam Integration**: Refactored Linux restart logic to smartly detect and support Flatpak, Snap, and Native Steam installations, including a robust 10-second graceful shutdown loop before force-killing.
 - **Icons**: Fixed an issue where the last fields in chunks using the old format were silently skipped due to lacking trailing null bytes, which caused achievement icons to not render.
 - **Icons**: Added stripping of invisible formatting characters (like `\x08` and `\r\n`) from extracted icon hashes.
 - **Networking**: Updated `HTTPClient` User-Agent to masquerade as a standard browser. This bypasses Cloudflare CDN blocks (HTTP 403 or Captchas) when downloading missing app icons in Linux builds.
