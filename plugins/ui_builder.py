@@ -608,7 +608,11 @@ class UIBuilder:
 
             # Use a method that properly captures the theme variable
             def make_theme_handler(theme_name):
-                return lambda: self.parent.theme_manager.set_theme(theme_name)
+                def handler():
+                    self.parent.theme_manager.set_theme(theme_name)
+                    self.parent.update_row_colors()
+                    self.parent.update_file_search_header_style()
+                return handler
 
             action.triggered.connect(make_theme_handler(theme))
 

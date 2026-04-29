@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.9.2] - 2026-04-29
+### Fixed
+- **Themes**: Fixed theme switching not updating table row background colors — `update_row_colors()` is now called after every theme change.
+- **Themes**: Fixed theme switching not refreshing the "File Search" section header button style.
+
+### Infrastructure
+- **CI/CD**: Switched AppImage tooling from legacy `AppImage/AppImageKit` to the official successor `AppImage/appimagetool` v1.9.1. Produced AppImages now use a runtime with FUSE 3 support while remaining backward-compatible with FUSE 2.
+- **CI/CD**: Added `fuse3` to Ubuntu CI system dependencies alongside `libfuse2`.
+
+
 ## [0.9.1] - 2026-03-26
 ### Fixed
 - **Steam Integration**: Fixed process handling for killing and starting Steam on Linux, especially within an AppImage (now properly strips `LD_LIBRARY_PATH` and `QT_PLUGIN_PATH` to prevent Steam crashes).

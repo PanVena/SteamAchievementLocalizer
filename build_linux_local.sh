@@ -76,7 +76,7 @@ if [ -f "assets/icon.ico" ]; then
         echo -e "${RED}Помилка: ImageMagick не встановлено. Встановіть: sudo dnf install ImageMagick${NC}"
         exit 1
     fi
-    
+
     convert "assets/icon.ico[4]" "$appdir/steamachievementlocalizer.png"
     convert "assets/icon.ico[4]" "$appdir/usr/share/icons/hicolor/256x256/apps/steamachievementlocalizer.png"
     echo -e "${GREEN}Іконка сконвертована успішно${NC}"
@@ -132,7 +132,7 @@ echo -e "${GREEN}AppRun створено${NC}"
 echo -e "${YELLOW}Перевірка appimagetool...${NC}"
 if [ ! -f "appimagetool" ]; then
     echo -e "${YELLOW}Завантаження appimagetool...${NC}"
-    wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+    wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
     chmod +x appimagetool
     echo -e "${GREEN}appimagetool завантажено${NC}"
 else

@@ -330,6 +330,7 @@ jobs:
             libxcb-xinerama0 \
             fuse \
             libfuse2 \
+            fuse3 \
             imagemagick
             
           sudo apt-get install -y libegl1 || sudo apt-get install -y libegl1-mesa || true
@@ -389,7 +390,7 @@ jobs:
 
       - name: Download appimagetool
         run: |
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
 
       - name: Create AppImage
