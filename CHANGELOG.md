@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Infrastructure
 - **CI/CD**: Switched AppImage tooling from legacy `AppImage/AppImageKit` to the official successor `AppImage/appimagetool` v1.9.1. Produced AppImages now use a runtime with FUSE 3 support while remaining backward-compatible with FUSE 2.
-- **CI/CD**: Added `fuse3` to Ubuntu CI system dependencies alongside `libfuse2`.
+- **CI/CD**: Replaced `fuse` with `fuse3` in Ubuntu CI system dependencies (`fuse3` breaks `fuse` on Ubuntu 22.04). `libfuse2` is kept for AppImage runtime backward compatibility.
 
 
 ## [0.9.1] - 2026-03-26

@@ -328,7 +328,6 @@ jobs:
             libxcb-shape0 \
             libxcb-xfixes0 \
             libxcb-xinerama0 \
-            fuse \
             libfuse2 \
             fuse3 \
             imagemagick
