@@ -20,7 +20,7 @@ class CSVHandler:
         """Export all data to CSV file"""
         try:
             with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=headers)
+                writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
                 writer.writeheader()
                 for row in data_rows:
                     writer.writerow(row)
