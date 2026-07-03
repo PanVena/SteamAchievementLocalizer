@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="readmes/screens/scrn_en.png" alt="截图" width="720">
+  <img src="readmes/screens/scrn_zh.png" alt="中文界面截图" width="720">
 </p>
 
 ---
