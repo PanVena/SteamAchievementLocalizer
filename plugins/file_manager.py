@@ -182,6 +182,68 @@ class FileManager:
         
         return output
     
+    def merge_translations_by_key(self,
+                                  fresh_data: bytes,
+                                  old_rows: List[Dict[str, str]],
+                                  extra_languages: Optional[List[str]] = None) -> tuple:
+        """Rebase translations onto a fresh schema, matching achievements by key.
+
+        Transfers translation values from old_rows into the schema contained in
+        fresh_data. Rows are matched by achievement key ('name'), so it survives
+        achievement additions, removals and reordering between schema versions.
+
+        Only languages that are absent from the fresh schema (i.e. added by the
+        localizer, like 'ukrainian') plus extra_languages are transferred;
+        official languages of the fresh schema (including english) are kept as-is.
+
+        Returns (merged_bytes, stats) where stats contains counts of transferred
+        and unmatched entries.
+        """
+        fresh_rows, fresh_headers = self.binary_parser.parse_binary_data(fresh_data)
+
+        service_cols = {'key', 'icon', 'icon_gray'}
+        fresh_langs = {h for h in fresh_headers if h not in service_cols}
+        old_langs = set()
+        for row in old_rows:
+            old_langs.update(k for k in row.keys() if k not in service_cols)
+
+        transfer_langs = (old_langs - fresh_langs) - {'english'}
+        for lang in (extra_languages or []):
+            if lang and lang != 'english' and lang in old_langs:
+                transfer_langs.add(lang)
+
+        old_map = {row['key']: row for row in old_rows}
+
+        transferred = 0
+        untranslated_new = []
+        for row in fresh_rows:
+            old_row = old_map.pop(row['key'], None)
+            row_transferred = False
+            for lang in transfer_langs:
+                old_val = (old_row or {}).get(lang, '')
+                if old_val:
+                    row[lang] = old_val
+                    row_transferred = True
+                elif lang not in row:
+                    row[lang] = ''
+            if row_transferred:
+                transferred += 1
+            elif not row['key'].endswith('_opis'):
+                untranslated_new.append(row['key'])
+
+        # Keys left in old_map exist only in the old schema (removed/renamed)
+        dropped = [k for k in old_map.keys() if not k.endswith('_opis')]
+
+        merged = self.replace_language_in_binary(fresh_data, fresh_rows)
+
+        stats = {
+            'languages': sorted(transfer_langs),
+            'transferred': transferred,
+            'untranslated_new': untranslated_new,
+            'dropped': dropped,
+        }
+        return merged, stats
+
     def extract_game_metadata(self, data: bytes) -> Dict[str, Optional[Union[str, int]]]:
         """Extract game metadata (version, name) from binary data"""
         metadata = {}

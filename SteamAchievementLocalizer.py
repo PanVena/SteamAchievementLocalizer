@@ -34,7 +34,7 @@ from plugins import (
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.9.2" 
+APP_VERSION = "0.10.0" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
@@ -1427,14 +1427,21 @@ class BinParserGUI(QMainWindow):
 
     def replace_lang_in_bin(self):
         """Replace language data in binary using file_manager plugin"""
+        # Prefer the in-memory data the table was parsed from: the file on disk
+        # may have been re-downloaded by Steam (different schema version) since
+        # loading, and index-based replacement against a different schema would
+        # silently mis-assign values to wrong achievements
+        if hasattr(self, 'raw_data') and self.raw_data:
+            try:
+                return self.file_manager.replace_language_in_binary(self.raw_data, self.data_rows)
+            except Exception:
+                return None
+
         file_path = self.get_stats_bin_path()
         try:
             data = self.file_manager.load_binary_file(file_path)
             return self.file_manager.replace_language_in_binary(data, self.data_rows)
-        except Exception as e:
-            # If direct file loading fails, use raw_data if available
-            if hasattr(self, 'raw_data') and self.raw_data:
-                return self.file_manager.replace_language_in_binary(self.raw_data, self.data_rows)
+        except Exception:
             return None
 
     def export_bin(self):
@@ -1463,7 +1470,63 @@ class BinParserGUI(QMainWindow):
             return
         
         self.sync_table_to_data_rows()
-        datas = self.replace_lang_in_bin()
+
+        save_path = os.path.join(
+            self.steam_folder,
+            "appcache",
+            "stats",
+            f"UserGameStatsSchema_{game_id}.bin"
+        )
+
+        # Steam only keeps a schema whose version matches the server one:
+        # on version mismatch it silently re-downloads the file on every game
+        # launch, wiping the localization. If the Steam folder already has a
+        # schema with a different version, offer to rebase translations onto it.
+        datas = None
+        rebase_stats = None
+        steam_data = None
+        if os.path.isfile(save_path):
+            try:
+                with open(save_path, "rb") as f:
+                    steam_data = f.read()
+            except Exception:
+                steam_data = None
+
+        if steam_data and hasattr(self, 'raw_data') and self.raw_data:
+            src_version = self.binary_parser.get_version(self.raw_data)
+            steam_version = self.binary_parser.get_version(steam_data)
+            if steam_version is not None and src_version != steam_version:
+                unknown = self.translations.get("unknown")
+                msg_box = QMessageBox(self)
+                msg_box.setIcon(QMessageBox.Icon.Warning)
+                msg_box.setWindowTitle(self.translations.get("attention"))
+                msg_box.setText(self.translations.get("msg_version_mismatch").format(
+                    src_version=src_version if src_version is not None else unknown,
+                    steam_version=steam_version
+                ))
+                rebase_btn = msg_box.addButton(self.translations.get("rebase_translations"), QMessageBox.ButtonRole.AcceptRole)
+                save_as_is_btn = msg_box.addButton(self.translations.get("save_as_is"), QMessageBox.ButtonRole.ActionRole)
+                cancel_btn = msg_box.addButton(self.translations.get("cancel"), QMessageBox.ButtonRole.RejectRole)
+                msg_box.exec()
+
+                if msg_box.clickedButton() == cancel_btn:
+                    return
+                if msg_box.clickedButton() == rebase_btn:
+                    try:
+                        datas, rebase_stats = self.file_manager.merge_translations_by_key(
+                            steam_data, self.data_rows, [self.get_target_language()]
+                        )
+                    except Exception as e:
+                        msg_box = QMessageBox(self)
+                        msg_box.setIcon(QMessageBox.Icon.Critical)
+                        msg_box.setWindowTitle(self.translations.get("error"))
+                        msg_box.setText(f"{self.translations.get('error_cannot_save')}\n{str(e)}")
+                        msg_box.addButton(self.translations.get("button_ok"), QMessageBox.ButtonRole.AcceptRole)
+                        msg_box.exec()
+                        return
+
+        if datas is None:
+            datas = self.replace_lang_in_bin()
         if datas is None:
             # Create custom warning message box
             msg_box = QMessageBox(self)
@@ -1474,26 +1537,32 @@ class BinParserGUI(QMainWindow):
             msg_box.exec()
             return
 
-        save_path = os.path.join(
-            self.steam_folder,
-            "appcache",
-            "stats",
-            f"UserGameStatsSchema_{game_id}.bin"
-        )
-
         try:
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             with open(save_path, "wb") as f:
                 f.write(datas)
-            
+
             # Update raw_data to reflect the saved state
             self.raw_data = datas
-            
+
+            saved_text = self.translations.get("in_steam_folder_saved")
+            if rebase_stats is not None:
+                # The saved file is now based on the fresh Steam schema: show it
+                # in the table and track the Steam copy from now on
+                self.force_manual_path = False
+                self.parse_and_fill_table(show_success_msg=False)
+                self.version()
+                saved_text += "<br><br>" + self.translations.get("rebase_summary").format(
+                    transferred=rebase_stats['transferred'],
+                    untranslated=len(rebase_stats['untranslated_new']),
+                    dropped=len(rebase_stats['dropped'])
+                )
+
             # Create custom message box with proper button text
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Icon.Information)
             msg_box.setWindowTitle(self.translations.get("success"))
-            msg_box.setText(self.translations.get("in_steam_folder_saved"))
+            msg_box.setText(saved_text)
             
             # Add Restart Steam button
             restart_btn = msg_box.addButton(self.translations.get("restart_steam"), QMessageBox.ButtonRole.ActionRole)

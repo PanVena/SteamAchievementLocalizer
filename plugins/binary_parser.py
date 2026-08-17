@@ -184,13 +184,20 @@ class BinaryParser:
     def get_version(self, data: bytes) -> Optional[Union[int, str]]:
         """Extract version from binary data"""
         version_str = self.extract_metadata(data, "version")
-        if version_str is None:
-            return None
-        
-        try:
-            return int(version_str)
-        except ValueError:
-            return version_str
+        if version_str is not None:
+            try:
+                return int(version_str)
+            except ValueError:
+                return version_str
+
+        # New schema format (Steam, Feb 2026+) stores version as int32:
+        # \x02version\x00 followed by 4 bytes little-endian
+        marker = b"\x02version\x00"
+        pos = data.rfind(marker)
+        if pos != -1 and pos + len(marker) + 4 <= len(data):
+            return int.from_bytes(data[pos + len(marker):pos + len(marker) + 4], "little")
+
+        return None
     
     def get_gamename(self, data: bytes) -> Optional[str]:
         """Extract game name from binary data"""

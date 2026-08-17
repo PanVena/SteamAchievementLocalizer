@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.10.0] - 2026-08-18
+### Added
+- **Schema Rebase**: When saving to the Steam folder, the app now compares the version of the edited file with the schema currently in `appcache/stats`. On mismatch it offers to rebase translations onto the fresh schema, matching achievements **by key** (survives added/removed/renamed achievements) and reporting transfer statistics. This fixes localizations being silently overwritten by Steam: the client re-downloads the schema on every game launch whenever the local `version` field differs from the server one (the file content/CRC is not checked — verified experimentally against the live Steam client).
+- **Localization**: Added English/Ukrainian/Polish strings for the version-mismatch dialog and rebase summary.
+
+### Fixed
+- **Binary Parser**: `get_version()` now also reads the new schema format (Steam, Feb 2026+) where `version` is stored as an int32 (`\x02version\x00`) instead of a string. Previously the UI showed "UNKNOWN" for all newly downloaded schemas.
+- **Data Integrity**: `replace_lang_in_bin` now uses the in-memory data the table was parsed from instead of re-reading the file from disk. If Steam had re-downloaded the schema (different version) between loading and saving, index-based replacement could silently assign texts to wrong achievements.
+
 ## [0.9.2] - 2026-04-29
 ### Fixed
 - **Themes**: Fixed theme switching not updating table row background colors — `update_row_colors()` is now called after every theme change.
