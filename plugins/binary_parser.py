@@ -10,10 +10,10 @@ class BinaryParser:
     """Handles parsing of Steam binary achievement files"""
     
     EXCLUDE_WORDS = {
-        b'max', b'maxchange', b'min', b'token', b'name', b'hidden', 
-        b'icon_gray', b'Hidden', b'', b'russian', b'Default', b'gamename', 
-        b'id', b'incrementonly', b'max_val', b'min_val', b'operand1', 
-        b'operation', b'type', b'version', b'schinese', b'tchinese'
+        b'max', b'maxchange', b'min', b'token', b'name', b'hidden',
+        b'icon_gray', b'Hidden', b'', b'russian', b'Default', b'gamename',
+        b'id', b'incrementonly', b'max_val', b'min_val', b'operand1',
+        b'operation', b'type', b'version', b'tchinese'
     }
     
     def __init__(self):
@@ -141,6 +141,11 @@ class BinaryParser:
         for row in all_rows:
             if 'english' not in row:
                 row['english'] = ''
+
+        # Ensure schinese column exists (Simplified Chinese)
+        for row in all_rows:
+            if 'schinese' not in row:
+                row['schinese'] = ''
         
         # Define headers - icon first (if exists), then key, then other columns sorted
         all_columns = set()
