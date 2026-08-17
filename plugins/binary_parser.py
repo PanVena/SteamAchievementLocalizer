@@ -142,11 +142,6 @@ class BinaryParser:
             if 'english' not in row:
                 row['english'] = ''
 
-        # Ensure schinese column exists (Simplified Chinese)
-        for row in all_rows:
-            if 'schinese' not in row:
-                row['schinese'] = ''
-        
         # Define headers - icon first (if exists), then key, then other columns sorted
         all_columns = set()
         for row in all_rows:

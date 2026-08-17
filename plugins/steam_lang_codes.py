@@ -25,7 +25,7 @@ STEAM_LANGUAGE_CODES = {
     'portuguese': 'Português (Portuguese)',
     'brazilian': 'Português-Brasil (Portuguese - Brazil)',
     'romanian': 'Română (Romanian)',
-    'schinese': '简体中文',
+    'schinese': '简体中文 (Simplified Chinese)',
     'spanish': 'Español-España (Spanish)',
     'latam': 'Español-Latinoamérica (Spanish - Latin America)',
     'swedish': 'Svenska (Swedish)',

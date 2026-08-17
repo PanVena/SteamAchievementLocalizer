@@ -1500,12 +1500,15 @@ class BinParserGUI(QMainWindow):
                 msg_box = QMessageBox(self)
                 msg_box.setIcon(QMessageBox.Icon.Warning)
                 msg_box.setWindowTitle(self.translations.get("attention"))
-                msg_box.setText(self.translations.get("msg_version_mismatch").format(
+                msg_box.setText(self.translations.get(
+                    "msg_version_mismatch",
+                    "Your file version ({src_version}) differs from the current schema version in the Steam folder ({steam_version}).<br>Steam will silently overwrite such a file on every game launch.<br><br>Rebase your translations onto the fresh schema (matched by achievement keys)?"
+                ).format(
                     src_version=src_version if src_version is not None else unknown,
                     steam_version=steam_version
                 ))
-                rebase_btn = msg_box.addButton(self.translations.get("rebase_translations"), QMessageBox.ButtonRole.AcceptRole)
-                save_as_is_btn = msg_box.addButton(self.translations.get("save_as_is"), QMessageBox.ButtonRole.ActionRole)
+                rebase_btn = msg_box.addButton(self.translations.get("rebase_translations", "Rebase onto fresh schema"), QMessageBox.ButtonRole.AcceptRole)
+                save_as_is_btn = msg_box.addButton(self.translations.get("save_as_is", "Save as is"), QMessageBox.ButtonRole.ActionRole)
                 cancel_btn = msg_box.addButton(self.translations.get("cancel"), QMessageBox.ButtonRole.RejectRole)
                 msg_box.exec()
 
@@ -1552,7 +1555,10 @@ class BinParserGUI(QMainWindow):
                 self.force_manual_path = False
                 self.parse_and_fill_table(show_success_msg=False)
                 self.version()
-                saved_text += "<br><br>" + self.translations.get("rebase_summary").format(
+                saved_text += "<br><br>" + self.translations.get(
+                    "rebase_summary",
+                    "Translations transferred: {transferred}<br>New achievements without translation: {untranslated}<br>Obsolete entries dropped: {dropped}"
+                ).format(
                     transferred=rebase_stats['transferred'],
                     untranslated=len(rebase_stats['untranslated_new']),
                     dropped=len(rebase_stats['dropped'])

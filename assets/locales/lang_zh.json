@@ -3,7 +3,8 @@
         "name": "简体中文",
         "native_name": "简体中文 (Simplified Chinese)",
         "code": "zh",
-        "priority": 40
+        "priority": 40,
+        "steam_lang_code": "schinese"
     },
     "app_title": "Steam 成就本地化工具 by Pan_Vena ver ",
     "restart_steam": "重启 Steam",
@@ -91,6 +92,10 @@
     "error_manually_selected_file": "你已从其他文件夹加载了文件，请将其保存到别处",
     "error_no_data_to_save": "请先加载成就文件",
     "in_steam_folder_saved": "文件已保存到 Steam 文件夹。重启 Steam 即可看到更改。",
+    "msg_version_mismatch": "你的文件版本（{src_version}）与 Steam 文件夹中当前架构版本（{steam_version}）不一致。<br>Steam 会在每次启动游戏时悄悄覆盖这样的文件。<br><br>是否将你的翻译迁移到最新架构（按成就键匹配）？",
+    "rebase_translations": "迁移到最新架构",
+    "save_as_is": "按原样保存",
+    "rebase_summary": "已迁移翻译：{transferred}<br>无翻译的新成就：{untranslated}<br>已丢弃的过时条目：{dropped}",
     "file_saving_file_dialog": "保存修改后的文件",
     "file_saved": "文件已成功保存至：<br>{save_path}<br><br>将此文件放回 Steam 文件夹后，别忘了重启 Steam。<br>各平台存放路径：<br>C:\\Program Files (x86)\\Steam\\appcache\\stats（Windows）<br>~/.steam/steam/appcache/stats（Linux）",
     "attention": "注意",

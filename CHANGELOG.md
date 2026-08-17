@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Schema Rebase**: When saving to the Steam folder, the app now compares the version of the edited file with the schema currently in `appcache/stats`. On mismatch it offers to rebase translations onto the fresh schema, matching achievements **by key** (survives added/removed/renamed achievements) and reporting transfer statistics. This fixes localizations being silently overwritten by Steam: the client re-downloads the schema on every game launch whenever the local `version` field differs from the server one (the file content/CRC is not checked — verified experimentally against the live Steam client).
 - **Localization**: Added English/Ukrainian/Polish strings for the version-mismatch dialog and rebase summary.
+- **Localization**: Added Simplified Chinese (简体中文) UI translation, README.zh and `schinese` support in the language list — thanks @luoxiaogaung (#18). `schinese` is no longer excluded from parsing, so Simplified Chinese achievement texts now appear as an editable column.
 
 ### Fixed
 - **Binary Parser**: `get_version()` now also reads the new schema format (Steam, Feb 2026+) where `version` is stored as an int32 (`\x02version\x00`) instead of a string. Previously the UI showed "UNKNOWN" for all newly downloaded schemas.
