@@ -50,18 +50,19 @@ class BinaryParser:
             return None
         
         # Skip chunks without english field
-        if b'\x01english\x00' not in chunk:
+        if b'\x01english\x00' not in chunk and b'\x02english\x00' not in chunk:
             return None
             
         return key_match.group(1).decode(errors='ignore')
     
     def extract_words(self, chunk: bytes) -> List[str]:
         """Extract words from binary chunk, filtering out excluded words"""
-        pattern = re.compile(b'\x01(.*?)\x00', re.DOTALL)
-        matches = pattern.findall(chunk)
+        pattern = re.compile(b'\x01(.*?)\x00|\x02english\x00', re.DOTALL)
+        matches = pattern.finditer(chunk)
         
         words = []
-        for word in matches:
+        for match in matches:
+            word = match.group(1) or b'english'
             if word in self.EXCLUDE_WORDS:
                 continue
             words.append(word.decode(errors='ignore'))
@@ -76,12 +77,29 @@ class BinaryParser:
         for word in words:
             search_pattern = b'\x01' + word.encode() + b'\x00'
             idx = chunk.find(search_pattern, pos)
+            integer_english = False
+
+            if word == 'english':
+                integer_pattern = b'\x02english\x00'
+                integer_idx = chunk.find(integer_pattern, pos)
+                if integer_idx != -1 and (idx == -1 or integer_idx < idx):
+                    search_pattern = integer_pattern
+                    idx = integer_idx
+                    integer_english = True
             
             if idx == -1:
                 values.append('')
                 continue
                 
             idx += len(search_pattern)
+            if integer_english:
+                if idx + 4 > len(chunk):
+                    raise ValueError("Incomplete int32 value for english field")
+                val = str(int.from_bytes(chunk[idx:idx + 4], 'little', signed=True))
+                values.append(val)
+                pos = idx + 4
+                continue
+
             end_idx = chunk.find(b'\x00', idx)
             if end_idx == -1:
                 # If no trailing null byte found, the value extends to the end of the chunk
