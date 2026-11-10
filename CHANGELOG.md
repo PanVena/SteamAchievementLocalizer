@@ -5,6 +5,10 @@ All notable changes to Steam Achievement Localizer will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-11-10
+### Fixed
+- **Binary Parser**: Numeric-keyed schema records are now split at their `name` markers instead of at every numeric value, allowing current Steam achievement schemas to parse correctly.
+
 ## [0.10.1] - 2026-11-08
 ### Fixed
 - **Binary Parser**: Achievement names stored as int32 `english` values (for example, `777`) are now parsed correctly and kept separate from string descriptions.

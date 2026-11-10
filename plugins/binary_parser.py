@@ -25,13 +25,21 @@ class BinaryParser:
         # Determine pattern based on content
         # If file has 'bits' section but uses numeric keys instead of 'bit' separator
         # OR if it starts directly with a numeric key (snippet case)
-        if (b'\x00bits\x00' in data and b'\x02bit\x00' not in data) or re.match(b'^[0-9]+\x00', data):
+        if b'\x00bits\x00' in data and b'\x02bit\x00' not in data:
+            record_pattern = re.compile(b'\x00[0-9]+\x00\x01name\x00')
+            record_positions = [m.start() for m in record_pattern.finditer(data)]
+            if record_positions:
+                positions = [0] + [pos for pos in record_positions if pos != 0]
+            else:
+                pattern = re.compile(b'(?:^|\x00)[0-9]+\x00')
+                positions = [m.start() for m in pattern.finditer(data)]
+        elif re.match(b'^[0-9]+\x00', data):
              pattern = re.compile(b'(?:^|\x00)[0-9]+\x00')
+             positions = [m.start() for m in pattern.finditer(data)]
         else:
              # Standard format
              pattern = re.compile(b'\x00bits\x00|\x02bit\x00')
-             
-        positions = [m.start() for m in pattern.finditer(data)]
+             positions = [m.start() for m in pattern.finditer(data)]
         
         chunks = []
         for i in range(len(positions)):
