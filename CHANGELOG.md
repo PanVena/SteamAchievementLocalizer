@@ -5,6 +5,14 @@ All notable changes to Steam Achievement Localizer will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-11-11
+### Changed
+- **Startup Cleanup**: On first launch after updating, clear cached Steam game names and achievement icons, and remove this app's legacy generic binary-file association from user-level Linux desktop settings.
+
+### Fixed
+- **Memory**: Delete old table cell widgets when rebuilding the table, load the Steam app-name cache only when needed, and limit undo/redo history to 1,000 actions, clearing it when switching or deleting files.
+- **Linux Packaging**: Stop registering the app as a handler for all `application/octet-stream` files, which could open extra localizer windows when launching some games or Steam.
+
 ## [0.10.2] - 2026-11-10
 ### Fixed
 - **Binary Parser**: Numeric-keyed schema records are now split at their `name` markers instead of at every numeric value, allowing current Steam achievement schemas to parse correctly.

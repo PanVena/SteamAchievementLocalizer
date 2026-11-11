@@ -99,7 +99,6 @@ Categories=Utility;Game;
 Terminal=false
 StartupNotify=true
 Keywords=steam;achievements;localization;translation;
-MimeType=application/octet-stream;
 X-AppImage-Version=$APP_VERSION
 X-AppImage-Author=Pan Vena
 X-AppImage-License=MIT

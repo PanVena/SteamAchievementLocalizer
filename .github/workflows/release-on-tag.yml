@@ -440,7 +440,6 @@ jobs:
           Terminal=false
           StartupNotify=true
           Keywords=steam;achievements;localization;translation;
-          MimeType=application/octet-stream;
           X-AppImage-Version=$version
           X-AppImage-Author=Pan Vena
           X-AppImage-License=MIT

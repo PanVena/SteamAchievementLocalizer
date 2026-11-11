@@ -30,6 +30,7 @@ from plugins import (
     get_display_name, get_code_from_display_name, AutoUpdater, IconLoader,
     HTTPClient
 )
+from plugins.update_cleanup import run_post_update_cleanup
 
 if sys.platform == "win32":
     import winreg
@@ -245,6 +246,15 @@ class BinParserGUI(QMainWindow):
     # =================================================================
     # INITIALIZATION AND UI SETUP
     # =================================================================
+    UNDO_HISTORY_LIMIT = 1000
+
+    def _clear_table_cell_widgets(self):
+        for row in range(self.table.rowCount()):
+            for column in range(self.table.columnCount()):
+                widget = self.table.cellWidget(row, column)
+                if widget is not None:
+                    self.table.removeCellWidget(row, column)
+                    widget.deleteLater()
     
     def __init__(self, language="English"):
         self.modified = False
@@ -259,9 +269,9 @@ class BinParserGUI(QMainWindow):
         self.file_manager = FileManager()
         self.drag_drop_plugin = DragDropPlugin(self)
         
-        # Steam game names - not loaded from file anymore, using API only
+        # Load the large Steam app-name cache only when a game name is requested.
         self.steam_game_names = {}
-        self.steam_app_names = self.load_steam_app_list()
+        self._steam_app_names = None
         
         # Load available locales and store for ui_builder access
         self.available_locales = load_available_locales()
@@ -1166,6 +1176,7 @@ class BinParserGUI(QMainWindow):
             QMessageBox.warning(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
         
+        self._clear_edit_history()
         self.parse_and_fill_table(show_success_msg=show_success_msg)
         self.version()
         self.gamename()
@@ -1208,6 +1219,10 @@ class BinParserGUI(QMainWindow):
             self.headers.remove('icon')
         
         self.data_rows = all_rows
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+            self.icon_worker.stop()
+            self.icon_worker = None
+        self._clear_table_cell_widgets()
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
         
@@ -1258,11 +1273,6 @@ class BinParserGUI(QMainWindow):
             
         icon_rows_to_merge = []
 
-        # Stop existing worker if any
-        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
-             self.icon_worker.stop()
-             self.icon_worker = None
-        
         for row_i, row in enumerate(self.data_rows):
             # Determine background color for this row pair
             pair_index = row_i // 2
@@ -1677,6 +1687,7 @@ class BinParserGUI(QMainWindow):
             QMessageBox.critical(self, self.translations.get("error"), f"{self.translations.get('error_cannot_open')}{e}")
             return
 
+        self._clear_edit_history()
         # Activate manual path usage
         self.force_manual_path = True
 
@@ -1762,6 +1773,11 @@ class BinParserGUI(QMainWindow):
         self.raw_data = b""
         self.data_rows = []
         self.headers = []
+        self._clear_edit_history()
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+            self.icon_worker.stop()
+            self.icon_worker = None
+        self._clear_table_cell_widgets()
         self.table.clear()
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
@@ -1999,6 +2015,16 @@ class BinParserGUI(QMainWindow):
                 self.table.setItem(row_i, col_i, item)
         self.update_row_heights()
 
+    def _push_history_entry(self, history, entry):
+        history.append(entry)
+        excess = len(history) - self.UNDO_HISTORY_LIMIT
+        if excess > 0:
+            del history[:excess]
+
+    def _clear_edit_history(self):
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+
     def on_table_item_changed(self, item):
         if self.is_undoing or self.is_redoing:
             return
@@ -2009,7 +2035,9 @@ class BinParserGUI(QMainWindow):
         new_value = item.text()
         if 0 <= row < len(self.data_rows):
             old_value = self.data_rows[row].get(header, '')
-            self.undo_stack.append((row, col, header, old_value, new_value))
+            self._push_history_entry(
+                self.undo_stack, (row, col, header, old_value, new_value)
+            )
             self.redo_stack.clear() 
             self.data_rows[row][header] = new_value
         self.set_modified(True)
@@ -2172,7 +2200,9 @@ class BinParserGUI(QMainWindow):
             self.table.setItem(row, col, item)
         else:
             item.setText(old_value)
-        self.redo_stack.append((row, col, header, new_value, old_value))
+        self._push_history_entry(
+            self.redo_stack, (row, col, header, new_value, old_value)
+        )
         self.is_undoing = False
 
     def redo(self):
@@ -2187,7 +2217,9 @@ class BinParserGUI(QMainWindow):
             self.table.setItem(row, col, item)
         else:
             item.setText(new_value)
-        self.undo_stack.append((row, col, header, old_value, new_value))
+        self._push_history_entry(
+            self.undo_stack, (row, col, header, old_value, new_value)
+        )
         self.is_redoing = False
 
     def keyPressEvent(self, event):
@@ -2285,6 +2317,10 @@ class BinParserGUI(QMainWindow):
 
     def refresh_table(self):
         """Update table content from data structure without recreating everything"""
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+            self.icon_worker.stop()
+            self.icon_worker = None
+        self._clear_table_cell_widgets()
         self.save_column_widths()
         self.table.blockSignals(True)
         
@@ -2383,6 +2419,9 @@ class BinParserGUI(QMainWindow):
 
     def refresh_table_with_new_headers(self):
         """Recreate table with new headers (used when changing language, so data doesn't change but headers do)"""
+        if hasattr(self, 'icon_worker') and self.icon_worker is not None:
+            self.icon_worker.stop()
+            self.icon_worker = None
         
         def _clean_label(text):
             """Normalize header text for matching widths (ignore case, newlines, spaces)"""
@@ -2397,6 +2436,7 @@ class BinParserGUI(QMainWindow):
                 # Store width for the existing content
                 saved_widths[_clean_label(item.text())] = self.table.columnWidth(i)
         
+        self._clear_table_cell_widgets()
         self.table.clear()
         self.table.setColumnCount(len(self.headers))
         
@@ -2422,6 +2462,8 @@ class BinParserGUI(QMainWindow):
                  label = _clean_label(item.text())
                  if label in saved_widths:
                      self.table.setColumnWidth(i, saved_widths[label])
+
+        self._clear_table_cell_widgets()
 
         # Colors for alternating row pairs
         bg_color_1, bg_color_2 = self.get_row_pair_colors()
@@ -2596,6 +2638,12 @@ class BinParserGUI(QMainWindow):
             except Exception:
                 pass
         return {}
+
+    @property
+    def steam_app_names(self):
+        if self._steam_app_names is None:
+            self._steam_app_names = self.load_steam_app_list()
+        return self._steam_app_names
 
     def fetch_game_name_from_api(self, appid, progress_callback=None, is_cancelled=None):
         """Fetch game name from Steam Store API with error handling"""
@@ -3108,12 +3156,21 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     settings = QSettings("Vena", "Steam Achievement Localizer")
+    cleanup_errors = run_post_update_cleanup(settings)
+    for cleanup_error in cleanup_errors:
+        print(f"[StartupCleanup] {cleanup_error}", file=sys.stderr)
     language = settings.value("language", None)
     if language is None:
         language = choose_language()
         settings.setValue("language", language)
         settings.sync()
     translations = load_translations_for_language(language)
+    if cleanup_errors:
+        QMessageBox.warning(
+            None,
+            translations.get("warning_title_achtung", "Warning"),
+            "\n".join(cleanup_errors),
+        )
 
     last_version = settings.value("last_version", "")
 
