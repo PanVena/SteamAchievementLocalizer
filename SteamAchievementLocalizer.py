@@ -35,7 +35,7 @@ from plugins.update_cleanup import run_post_update_cleanup
 if sys.platform == "win32":
     import winreg
 
-APP_VERSION = "0.10.2" 
+APP_VERSION = "0.10.3" 
 
 LOCALES_DIR = "assets/locales"
 STEAM_APP_LIST_CACHE = "assets/steam.api.allgamenames.json"
